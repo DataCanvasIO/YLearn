@@ -1,14 +1,14 @@
 import pandas as pd
-from pandas.core.indexing import _AtIndexer
-import estimator_model
 
 from sklearn.linear_model import LinearRegression
 
 
 class BaseEstimationMethod:
 
-    def __init__(self, estimation_model='LR',):
+    def __init__(self, estimation_model='LR', new_estimation_model=None,):
         self.model_dic = {'LR': LinearRegression()}
+        if estimation_model not in self.model_dic:
+            self.add_model(new_estimation_model, name=estimation_model)
 
     def fit(self, X, y):
         pass
@@ -22,12 +22,17 @@ class BaseEstimationMethod:
     def estimate(self, X, target='ATE'):
         pass
 
+    def add_model(self, model, name):
+        self.model_dic[name] = model
+        # add some other methods
+        pass
+
 
 class COM(BaseEstimationMethod):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.ml_model = self.model_dic[kwargs['estimator_model']]
+        self.ml_model = self.model_dic[kwargs['estimation_model']]
 
     def estimate(self, X, y, treatment, target='ATE'):
         self.ml_model.fit(X, y)

@@ -7,16 +7,16 @@ class CausalModel:
 
     def __init__(self, causal_graph=None, data=None, estimation=None):
         # estimation should be a tuple containing the information like (machine learning model, estimation method)
-        self.adjustment_set = []
 
         if causal_graph is not None:
             self.graph = causal_graph
         else:
             self.data = data
-            self.graph = self.discover_graph(data)
+            self.graph = self.discover_graph(self.data)
 
         if estimation[1] == 'COM':
-            self.estimator = estimation_methods.COM(estimation_model=estimation[0])
+            self.estimator = estimation_methods.COM(
+                estimation_model=estimation[0])
         elif estimation[1] == 'GroupCOM':
             self.estimator = estimation_methods.GroupCOM(
                 estimation_model=estimation[0])
@@ -25,23 +25,24 @@ class CausalModel:
 
     def identify(self, treatment, outcome, identify_method='backdoor'):
         if identify_method == 'backdoor':
-            self.adjustment_set = self.backdoor_set(treatment, outcome)
+            adjustment_set = self.backdoor_set(treatment, outcome)
         else:
             pass
-        return self.adjustment_set
+        return adjustment_set
 
-    def estimate(self, X, outcome, treatment, adjustment_set,
+    def estimate(self, X, y, treatment, adjustment_set,
                  target='ATE'):
         adjustment_set.insert(0, treatment)
         X_adjusted = X[adjustment_set]
         effect = self.estimator.estimate(
-            X_adjusted, outcome, treatment, target)
+            X_adjusted, y, treatment, target)
         return effect
 
-    def identify_estimate(self, X, outcome, treatment, identify_method,
+    def identify_estimate(self, X, y, treatment, outcome, identify_method='backdoor',
                           target='ATE'):
         adjustment_set = self.identify(treatment, outcome, identify_method)
-        return self.estimate(X, outcome, treatment, adjustment_set, target)
+        print(f'The corresponding adjustment set is {adjustment_set}')
+        return self.estimate(X, y, treatment, adjustment_set, target)
 
     def discover_graph(self, data):
         pass
@@ -51,8 +52,8 @@ class CausalModel:
             return True
         # can I find the adjustment sets by using the adj matrix
 
-        identifibility = determine(treatment, outcome)
-        assert identifibility, 'Not satisfy the backdoor criterion!'
+        assert determine(
+            treatment, outcome), 'Not satisfy the backdoor criterion!'
 
         backdoor_expression = ''
         if not minimal:
