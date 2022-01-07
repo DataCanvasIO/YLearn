@@ -1,5 +1,6 @@
 import pandas as pd
 from pandas.core.indexing import _AtIndexer
+import estimator_model
 
 from sklearn.linear_model import LinearRegression
 
@@ -7,8 +8,7 @@ from sklearn.linear_model import LinearRegression
 class BaseEstimationMethod:
 
     def __init__(self, estimation_model='LR',):
-        if estimation_model == 'LR' or None:
-            self.ml_model = LinearRegression()
+        self.model_dic = {'LR': LinearRegression()}
 
     def fit(self, X, y):
         pass
@@ -27,6 +27,7 @@ class COM(BaseEstimationMethod):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.ml_model = self.model_dic[kwargs['estimator_model']]
 
     def estimate(self, X, y, treatment, target='ATE'):
         self.ml_model.fit(X, y)
@@ -57,11 +58,8 @@ class GroupCOM(BaseEstimationMethod):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if kwargs['estimation_model'] == 'LR':
-            self.ml_model_t1 = LinearRegression()
-            self.ml_model_t0 = LinearRegression()
-        else:
-            pass
+        self.ml_model_t1 = self.model_dic[kwargs['estimation_model']]
+        self.ml_model_t0 = self.model_dic[kwargs['estimation_model']]
 
     def estimate(self, X, y, treatment, target='ATE'):
         t1_index = X[treatment] > 0

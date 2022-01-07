@@ -15,12 +15,13 @@ class CausalModel:
             self.data = data
             self.graph = self.discover_graph(data)
 
-        if estimation[0] == 'LR':
-            if estimation[1] == 'COM':
-                self.estimator = estimation_methods.COM(estimation_model='LR')
-            elif estimation[1] == 'GroupCOM':
-                self.estimator = estimation_methods.GroupCOM(
-                    estimation_model='LR')
+        if estimation[1] == 'COM':
+            self.estimator = estimation_methods.COM(estimation_model=estimation[0])
+        elif estimation[1] == 'GroupCOM':
+            self.estimator = estimation_methods.GroupCOM(
+                estimation_model=estimation[0])
+        else:
+            pass
 
     def identify(self, treatment, outcome, identify_method='backdoor'):
         if identify_method == 'backdoor':
