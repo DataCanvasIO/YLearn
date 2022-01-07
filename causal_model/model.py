@@ -31,6 +31,7 @@ class CausalModel:
 
     def estimate(self, X, outcome, treatment, adjustment_set,
                  target='ATE'):
+        adjustment_set.insert(0, treatment)
         X_adjusted = X[adjustment_set]
         effect = self.estimator.estimate(
             X_adjusted, outcome, treatment, target)
