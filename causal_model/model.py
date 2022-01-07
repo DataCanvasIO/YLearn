@@ -1,27 +1,47 @@
 import networkx as nx
 
+from estimator_model import estimation_methods
+
 
 class CausalModel:
 
-    def __init__(self, causal_graph=None, data=None):
+    def __init__(self, causal_graph=None, data=None, estimation=None):
+        # estimation should be a tuple containing the information like (machine learning model, estimation method)
+        self.adjustment_set = []
+
         if causal_graph is not None:
             self.graph = causal_graph
         else:
-            self.graph = self.discover(data)
+            self.data = data
+            self.graph = self.discover_graph(data)
+
+        if estimation[0] == 'LR':
+            if estimation[1] == 'COM':
+                self.estimator = estimation_methods.COM(estimation_model='LR')
+            elif estimation[1] == 'GroupCOM':
+                self.estimator = estimation_methods.GroupCOM(
+                    estimation_model='LR')
 
     def identify(self, treatment, outcome, identify_method='backdoor'):
         if identify_method == 'backdoor':
-            set = self.backdoor_set(treatment, outcome)
-            return set
+            self.adjustment_set = self.backdoor_set(treatment, outcome)
+        else:
+            pass
+        return self.adjustment_set
 
-    def estimate(self, data, treatment, outcome, estimator, target='ATE'):
-        pass
+    def estimate(self, X, outcome, treatment, adjustment_set,
+                 target='ATE'):
+        X_adjusted = X[adjustment_set]
+        effect = self.estimator.estimate(
+            X_adjusted, outcome, treatment, target)
+        return effect
 
-    def identify_estimate(self, data, treatment, outcome, identify_method,
-                          estimator, target='ATE'):
-        pass
+    def identify_estimate(self, X, outcome, treatment, identify_method,
+                          target='ATE'):
+        adjustment_set = self.identify(treatment, outcome, identify_method)
+        return self.estimate(X, outcome, treatment, adjustment_set, target)
 
-    def discover(self, data):
+    def discover_graph(self, data):
         pass
 
     def backdoor_set(self, treatment, outcome, minimal=False):
@@ -32,22 +52,26 @@ class CausalModel:
         identifibility = determine(treatment, outcome)
         assert identifibility, 'Not satisfy the backdoor criterion!'
 
-        backdoor_list = []
         backdoor_expression = ''
         if not minimal:
-            self.graph.DG.remove_edge(treatment, outcome)
-            for i in self.graph.edges:
-                if i[1] == treatment and \
-                        nx.d_separated(self.graph.DG, {treatment}, {outcome},
-                                       {i[0]}):
-                    backdoor_list.append(i[0])
-                    backdoor_expression += f'{i[0]}, '
+            backdoor_list = list(
+                set(self.graph.causation[treatment] +
+                    self.graph.causation[outcome])
+            )
+            backdoor_list = [i for i in backdoor_list if i !=
+                             treatment and i != outcome]
+            for i in backdoor_list:
+                backdoor_expression += f'{i}, '
         else:
             pass
         backdoor_expression = backdoor_expression.strip(', ')
 
-        print(
-            f'The corresponding statistical estimand should be P({outcome}|{treatment}, {backdoor_expression})')
+        if backdoor_expression != '':
+            print(
+                f'The corresponding statistical estimand should be P({outcome}|{treatment}, {backdoor_expression})')
+        else:
+            print(
+                f'The corresponding statistical estimand should be P({outcome}|{treatment})')
         return backdoor_list
 
     def frontdoor(self):

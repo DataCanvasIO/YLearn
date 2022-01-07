@@ -4,11 +4,12 @@ import networkx as nx
 class CausalGraph:
 
     def __init__(self, causation):
-        self.edges, self.order_list = [], []
+        self.causation = causation
+        self.edges = []
         for k, v in causation.items():
-            self.order_list.append(k)
+            # self.order_list.append(k)
             for para in v:
-                self.edges.append((k, para))
+                self.edges.append((para, k))
         self.DG = nx.DiGraph()
         self.DG.add_edges_from(self.edges)
 
