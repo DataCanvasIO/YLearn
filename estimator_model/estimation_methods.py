@@ -1,12 +1,17 @@
 import pandas as pd
+import numpy as np
 
 from sklearn.linear_model import LinearRegression
+
+np.random.seed(2022)
 
 
 class BaseEstimationMethod:
 
     def __init__(self, estimation_model='LR', new_estimation_model=None,):
-        self.model_dic = {'LR': LinearRegression()}
+        self.model_dic = {
+            'LR': LinearRegression(),
+        }
         if estimation_model not in self.model_dic:
             self.add_model(new_estimation_model, name=estimation_model)
 
@@ -94,12 +99,6 @@ class GroupCOM(BaseEstimationMethod):
 
 
 class PropensityScore(BaseEstimationMethod):
-
-    def __init__(self) -> None:
-        super().__init__()
-
-
-class InstrumentalVariables(BaseEstimationMethod):
 
     def __init__(self) -> None:
         super().__init__()
