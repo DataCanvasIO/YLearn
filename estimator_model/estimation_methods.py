@@ -75,8 +75,6 @@ class GroupCOM(BaseEstimationMethod):
         t1_index = X[treatment] > 0
         t0_index = X[treatment] == 0
         X_without_treatment = X.drop([treatment], axis=1)
-        # Xt1 = X_without_treatment.loc[t1_index]
-        # Xt0 = X_without_treatment.loc[t0_index]
         self.ml_model_t1.fit(X_without_treatment.loc[t1_index], y[t1_index])
         self.ml_model_t0.fit(X_without_treatment.loc[t0_index], y[t0_index])
         if target == 'ATE':
