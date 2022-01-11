@@ -9,12 +9,12 @@ np.random.seed(2022)
 
 
 def powerset(iterable):
-    """
-    https://docs.python.org/3/library/itertools.html#recipes
-    """
     s = list(iterable)
-    return chain.from_iterable(combinations(s, r)
-                               for r in range(len(s) + 1))
+    power_set = []
+    for i in range(len(s) + 1):
+        for j in combinations(s, i):
+            power_set.append(set(j))
+    return power_set
 
 
 class CausalModel:
@@ -38,9 +38,11 @@ class CausalModel:
         else:
             pass
 
-    def identify(self, treatment, outcome, identify_method='backdoor'):
-        if identify_method == 'backdoor':
-            adjustment_set = self.backdoor_set(treatment, outcome)
+    def identify(self, treatment, outcome,
+                 identify_method=('backdoor', 'simple')):
+        if identify_method[0] == 'backdoor':
+            adjustment_set = self.get_backdoor_set(
+                treatment, outcome, adjust=identify_method[1])
         else:
             pass
         return adjustment_set
@@ -52,9 +54,11 @@ class CausalModel:
         return effect
 
     def identify_estimate(self, X, y, treatment, outcome,
-                          identify_method='backdoor', target='ATE'):
+                          identify_method=('backdoor', 'simple'), target='ATE'):
         adjustment_set = self.identify(treatment, outcome, identify_method)
         print(f'The corresponding adjustment set is {adjustment_set}')
+        if identify_method[1] == 'all':
+            adjustment_set = list(adjustment_set[0])
         return self.estimate(X, y, treatment, adjustment_set, target)
 
     def discover_graph(self, data):
@@ -63,7 +67,7 @@ class CausalModel:
     def is_backdoor_set(self, set):
         pass
 
-    def backdoor_set(self, treatment, outcome, adjust='simple'):
+    def get_backdoor_set(self, treatment, outcome, adjust='simple'):
         assert (treatment, outcome) in self.graph.edges, \
             f'No direct causal effect between {treatment} and {outcome}' \
             f'exists for the backdoor adjustment.'
@@ -78,7 +82,7 @@ class CausalModel:
 
         backdoor_expression = ''
         if adjust == 'simple':
-            backdoor_list = self.graph.causation[treatment]
+            backdoor_list = list(self.graph.causation[treatment])
             for i in backdoor_list:
                 backdoor_expression += f'{i}, '
         else:
@@ -93,14 +97,14 @@ class CausalModel:
             modified_graph.remove_edge(treatment, outcome)
             backdoor_set_list = [
                 i for i in powerset(initial_set)
-                if nx.d_separated(modified_graph.DG,
-                                  {treatment}, {outcome}, {i})
+                if nx.d_separated(modified_graph,
+                                  {treatment}, {outcome}, i)
             ]
             for i in backdoor_set_list[0]:
                 backdoor_expression += f'{i}, '
             if adjust == 'all':
                 backdoor_list = backdoor_set_list
-            elif adjust == 'minial':
+            elif adjust == 'minimal':
                 backdoor_list = backdoor_set_list[0]
             else:
                 pass
