@@ -2,10 +2,15 @@
 import networkx as nx
 
 
+class AdjustmentSet:
+    def __init__(self) -> None:
+        pass
+
+
 class DoCalsulus:
     def __init__(self) -> None:
         pass
-    
+
 
 class GradientBased:
     def __init__(self) -> None:

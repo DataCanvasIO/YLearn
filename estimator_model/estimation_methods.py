@@ -8,12 +8,12 @@ np.random.seed(2022)
 
 class BaseEstimationMethod:
 
-    def __init__(self, estimation_model='LR', new_estimation_model=None,):
-        self.model_dic = {
+    def __init__(self, ml_model='LR', new_ml_model=None,):
+        self.ml_model_dic = {
             'LR': LinearRegression(),
         }
-        if estimation_model not in self.model_dic:
-            self.add_model(new_estimation_model, name=estimation_model)
+        if ml_model not in self.ml_model_dic:
+            self.add_model(new_ml_model, name=ml_model)
 
     def fit(self, X, y):
         pass
@@ -37,7 +37,7 @@ class COM(BaseEstimationMethod):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.ml_model = self.model_dic[kwargs['estimation_model']]
+        self.ml_model = self.ml_model_dic[kwargs['ml_model']]
 
     def estimate(self, X, y, treatment, target='ATE'):
         self.ml_model.fit(X, y)
@@ -68,8 +68,8 @@ class GroupCOM(BaseEstimationMethod):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.ml_model_t1 = self.model_dic[kwargs['estimation_model']]
-        self.ml_model_t0 = self.model_dic[kwargs['estimation_model']]
+        self.ml_model_t1 = self.ml_model_dic[kwargs['ml_model']]
+        self.ml_model_t0 = self.ml_model_dic[kwargs['ml_model']]
 
     def estimate(self, X, y, treatment, target='ATE'):
         t1_index = X[treatment] > 0
