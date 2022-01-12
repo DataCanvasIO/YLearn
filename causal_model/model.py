@@ -1,10 +1,8 @@
 import copy
-import estimator_model
-from estimator_model import estimation_methods
 import networkx as nx
 import numpy as np
 
-from itertools import combinations, chain
+from itertools import combinations
 from estimator_model.estimation_methods import COM, GroupCOM, XLearner, \
     TLearner, PropensityScore
 
@@ -47,7 +45,7 @@ class CausalModel:
     get_backdoor_set(treatment, outcome, adjust)
         Return the backdoor adjustment set for the given treatment and outcome.
     is_frontdoor_set(set)
-        Determin if a given set is a frontdoor adjustment set.
+        Determine if a given set is a frontdoor adjustment set.
     get_frontdoor_set(treatment, outcome, adjust)
         Return the frontdoor adjustment set for given treatment and outcome.
     """
@@ -100,7 +98,7 @@ class CausalModel:
         Returns
         ----------
         adjustment: list
-            the backdoor adjustment set.
+            the adjustment set.
         """
         if identify_method[0] == 'backdoor':
             adjustment_set = self.get_backdoor_set(
@@ -121,7 +119,7 @@ class CausalModel:
             name of the treatment
         adjustment_set : list
         target : str
-            describe the kind of the interested causal effect
+            the kind of the interested causal effect, including ATE, CATE, ITE, and CITE
 
         Returns
         ----------
@@ -169,24 +167,28 @@ class CausalModel:
 
         Raises
         ----------
-        Exception: raise error when the style is not in simple, minimal and all.
+        Exception: raise error if the style is not in simple, minimal and all.
 
         Returns
         ----------
         backdoor_list : list
 
         """
+        def determine(graph, treatment, outcome):
+            if not list(graph.predecessors(treatment)):
+                modified_graph = copy.deepcopy(graph)
+                modified_graph.remove_edge(treatment, outcome)
+                return nx.d_separated(modified_graph, {treatment},
+                                      {outcome}, {})
+            return True
+
         assert (treatment, outcome) in self.graph.edges, \
             f'No direct causal effect between {treatment} and {outcome}' \
             f'exists for the backdoor adjustment.'
-
-        def determine(graph, treatment, outcome):
-            return True
         # can I find the adjustment sets by using the adj matrix
 
-        assert determine(
-            self.graph.DG, treatment, outcome), \
-            'Can not satisfy the backdoor criterion!'
+        assert determine(self.graph.DG, treatment, outcome), \
+            'No set can satisfy the backdoor criterion!'
 
         backdoor_expression = ''
         if adjust == 'simple':
@@ -208,8 +210,15 @@ class CausalModel:
                 if nx.d_separated(modified_graph,
                                   {treatment}, {outcome}, i)
             ]
-            for i in backdoor_set_list[0]:
-                backdoor_expression += f'{i}, '
+
+            try:
+                backdoor_set_list[0]
+            except:
+                backdoor_set_list = [[]]
+            finally:
+                for i in backdoor_set_list[0]:
+                    backdoor_expression += f'{i}, '
+
             if adjust == 'all':
                 backdoor_list = backdoor_set_list
             elif adjust == 'minimal':
@@ -219,6 +228,7 @@ class CausalModel:
                     'The backdoor set style must be one of simple, all'
                     'and minimal.'
                 )
+
         backdoor_expression = backdoor_expression.strip(', ')
 
         if backdoor_expression != '':

@@ -15,15 +15,6 @@ class BaseEstimationMethod:
         if ml_model not in self.ml_model_dic:
             self.add_model(new_ml_model, name=ml_model)
 
-    def fit(self, X, y):
-        pass
-
-    def predict(self, X):
-        pass
-
-    def fit_predict(self, X):
-        pass
-
     def estimate(self, X, target='ATE'):
         pass
 
@@ -58,7 +49,7 @@ class COM(BaseEstimationMethod):
         elif target == 'CITE':
             pass
         else:
-            print(
+            raise Exception(
                 'Do not support estimation of quantities other \
                     than ATE, CATE, ITE, or CITE'
             )
@@ -90,9 +81,9 @@ class GroupCOM(BaseEstimationMethod):
         elif target == 'CITE':
             pass
         else:
-            print(
-                'Do not support estimation of quantities other \
-                    than ATE, CATE, ITE, or CITE'
+            raise Exception(
+                'Do not support estimation of quantities other than'
+                'ATE, CATE, ITE, or CITE.'
             )
 
 
