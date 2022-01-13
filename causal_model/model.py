@@ -3,10 +3,11 @@ import networkx as nx
 import numpy as np
 
 from itertools import combinations
-from estimator_model.estimation_methods import COM, GroupCOM, XLearner, \
-    TLearner, PropensityScore
+from estimator_model.estimation_learner.meta_learner import SLearner, \
+    TLearner, XLearner, PropensityScore
 
 np.random.seed(2022)
+# 1. add confidence interval
 
 
 def powerset(iterable):
@@ -62,8 +63,8 @@ class CausalModel:
         """
 
         self.estimator_dic = {
-            'COM': COM(ml_model=estimation[0]),
-            'GroupCOM': GroupCOM(ml_model=estimation[0]),
+            'S-Learner': SLearner(ml_model=estimation[0]),
+            'T-Learner': TLearner(ml_model=estimation[0]),
             # 'XLearner': XLearner(ml_model=estimation[0]),
             # 'TLearner': TLearner(ml_model=estimation[0]),
             # 'PropensityScore': PropensityScore(ml_model=estimation[0]),

@@ -12,6 +12,7 @@ class BaseEstimationMethod:
         self.ml_model_dic = {
             'LR': LinearRegression(),
         }
+
         if ml_model not in self.ml_model_dic:
             self.add_model(new_ml_model, name=ml_model)
 
@@ -24,7 +25,7 @@ class BaseEstimationMethod:
         pass
 
 
-class COM(BaseEstimationMethod):
+class SLearner(BaseEstimationMethod):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -55,7 +56,7 @@ class COM(BaseEstimationMethod):
             )
 
 
-class GroupCOM(BaseEstimationMethod):
+class TLearner(BaseEstimationMethod):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -93,7 +94,7 @@ class PropensityScore(BaseEstimationMethod):
         super().__init__()
 
 
-class TLearner(BaseEstimationMethod):
+class TARNet(BaseEstimationMethod):
     def __init__(self) -> None:
         super().__init__()
 

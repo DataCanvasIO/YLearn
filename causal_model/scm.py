@@ -1,6 +1,6 @@
 import networkx as nx
 
 
-class StructuralEquation:
+class StructuralCausalModel:
     def __init__(self) -> None:
         pass
