@@ -45,6 +45,8 @@ class CausalModel:
         Determine if a given set is a backdoor adjustment set.
     get_backdoor_set(treatment, outcome, adjust)
         Return the backdoor adjustment set for the given treatment and outcome.
+    get_backdoor_path(treatment, outcome, graph)
+        Return the backdoor path in the graph between the treatment and outcome.
     is_frontdoor_set(set)
         Determine if a given set is a frontdoor adjustment set.
     get_frontdoor_set(treatment, outcome, adjust)
@@ -81,6 +83,12 @@ class CausalModel:
             self.graph = self.discover_graph(self.data)
         else:
             self.graph = causal_graph
+
+    def identifiability(self, treatment, outcome):
+        """Determine the identiizbility of treatement and outcome in the current model
+        """
+        # see Tian and Pearl, 2002a
+        pass
 
     def identify(self, treatment, outcome,
                  identify_method=('backdoor', 'simple')):
@@ -151,7 +159,9 @@ class CausalModel:
         """
         pass
 
-    def is_backdoor_set(self, set):
+    def is_backdoor_set(self, set, graph=None):
+        if graph is None:
+            graph = self.graph.DG
         pass
 
     def get_backdoor_set(self, treatment, outcome, adjust='simple'):
@@ -168,27 +178,27 @@ class CausalModel:
 
         Raises
         ----------
-        Exception: raise error if the style is not in simple, minimal and all.
+        Exception: raise error if the style is not in simple, minimal or all.
 
         Returns
         ----------
         backdoor_list : list
 
         """
-        def determine(graph, treatment, outcome):
-            if not list(graph.predecessors(treatment)):
-                modified_graph = copy.deepcopy(graph)
-                modified_graph.remove_edge(treatment, outcome)
+        # can I find the adjustment sets by using the adj matrix
+
+        modified_graph = copy.deepcopy(self.graph.DG)
+        remove_list = [(treatment, i)
+                       for i in modified_graph.successors(treatment)]
+        modified_graph.remove_edges_from(remove_list)
+
+        def determine(modified_graph, treatment, outcome):
+            if not list(self.graph.DG.predecessors(treatment)):
                 return nx.d_separated(modified_graph, {treatment},
                                       {outcome}, {})
             return True
 
-        assert (treatment, outcome) in self.graph.edges, \
-            f'No direct causal effect between {treatment} and {outcome}' \
-            f'exists for the backdoor adjustment.'
-        # can I find the adjustment sets by using the adj matrix
-
-        assert determine(self.graph.DG, treatment, outcome), \
+        assert determine(treatment, outcome), \
             'No set can satisfy the backdoor criterion!'
 
         backdoor_expression = ''
@@ -204,8 +214,6 @@ class CausalModel:
                 {treatment} - {outcome}
                 - set(nx.descendants(self.graph.DG, treatment))
             )
-            modified_graph = copy.deepcopy(self.graph.DG)
-            modified_graph.remove_edge(treatment, outcome)
             backdoor_set_list = [
                 i for i in powerset(initial_set)
                 if nx.d_separated(modified_graph,
@@ -214,7 +222,7 @@ class CausalModel:
 
             try:
                 backdoor_set_list[0]
-            except:
+            except Exception:
                 backdoor_set_list = [[]]
             finally:
                 for i in backdoor_set_list[0]:
@@ -243,6 +251,26 @@ class CausalModel:
                 f'|{treatment})'
             )
         return backdoor_list
+
+    def get_backdoor_path(self, treatment, outcome, graph=None):
+        """Return the backdoor path.
+
+        Parameters
+        ----------
+        treatment : str
+        outcome : str
+        graph : CausalGraph
+
+        Returns
+        ----------
+        A list containing all valid backdoor paths between the treatment and
+        outcome in the graph.
+        """
+        if graph is None:
+            graph = self.graph.DG
+        return [p for p in nx.all_simple_paths(graph, treatment, outcome)
+                if len(p) > 2
+                and p[1] in graph.predecessors(treatment)]
 
     def is_frontdoor_set(self):
         pass
