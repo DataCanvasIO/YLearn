@@ -1,4 +1,3 @@
-from _typeshed import Self
 import copy
 import networkx as nx
 import numpy as np
@@ -28,7 +27,7 @@ class CausalModel:
     estimator_dic : dictionary
         Keys are estimation methods while values are corresponding objects.
     estimator : EstimationMethod
-    causal_graph : causal graph
+    causal_graph : CausalGraph
     data : DataFrame (for now)
         Data is necessary if no causal graph is given.
 
@@ -66,7 +65,7 @@ class CausalModel:
         causal_graph : CausalGraph
         data : DataFrame (for now)
         estimation : tuple of 2 elements
-            Describe estimation methods (the first element) and machine
+            describe estimation methods (the first element) and machine
             learning models (the second element) used for estimation
         """
 
@@ -265,7 +264,7 @@ class CausalModel:
         ----------
         treatment : str
         outcome : str
-        graph : CausalGraph
+        graph : nx.DiGraph
 
         Returns
         ----------
@@ -280,7 +279,8 @@ class CausalModel:
                 and p[1] in graph.predecessors(treatment)]
 
     def has_collider(self, path, graph=None):
-        """If the path in the current graph has a collider, return True, else return False.
+        """If the path in the current graph has a collider, return True, else
+            return False.
 
         Parameters
         ----------
@@ -295,7 +295,7 @@ class CausalModel:
         # TODO: improve the implementation.
         if graph is None:
             graph = self.causal_graph.DG
-            
+
         if len(path) > 2:
             for i, node in enumerate(path[1:]):
                 if node in graph.successors(path[i-1]):
@@ -340,4 +340,4 @@ class CausalModel:
 
     def __repr__(self):
         return f'A CausalModel for {self.causal_graph},'\
-            f'current support models {self.estimator_dic}'
+            f'which currently supports models {self.estimator_dic}'
