@@ -1,3 +1,64 @@
+from copy import deepcopy
+
+
+class Prob:
+    """Probability distribution.
+
+    Attributes
+    ----------
+    variable : str
+    conditional : str
+
+    Methods
+    ----------
+    parse()
+        Return the expression of the probability distribution.
+    """
+
+    def __init__(self, variable, conditional):
+        """Represent the probability distribution P(variable|conditional).
+
+        Parameters
+        ----------
+        variable : str, optional
+        conditional : str, optional
+        """
+        self.variable = variable
+        self.conditional = conditional
+
+    def parse(self):
+        """Return the expression of the probability distribution.
+
+        Returns
+        ----------
+        expression : str
+        """
+        # TODO
+        expression = None
+        return expression
+
+
+class ProbProduct:
+    """Product of several single probability distribution.
+
+    Attributes
+    ----------
+
+    Methods
+    ----------
+    """
+
+    def __init__(self, prob_list) -> None:
+        """
+        Parameters
+        ----------
+        prob_list : list
+            each element is a Prob object representing a probability
+            distribution
+        """
+        pass
+
+
 class Do:
     """Implementation of the do-operator.
 
@@ -5,6 +66,9 @@ class Do:
     ----------
     causation : CausalGraph or CausalStructureModel
     treatment : str
+
+    Methods
+    ----------
     """
 
     def __init__(self, causation):
@@ -38,11 +102,8 @@ class Do:
         pass
 
 
-class DoCalculus(Do):
-    def __init__(self) -> None:
-        super().__init__()
-        pass
-
+class DoCalculus:
+    # TODO: Rules of do-calculus are implemented as follows
     def rule_one(self):
         pass
 

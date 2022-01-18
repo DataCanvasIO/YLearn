@@ -112,6 +112,8 @@ class CausalModel:
         ----------
         adjustment: list
             the adjustment set
+            # TODO: should support more general identification,
+            # e.g., probability distribution
         """
         if identify_method[0] == 'backdoor':
             adjustment_set = self.get_backdoor_set(
@@ -278,9 +280,9 @@ class CausalModel:
                 if len(p) > 2
                 and p[1] in graph.predecessors(treatment)]
 
-    def has_collider(self, path, graph=None):
-        """If the path in the current graph has a collider, return True, else
-            return False.
+    def has_collider(self, path, graph=None, backdoor_path=True):
+        """If the path (must be a valid backdoor path) in the current graph
+            has a collider, return True, else return False.
 
         Parameters
         ----------
@@ -293,18 +295,32 @@ class CausalModel:
         Boolean
         """
         # TODO: improve the implementation.
-        if graph is None:
-            graph = self.causal_graph.DG
-
         if len(path) > 2:
-            for i, node in enumerate(path[1:]):
-                if node in graph.successors(path[i-1]):
-                    j = i
-                    break
+            if graph is None:
+                graph = self.causal_graph.DG
+                
+            assert (path in list(
+                nx.all_simple_paths(graph.to_undirected, path[0], path[-1]))
+            ), "Not a valid path."
+            
+            if backdoor_path:
+                for i, node in enumerate(path[1:]):
+                    if node in graph.successors(path[i-1]):
+                        j = i
+                        break
 
-            for i, node in enumerate(path[j+1]):
-                if node in graph.precedecessors(path[j-1]):
-                    return True
+                for i, node in enumerate(path[j+1]):
+                    if node in graph.precedecessors(path[j-1]):
+                        return True
+            else:
+                for i, node in enumerate(path[1:]):
+                    if node in graph.precedecessors(path[i-1]):
+                        j = i
+                        break
+
+                for i, node in enumerate(path[j+1]):
+                    if node in graph.successors(path[j-1]):
+                        return True
         return False
 
     def is_connected_backdoor(self, path, graph=None):
@@ -322,6 +338,8 @@ class CausalModel:
         Boolean
             True if path is a d-connected backdoor path and False otherwise.
         """
+        if graph is None:
+            graph = self.causal_graph.DG
         assert path[1] in graph.precedecessors(path[0]), 'Not a backdoor path.'
         # TODO: improve the implementation
 
