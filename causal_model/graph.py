@@ -8,7 +8,9 @@ class CausalGraph:
     ----------
     causation : dic
         data structure of the causal graph where values are parents of the
-            corresponding keys
+        corresponding keys
+    observed_var : list
+    unobserved_var : list
     DG : nx.DiGraph
         graph represented by the networkx package
     edges : list
@@ -23,10 +25,13 @@ class CausalGraph:
     remove_edge()
     to_adj_matrix()
     to_adj_list()
+    c_components()
     """
 
-    def __init__(self, causation):
+    def __init__(self, causation, observed):
         self.causation = causation
+        self.observed_var = set(observed)
+        self.unobserved_var = set(causation.keys()) - self.observed_var
         init_edges = []
         for k, v in causation.items():
             for para in v:
@@ -36,7 +41,7 @@ class CausalGraph:
         self.edges = self.DG.edges
 
     def is_dag(self):
-        # TODO: determin if the graph is a DAG, can use tr(e^{W\circledot W}-d)=0
+        # TODO: determin if the graph is a DAG, try tr(e^{W\circledot W}-d)=0
         return nx.is_directed_acyclic_graph(self.DG)
 
     def add_edges_from(self, edge_list):
@@ -70,4 +75,12 @@ class CausalGraph:
         return W
 
     def to_adj_list(self):
+        pass
+
+    def c_components(self):
+        """Return the C-component set of the graph.
+
+        Parameters
+        ----------
+        """
         pass

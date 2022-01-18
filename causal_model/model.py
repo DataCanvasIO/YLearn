@@ -33,6 +33,9 @@ class CausalModel:
 
     Methods
     ----------
+    identifiability()
+        Identify the causal quantity P(y|do(x)) if identifiable else return
+        False.
     identify(treatment, outcome, identify_method)
         Identify the causal effect expression.
     estimate(X, y, treatment, adjustment_set, target)
@@ -88,10 +91,47 @@ class CausalModel:
         else:
             self.causal_graph = causal_graph
 
-    def identifiability(self, treatment, outcome):
-        """Determine the identiizbility of treatement and outcome in the current model
+    def identifiability(self, y, treatment, treatment_value, v,
+                        prob, to, graph=None):
+        """Identify the causal quantity P(y|do(x)) if identifiable else return False.
+
+        Parameters
+        ----------
+        y : not sure
+        treatment : list
+            list of treatments
+        treatment_value : float, optional
+        v : set
+            set of observed variables
+        prob : Prob
+        graph : nx.DiGraph
+
+        Returns
+        ----------
+        Prob if identifiable else False
         """
-        # see Tian and Pearl, 2002a
+        # see Shpitser and Pearl (2006b) for reference
+
+        # step 1
+        if len(treatment) == 0:
+            return
+
+        # step 2
+        ancestor = nx.ancestors(graph, y)
+        if (v - ancestor) != {}:
+            return
+
+        # step 3
+        modified_graph = graph.do(treatment)
+        w = (v - treatment) - nx.ancestors(modified_graph, y)
+        if w != {}:
+            return
+        
+        # step 4
+        
+        # step 5
+        # step 6
+        # step 7
         pass
 
     def identify(self, treatment, outcome,
@@ -298,17 +338,16 @@ class CausalModel:
         if len(path) > 2:
             if graph is None:
                 graph = self.causal_graph.DG
-                
+
             assert (path in list(
                 nx.all_simple_paths(graph.to_undirected, path[0], path[-1]))
             ), "Not a valid path."
-            
+
             if backdoor_path:
                 for i, node in enumerate(path[1:]):
                     if node in graph.successors(path[i-1]):
                         j = i
                         break
-
                 for i, node in enumerate(path[j+1]):
                     if node in graph.precedecessors(path[j-1]):
                         return True
@@ -317,7 +356,6 @@ class CausalModel:
                     if node in graph.precedecessors(path[i-1]):
                         j = i
                         break
-
                 for i, node in enumerate(path[j+1]):
                     if node in graph.successors(path[j-1]):
                         return True
