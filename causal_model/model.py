@@ -190,7 +190,8 @@ class CausalModel:
         ----------
         backdoor_list : list
         """
-        # can I find the adjustment sets by using the adj matrix
+        # TODO: can I find the adjustment sets by using the adj matrix
+        # TODO: improve the implementation
 
         modified_graph = copy.deepcopy(self.causal_graph.DG)
         remove_list = [(treatment, i)
@@ -291,6 +292,7 @@ class CausalModel:
         ----------
         Boolean
         """
+        # TODO: improve the implementation.
         if graph is None:
             graph = self.causal_graph.DG
             
