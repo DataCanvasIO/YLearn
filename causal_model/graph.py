@@ -19,13 +19,24 @@ class CausalGraph:
     Methods
     ----------
     is_dag()
-    add_edges_from()
-    add_edge()
-    remove_edges_from()
-    remove_edge()
+        Determine whether the constructed graph is a DAG.
+    add_edges_from(edge_list)
+        Add all edges in the edge_list to the graph.
+    add_edge(i, j)
+        Add an edge between nodes i and j.
+    remove_edges_from(edge_list)
+        Remove all edges in the edge_list in the graph.
+    remove_edge(i, j)
+        Remove the edge between nodes i and j.
     to_adj_matrix()
+        Return the adjacency matrix.
     to_adj_list()
+        Return the adjacency list.
     c_components()
+        Return the C-components of the graph.
+    observed_part()
+        Return the observed part of the graph, including observed nodes and
+        edges between them.
     """
 
     def __init__(self, causation, observed):
@@ -83,4 +94,20 @@ class CausalGraph:
         Parameters
         ----------
         """
+        pass
+    
+    def ancestors(self, x):
+        """Return the ancestors of node x.
+
+        Parameters
+        ----------
+        x : str
+            a node in the graph
+        """
+        pass
+
+    def observed_part(self):
+        pass
+    
+    def ancestor_graph(self, y):
         pass

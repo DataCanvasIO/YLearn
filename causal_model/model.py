@@ -33,9 +33,10 @@ class CausalModel:
 
     Methods
     ----------
-    identifiability()
+    id()
         Identify the causal quantity P(y|do(x)) if identifiable else return
-        False.
+        False, where y can be a set of different outcomes and x can be a set
+        of different treatments.
     identify(treatment, outcome, identify_method)
         Identify the causal effect expression.
     estimate(X, y, treatment, adjustment_set, target)
@@ -91,9 +92,11 @@ class CausalModel:
         else:
             self.causal_graph = causal_graph
 
-    def identifiability(self, y, treatment, treatment_value, v,
-                        prob, to, graph=None):
+    def id(self, y, treatment, v, prob, topo,
+           graph=None):
         """Identify the causal quantity P(y|do(x)) if identifiable else return False.
+            see Shpitser and Pearl (2006b)
+            (https://ftp.cs.ucla.edu/pub/stat_ser/r327.pdf) for reference.
 
         Parameters
         ----------
@@ -104,35 +107,41 @@ class CausalModel:
         v : set
             set of observed variables
         prob : Prob
-        graph : nx.DiGraph
+        graph : nx.DiGraph, not sure
 
         Returns
         ----------
         Prob if identifiable else False
         """
-        # see Shpitser and Pearl (2006b) for reference
-
+        to, from_, description = None, None, None
         # step 1
-        if len(treatment) == 0:
-            return
+        if not treatment:
+            if (prob.divisor is not None) or (prob.product is not None):
+                prob.marginal = v.difference(y).union(prob.marginal)
+            else:
+                prob.variable = y
+                return prob
 
         # step 2
         ancestor = nx.ancestors(graph, y)
-        if (v - ancestor) != {}:
-            return
+        if v.difference(ancestor) != {}:
+            an_graph = graph.ancestor_graph(y)
+            v = an_graph.observed_part()
+            prob = None # TODO
+            return self.id(
+                y, treatment.intersection(ancestor), v, prob, topo, an_graph
+            )
 
         # step 3
         modified_graph = graph.do(treatment)
         w = (v - treatment) - nx.ancestors(modified_graph, y)
         if w != {}:
             return
-        
+
         # step 4
-        
         # step 5
         # step 6
         # step 7
-        pass
 
     def identify(self, treatment, outcome,
                  identify_method=('backdoor', 'simple')):
@@ -158,8 +167,12 @@ class CausalModel:
         if identify_method[0] == 'backdoor':
             adjustment_set = self.get_backdoor_set(
                 treatment, outcome, adjust=identify_method[1])
-        else:
+        elif identify_method[0] == 'frontdoor':
+            adjustment_set = self.get_frontdoor_set()
+        elif identify_method[0] == 'general':
             pass
+        else:
+            return self.id()  # TODO
         return adjustment_set
 
     def estimate(self, X, y, treatment, adjustment_set, target='ATE'):
@@ -339,8 +352,9 @@ class CausalModel:
             if graph is None:
                 graph = self.causal_graph.DG
 
-            assert (path in list(
-                nx.all_simple_paths(graph.to_undirected, path[0], path[-1]))
+            assert (
+                path in list(nx.all_simple_paths(graph.to_undirected,
+                                                 path[0], path[-1]))
             ), "Not a valid path."
 
             if backdoor_path:

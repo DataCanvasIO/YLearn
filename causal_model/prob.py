@@ -12,7 +12,8 @@ class Prob:
         Return the expression of the probability distribution.
     """
 
-    def __init__(self, variable, conditional, marginal=None):
+    def __init__(self, variable, conditional,
+                 marginal=None, divisor=None, product=None):
         """Represent the probability distribution P(variable|conditional).
 
         Parameters
