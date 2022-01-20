@@ -3,7 +3,7 @@ class Prob:
 
     Attributes
     ----------
-    variable : str
+    variables : str
     conditional : str
 
     Methods
@@ -12,21 +12,29 @@ class Prob:
         Return the expression of the probability distribution.
     """
 
-    def __init__(self, variable, conditional,
-                 marginal=None, divisor=None, product=None):
+    def __init__(self,
+                 variables=None,
+                 conditional=None,
+                 marginal=None,
+                 divisor=None,
+                 product=None):
         """Represent the probability distribution P(variable|conditional).
 
         Parameters
         ----------
-        variable : str, optional
+        variables : str, optional
         conditional : str, optional
-        marginal : list
+        marginal : set
             elements are strings, summing over these elements will return the
             marginal distribution
+        divisor : set
+        product : set
         """
-        self.variable = variable
+        self.variables = variables
         self.conditional = conditional
         self.marginal = marginal
+        self.divisor = divisor
+        self.product = product
 
     def parse(self):
         """Return the expression of the probability distribution.

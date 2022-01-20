@@ -43,19 +43,22 @@ class CausalGraph:
         self.causation = causation
         self.observed_var = set(observed)
         self.unobserved_var = set(causation.keys()) - self.observed_var
-        init_edges = []
+        self.edges = []
         for k, v in causation.items():
             for para in v:
-                init_edges.append((para, k))
-        self.DG = nx.DiGraph()
-        self.DG.add_edges_from(init_edges)
-        self.edges = self.DG.edges
+                self.edges.append((para, k))
+        self.dag = nx.DiGraph()
+        self.dag.add_edges_from(self.edges)
 
+    @property
     def is_dag(self):
         # TODO: determin if the graph is a DAG, try tr(e^{W\circledot W}-d)=0
-        return nx.is_directed_acyclic_graph(self.DG)
+        return nx.is_directed_acyclic_graph(self.dag)
 
-    def add_edges_from(self, edge_list):
+    def add_nodes(self, node_list, create=False):
+        pass
+
+    def add_edges_from(self, edge_list, create=False):
         """Add edges to the causal graph.
 
         Parameters
@@ -63,51 +66,118 @@ class CausalGraph:
         edge_list : list
             every element of the list contains two elements, the first for
             the parent
+        create : bool
+            return a new graph if set as True
         """
-        self.DG.add_edges_from(edge_list)
+        self.dag.add_edges_from(edge_list)
         for edge in edge_list:
             self.causation[edge[1]].append(edge[0])
 
-    def add_edge(self, i, j):
-        self.DG.add_edge(i, j)
+    def add_edge(self, i, j, create=False):
+        self.dag.add_edge(i, j)
         self.causation[j].append(i)
 
-    def remove_edges_from(self, edge_list):
-        self.DG.remove_edges_from(edge_list)
+    def remove_nodes(self, node_list, create=False):
+        pass
+
+    def remove_edges_from(self, edge_list, create=False):
+        self.dag.remove_edges_from(edge_list)
         for edge in edge_list:
             self.causation[edge[1]].remove(edge[0])
 
-    def remove_edge(self, i, j):
-        self.DG.remove_edges(i, j)
+    def remove_edge(self, i, j, create=False):
+        self.dag.remove_edges(i, j)
         self.causation[j].remove(i)
 
     def to_adj_matrix(self):
-        W = nx.to_numpy_matrix(self.DG)
+        W = nx.to_numpy_matrix(self.dag)
         return W
 
     def to_adj_list(self):
         pass
 
+    @property
     def c_components(self):
         """Return the C-component set of the graph.
 
-        Parameters
+        Returns
         ----------
+        c : set
+            the C-component set of graph
         """
-        pass
-    
+        c = None
+        return c
+
     def ancestors(self, x):
-        """Return the ancestors of node x.
+        """Return the ancestors of all nodes in x.
 
         Parameters
         ----------
-        x : str
-            a node in the graph
+        x : set
+            a set of nodes in the graph
+
+        Returns
+        ----------
+        an : set
+            ancestors of nodes in x of the graph
         """
         pass
 
-    def observed_part(self):
+    @property
+    def observed_parts(self):
+        """Return the observed subgraph of the graph.
+
+        Returns
+        ----------
+        ob_graph : CausalGraph
+            the observed part of the graph
+        """
         pass
-    
-    def ancestor_graph(self, y):
+
+    def build_ancestor_graph(self, y, create=True):
+        """Construct the ancestor graph of nodes in y.
+
+        Parameters
+        ----------
+        y : set
+            the set of variables for the ancestor graph to be constructed with
+        create : bool
+            return a new graph if set as Ture
+
+        Returns
+        ----------
+        an_graph : CausalGraph
+            ancestor graph of the node y
+        """
+        pass
+
+    def clear_incoming_edges(self, x, create=True):
+        """Clear incoming edges of all nodes in x.
+
+        Parameters
+        ----------
+        x : set
+        create : bool
+            return a new graph if set as Ture
+
+        Returns
+        ----------
+        modified_graph : CausalGraph
+            subgraph of the graph without all incoming edges of nodes in x
+        """
+        pass
+
+    def clear_outcoming_edges(self, x, create=True):
+        """Clear outcoming edges of all nodes in x.
+
+        Parameters
+        ----------
+        x : set
+        create : bool
+
+        Returns
+        ----------
+        modified_graph : CausalGraph
+            subgraph of the graph without all outcoming edges of nodes in x
+        """
         pass

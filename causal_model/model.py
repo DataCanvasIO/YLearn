@@ -2,6 +2,7 @@ import copy
 import networkx as nx
 import numpy as np
 
+from causal_model.prob import Prob
 from itertools import combinations
 from estimator_model.estimation_learner.meta_learner import SLearner, \
     TLearner, XLearner, PropensityScore
@@ -19,6 +20,15 @@ def powerset(iterable):
     return power_set
 
 
+class IdentificationError(Exception):
+    def __init__(self, info):
+        super().__init__(self)
+        self.info = info
+
+    def __str__(self):
+        return self.info
+
+
 class CausalModel:
     """Basic object for performing causal inference.
 
@@ -28,8 +38,6 @@ class CausalModel:
         Keys are estimation methods while values are corresponding objects.
     estimator : EstimationMethod
     causal_graph : CausalGraph
-    data : DataFrame (for now)
-        Data is necessary if no causal graph is given.
 
     Methods
     ----------
@@ -54,7 +62,7 @@ class CausalModel:
     has_collider(path, graph)
         If the path in the current graph has a collider, return True, else
         return False.
-    is_connected_backdoor(path, graph)
+    is_connected_backdoor_path(path, graph)
         Test whether a backdoor path is connected.
     is_frontdoor_set(set)
         Determine if a given set is a frontdoor adjustment set.
@@ -87,61 +95,89 @@ class CausalModel:
 
         if causal_graph is None:
             assert data is not None, 'Need data to perform causal discovery.'
-            self.data = data
-            self.causal_graph = self.discover_graph(self.data)
+            self.causal_graph = self.discover_graph(data)
         else:
             self.causal_graph = causal_graph
 
-    def id(self, y, treatment, v, prob, topo,
-           graph=None):
+    def id(self, y, x, prob, graph=None):
         """Identify the causal quantity P(y|do(x)) if identifiable else return False.
             see Shpitser and Pearl (2006b)
             (https://ftp.cs.ucla.edu/pub/stat_ser/r327.pdf) for reference.
 
         Parameters
         ----------
-        y : not sure
+        y : set
+            elements are str
         treatment : list
-            list of treatments
+            list of str type treatments
         treatment_value : float, optional
         v : set
             set of observed variables
         prob : Prob
-        graph : nx.DiGraph, not sure
+        graph : nx.DiGraph, or CausalGraph (more likely), not sure
 
         Returns
         ----------
         Prob if identifiable else False
         """
-        to, from_, description = None, None, None
-        # step 1
-        if not treatment:
+        # TODO: need to be careful about the fact that set is not ordered,
+        # consider the usage of list and set in the current implementation
+        v = graph.observed_var
+        # 1
+        if not x:
             if (prob.divisor is not None) or (prob.product is not None):
                 prob.marginal = v.difference(y).union(prob.marginal)
             else:
-                prob.variable = y
+                prob.variables = y
                 return prob
 
-        # step 2
-        ancestor = nx.ancestors(graph, y)
-        if v.difference(ancestor) != {}:
-            an_graph = graph.ancestor_graph(y)
-            v = an_graph.observed_part()
-            prob = None # TODO
-            return self.id(
-                y, treatment.intersection(ancestor), v, prob, topo, an_graph
+        # 2
+        ancestor = graph.ancestors(y)
+        if v != ancestor:
+            an_graph = graph.build_ancestor_graph(y)
+            if (prob.divisor is not None) or (prob.product is not None):
+                prob.marginal = v.difference(ancestor).union(prob.marginal)
+            else:
+                prob.variables = ancestor
+            return self.id(y, x.intersection(ancestor), prob, an_graph)
+
+        # 3
+        w = v.difference(x).difference(
+            graph.clear_incoming_edges(x).ancestors(y)
+        )
+        if w:
+            return self.id(y, x.union(w), prob, graph)
+
+        # 4
+        c = graph.remove_nodes(x).c_components
+        if len(c) > 1:
+            product_expressioin = set()
+            for sub_set in c:
+                product_expressioin.add(
+                    self.id(sub_set, v.difference(sub_set), prob, graph)
+                )
+            return Prob(
+                marginal=v.difference(y.union(x)), product=product_expressioin
             )
-
-        # step 3
-        modified_graph = graph.do(treatment)
-        w = (v - treatment) - nx.ancestors(modified_graph, y)
-        if w != {}:
-            return
-
-        # step 4
-        # step 5
-        # step 6
-        # step 7
+        else:
+            c = c.pop()
+            c_ = graph.c_components.pop()
+            # 5
+            if c_ == v:
+                raise IdentificationError(
+                    'The causal quantity is not identifiable in the'
+                    'current graph.'
+                )
+            # 6
+            elif c.intersection(c_) == c:
+                product_expressioin = None  # TODO
+                return Prob(
+                    marginal=c.difference(y), product=product_expressioin
+                )
+            # 7
+            else:
+                # TODO
+                pass
 
     def identify(self, treatment, outcome,
                  identify_method=('backdoor', 'simple')):
@@ -221,7 +257,7 @@ class CausalModel:
 
     def is_backdoor_set(self, set, graph=None):
         if graph is None:
-            graph = self.causal_graph.DG
+            graph = self.causal_graph.dag
         pass
 
     def get_backdoor_set(self, treatment, outcome, adjust='simple'):
@@ -247,15 +283,15 @@ class CausalModel:
         # TODO: can I find the adjustment sets by using the adj matrix
         # TODO: improve the implementation
 
-        modified_graph = copy.deepcopy(self.causal_graph.DG)
+        modified_graph = copy.deepcopy(self.causal_graph.dag)
         remove_list = [(treatment, i)
                        for i in modified_graph.successors(treatment)]
         modified_graph.remove_edges_from(remove_list)
 
         def determine(modified_graph, treatment, outcome):
-            if not list(self.causal_graph.DG.predecessors(treatment)):
+            if not list(self.causal_graph.dag.predecessors(treatment)):
                 return nx.d_separated(modified_graph, {treatment},
-                                      {outcome}, {})
+                                      {outcome}, set())
             return True
 
         assert determine(treatment, outcome), \
@@ -272,7 +308,7 @@ class CausalModel:
             initial_set = (
                 set(list(self.causal_graph.causation.keys())) -
                 {treatment} - {outcome}
-                - set(nx.descendants(self.causal_graph.DG, treatment))
+                - set(nx.descendants(self.causal_graph.dag, treatment))
             )
             backdoor_set_list = [
                 i for i in powerset(initial_set)
@@ -293,7 +329,7 @@ class CausalModel:
             elif adjust == 'minimal':
                 backdoor_list = backdoor_set_list[0]
             else:
-                raise Exception(
+                raise IdentificationError(
                     'The backdoor set style must be one of simple, all'
                     'and minimal.'
                 )
@@ -327,11 +363,13 @@ class CausalModel:
         outcome in the graph.
         """
         if graph is None:
-            graph = self.causal_graph.DG
-        return [p for p in nx.all_simple_paths(graph.to_undirected(),
-                                               treatment, outcome)
-                if len(p) > 2
-                and p[1] in graph.predecessors(treatment)]
+            graph = self.causal_graph.dag
+        return [
+            p for p in nx.all_simple_paths(graph.to_undirected(),
+                                           treatment, outcome)
+            if len(p) > 2
+            and p[1] in graph.predecessors(treatment)
+        ]
 
     def has_collider(self, path, graph=None, backdoor_path=True):
         """If the path (must be a valid backdoor path) in the current graph
@@ -350,7 +388,7 @@ class CausalModel:
         # TODO: improve the implementation.
         if len(path) > 2:
             if graph is None:
-                graph = self.causal_graph.DG
+                graph = self.causal_graph.dag
 
             assert (
                 path in list(nx.all_simple_paths(graph.to_undirected,
@@ -375,7 +413,7 @@ class CausalModel:
                         return True
         return False
 
-    def is_connected_backdoor(self, path, graph=None):
+    def is_connected_backdoor_path(self, path, graph=None):
         """Test whether a backdoor path is connected.
 
         Parameters
@@ -391,7 +429,7 @@ class CausalModel:
             True if path is a d-connected backdoor path and False otherwise.
         """
         if graph is None:
-            graph = self.causal_graph.DG
+            graph = self.causal_graph.dag
         assert path[1] in graph.precedecessors(path[0]), 'Not a backdoor path.'
         # TODO: improve the implementation
 

@@ -30,17 +30,17 @@ class Do:
         value : float, optional
             the value of the treatment
         """
-        self.clear_incoming_edges(treatment)
+        self.causation.clear_incoming_edges(treatment)
         # TODO
 
-    def clear_incoming_edges(self, node):
-        """Clear the incoming edges to node
+    # def clear_incoming_edges(self, node):
+    #     """Clear the incoming edges to node
 
-        Parameters
-        ----------
-        node : str
-        """
-        pass
+    #     Parameters
+    #     ----------
+    #     node : str
+    #     """
+    #     pass
 
 
 class DoCalculus:
