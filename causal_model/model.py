@@ -108,9 +108,8 @@ class CausalModel:
         ----------
         y : set
             elements are str
-        treatment : list
-            list of str type treatments
-        treatment_value : float, optional
+        x : set
+            set of str type treatments
         v : set
             set of observed variables
         prob : Prob
