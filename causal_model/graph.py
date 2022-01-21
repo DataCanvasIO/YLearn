@@ -52,6 +52,10 @@ class CausalGraph:
         self.dag.add_edges_from(self.edges)
 
     @property
+    def prob(self):
+        return prob.Prob(variables=self.observed_var)
+
+    @property
     def is_dag(self):
         # TODO: determin if the graph is a DAG, try tr(e^{W\circledot W}-d)=0
         return nx.is_directed_acyclic_graph(self.dag)
@@ -162,7 +166,7 @@ class CausalGraph:
             ancestor graph of the node y
         """
         pass
-    
+
     def build_sub_graph(self, subset):
         """Construct the subgraph with the nodes in subset"""
         pass
