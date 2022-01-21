@@ -123,6 +123,9 @@ class CausalModel:
         """
         # TODO: need to be careful about the fact that set is not ordered,
         # consider the usage of list and set in the current implementation
+        if graph is None:
+            graph = self.causal_graph
+
         v = graph.observed_var
         v_topo = list(graph.topo_order)
 
@@ -177,8 +180,10 @@ class CausalModel:
                 product_expressioin = set()
                 for element in s:
                     product_expressioin.add(
-                        Prob(variables=element,
-                             conditional=v_topo[v_topo.index(element) - 1])
+                        Prob(
+                            variables=set(element),
+                            conditional=set(v_topo[:v_topo.index(element)])
+                        )
                     )
                 return Prob(
                     marginal=s.difference(y), product=product_expressioin
@@ -186,8 +191,22 @@ class CausalModel:
 
             # 7
             else:
-                # TODO
-                pass
+                # TODO: not clear whether directly replacing a random variable
+                # with one of its value matters in this line
+                for subset in cg:
+                    if s.intersection(subset) == s:
+                        product_expressioin = set()
+                        for element in subset:
+                            product_expressioin.add(
+                                Prob(variables=set(element),
+                                     conditional=set(
+                                         v_topo[:v_topo.index(element)]))
+                            )
+                        sub_prob = Prob(product=product_expressioin)
+                        sub_graph = graph.build_sub_graph(subset)
+                        return self.id(
+                            y, x.intersection(subset), sub_prob, sub_graph
+                        )
 
     def identify(self, treatment, outcome,
                  identify_method=('backdoor', 'simple')):

@@ -162,6 +162,10 @@ class CausalGraph:
             ancestor graph of the node y
         """
         pass
+    
+    def build_sub_graph(self, subset):
+        """Construct the subgraph with the nodes in subset"""
+        pass
 
     def remove_incoming_edges(self, x, create=True):
         """remove incoming edges of all nodes in x.
