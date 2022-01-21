@@ -180,10 +180,8 @@ class CausalModel:
                 product_expressioin = set()
                 for element in s:
                     product_expressioin.add(
-                        Prob(
-                            variables=set(element),
-                            conditional=set(v_topo[:v_topo.index(element)])
-                        )
+                        Prob(variables=set(element),
+                             conditional=set(v_topo[:v_topo.index(element)]))
                     )
                 return Prob(
                     marginal=s.difference(y), product=product_expressioin
@@ -199,8 +197,9 @@ class CausalModel:
                         for element in subset:
                             product_expressioin.add(
                                 Prob(variables=set(element),
-                                     conditional=set(
-                                         v_topo[:v_topo.index(element)]))
+                                     conditional=set(v_topo[:v_topo.index(
+                                         element
+                                     )]))
                             )
                         sub_prob = Prob(product=product_expressioin)
                         sub_graph = graph.build_sub_graph(subset)
