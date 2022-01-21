@@ -1,3 +1,4 @@
+from causal_model import prob
 import networkx as nx
 
 
@@ -124,13 +125,24 @@ class CausalGraph:
         pass
 
     @property
-    def observed_parts(self):
+    def observed_part(self):
         """Return the observed subgraph of the graph.
 
         Returns
         ----------
         ob_graph : CausalGraph
             the observed part of the graph
+        """
+        pass
+
+    @property
+    def topo_order(self):
+        """Retrun the topological order of the nodes in the observed graph
+
+        Returns
+        ----------
+        topological_order : generator
+            nodes in the topological order
         """
         pass
 
@@ -151,8 +163,8 @@ class CausalGraph:
         """
         pass
 
-    def clear_incoming_edges(self, x, create=True):
-        """Clear incoming edges of all nodes in x.
+    def remove_incoming_edges(self, x, create=True):
+        """remove incoming edges of all nodes in x.
 
         Parameters
         ----------
@@ -167,8 +179,8 @@ class CausalGraph:
         """
         pass
 
-    def clear_outcoming_edges(self, x, create=True):
-        """Clear outcoming edges of all nodes in x.
+    def remove_outcoming_edges(self, x, create=True):
+        """remove outcoming edges of all nodes in x.
 
         Parameters
         ----------

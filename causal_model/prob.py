@@ -22,8 +22,8 @@ class Prob:
 
         Parameters
         ----------
-        variables : str, optional
-        conditional : str, optional
+        variables : set
+        conditional : set
         marginal : set
             elements are strings, summing over these elements will return the
             marginal distribution

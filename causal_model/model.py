@@ -107,21 +107,25 @@ class CausalModel:
         Parameters
         ----------
         y : set
-            elements are str
+            set of str type outcomes
         x : set
             set of str type treatments
-        v : set
-            set of observed variables
         prob : Prob
-        graph : nx.DiGraph, or CausalGraph (more likely), not sure
+        graph : CausalGraph or CausalStructuralModel
 
         Returns
         ----------
-        Prob if identifiable else False
+        Prob if identifiable
+
+        Raises
+        ----------
+        IdentificationError if not identifiable
         """
         # TODO: need to be careful about the fact that set is not ordered,
         # consider the usage of list and set in the current implementation
         v = graph.observed_var
+        v_topo = list(graph.topo_order)
+
         # 1
         if not x:
             if (prob.divisor is not None) or (prob.product is not None):
@@ -142,7 +146,7 @@ class CausalModel:
 
         # 3
         w = v.difference(x).difference(
-            graph.clear_incoming_edges(x).ancestors(y)
+            graph.remove_incoming_edges(x).ancestors(y)
         )
         if w:
             return self.id(y, x.union(w), prob, graph)
@@ -151,28 +155,35 @@ class CausalModel:
         c = graph.remove_nodes(x).c_components
         if len(c) > 1:
             product_expressioin = set()
-            for sub_set in c:
+            for subset in c:
                 product_expressioin.add(
-                    self.id(sub_set, v.difference(sub_set), prob, graph)
+                    self.id(subset, v.difference(subset), prob, graph)
                 )
             return Prob(
                 marginal=v.difference(y.union(x)), product=product_expressioin
             )
         else:
-            c = c.pop()
-            c_ = graph.c_components.pop()
+            s = c.pop()
+            cg = graph.c_componets
+            c_ = cg.pop()
             # 5
-            if c_ == v:
+            if (c_ == v) and (len(cg) == 1):
                 raise IdentificationError(
                     'The causal quantity is not identifiable in the'
                     'current graph.'
                 )
             # 6
-            elif c.intersection(c_) == c:
-                product_expressioin = None  # TODO
+            elif s.intersection(c_) == s:
+                product_expressioin = set()
+                for element in s:
+                    product_expressioin.add(
+                        Prob(variables=element,
+                             conditional=v_topo[v_topo.index(element) - 1])
+                    )
                 return Prob(
-                    marginal=c.difference(y), product=product_expressioin
+                    marginal=s.difference(y), product=product_expressioin
                 )
+
             # 7
             else:
                 # TODO

@@ -30,11 +30,11 @@ class Do:
         value : float, optional
             the value of the treatment
         """
-        self.causation.clear_incoming_edges(treatment)
+        self.causation.remove_incoming_edges(treatment)
         # TODO
 
-    # def clear_incoming_edges(self, node):
-    #     """Clear the incoming edges to node
+    # def remove_incoming_edges(self, node):
+    #     """remove the incoming edges to node
 
     #     Parameters
     #     ----------
