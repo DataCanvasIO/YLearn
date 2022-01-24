@@ -1,4 +1,5 @@
 import copy
+from types import new_class
 import networkx as nx
 import numpy as np
 
@@ -148,8 +149,8 @@ class CausalModel:
 
         # 2
         ancestor = graph.ancestors(y)
-        if v != ancestor:
-            an_graph = graph.build_ancestor_graph(y)
+        if v.difference(ancestor) != set():
+            an_graph = graph.build_sub_graph(ancestor, new=True)
             if (prob.divisor is not None) or (prob.product is not None):
                 prob.marginal = v.difference(ancestor).union(prob.marginal)
             else:
@@ -158,13 +159,13 @@ class CausalModel:
 
         # 3
         w = v.difference(x).difference(
-            graph.remove_incoming_edges(x).ancestors(y)
+            graph.remove_incoming_edges(x, new=True).ancestors(y)
         )
         if w:
             return self.id(y, x.union(w), prob, graph)
 
         # 4
-        c = graph.remove_nodes(x).c_components
+        c = graph.remove_nodes(x, new=True).c_components
         if len(c) > 1:
             product_expressioin = set()
             for subset in c:
@@ -207,8 +208,7 @@ class CausalModel:
                             product_expressioin.add(
                                 Prob(variables=set(element),
                                      conditional=set(v_topo[:v_topo.index(
-                                         element
-                                     )]))
+                                         element)]))
                             )
                         sub_prob = Prob(product=product_expressioin)
                         sub_graph = graph.build_sub_graph(subset)
