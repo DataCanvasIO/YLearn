@@ -136,7 +136,7 @@ class CausalModel:
         if prob is None:
             prob = graph.prob
 
-        v = graph.observed_var
+        v = graph.causation.keys()
         v_topo = list(graph.topo_order)
 
         # 1
