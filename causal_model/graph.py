@@ -85,7 +85,7 @@ class CausalGraph:
         self.init_confounding_arcs = latent_confounding_arcs
         if latent_confounding_arcs is not None:
             for edge in latent_confounding_arcs:
-                self.add_edges_from(
+                self.dag.add_edges_from(
                     [(edge[0], edge[1], 'n'), (edge[1], edge[0], 'n')]
                 )
 
