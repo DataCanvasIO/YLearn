@@ -48,7 +48,7 @@ class CausalGraph:
         Return the C-components of the graph.
     ancestors(y)
         Return ancestors of y.
-    observed_part()
+    observed_graph()
         Return the observed part of the graph, including observed nodes and
         edges between them.
     topo_order()
@@ -110,7 +110,7 @@ class CausalGraph:
     @property
     def is_dag(self):
         # TODO: determin if the graph is a DAG, try tr(e^{W\circledot W}-d)=0
-        return nx.is_directed_acyclic_graph(self.observed_part)
+        return nx.is_directed_acyclic_graph(self.observed_graph)
 
     def add_nodes(self, nodes, new=False):
         if not new:
@@ -170,7 +170,7 @@ class CausalGraph:
     def remove_nodes(self, nodes, new=False):
         if not new:
             for node in nodes:
-                self.observed_var.remove(node)
+                # self.observed_var.remove(node)
                 for k, v in self.causation:
                     if k == node:
                         del self.causation[node]
@@ -178,19 +178,19 @@ class CausalGraph:
                     v.remove(node)
             self.dag.remove_nodes_from(nodes)
         else:
-            new_observed_var = set(self.observed_var)
+            # new_observed_var = set(self.observed_var)
             new_causation = dict(self.causation)
             new_dag = self.dag.copy()
             new_dag.remove_nodes_from(nodes)
 
             for node in nodes:
-                new_observed_var.remove(node)
+                # new_observed_var.remove(node)
                 for k, v in new_causation:
                     if k == node:
                         del new_causation[node]
                         continue
                     v.remove(node)
-            return CausalGraph(new_causation, new_observed_var, new_dag)
+            return CausalGraph(new_causation, graph=new_dag)
 
     def remove_edges_from(self, edge_list, new=False, observed=True):
         if not new:
@@ -217,12 +217,12 @@ class CausalGraph:
                     )
             return CausalGraph(new_causation, new_dag)
 
-    def remove_edge(self, edge, new=False, observed=True):
-        if not observed:
-            self.dag.remove_edge(edge[0], edge[1], 'n')
-        else:
-            self.dag.remove_edges(edge[0], edge[1])
+    def remove_edge(self, edge, observed=True):
+        if observed:
+            self.dag.remove_edges(edge[0], edge[1], 0)
             self.causation[edge[1]].remove(edge[0])
+        else:
+            self.dag.remove_edge(edge[0], edge[1], 'n')
 
     def to_adj_matrix(self):
         W = nx.to_numpy_matrix(self.dag)
@@ -260,11 +260,11 @@ class CausalGraph:
         an = set()
         for node in x:
             an.add(node)
-            an.update(nx.ancestors(self.observed_part, node))
+            an.update(nx.ancestors(self.observed_graph, node))
         return an
 
     @property
-    def observed_part(self):
+    def observed_graph(self):
         """Return the observed subgraph of the graph.
 
         Returns
@@ -283,7 +283,7 @@ class CausalGraph:
         topological_order : generator
             nodes in the topological order
         """
-        return nx.topological_sort(self.observed_part)
+        return nx.topological_sort(self.observed_graph)
 
     def build_sub_graph(self, subset):
         """Construct the subgraph with the nodes in subset"""
