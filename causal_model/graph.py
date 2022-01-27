@@ -13,76 +13,79 @@ class CausalGraph:
     Attributes
     ----------
     causation : dic
-        data structure of the causal graph where values are parents of the
-        corresponding keys
+        Data structure of the causal graph where values are parents of the
+        corresponding keys.
     observed_var : list
     unobserved_var : list
     dag : nx.DiGraph
-        graph represented by the networkx package
+        Graph represented by the networkx package.
+    prob
+    latent_confounding_arcs
+    is_dag
+    c_components
+    observed_graph
+    topo_order
 
     Methods
     ----------
-    prob()
-        Return the Prob object of the CausalGraph.
-    is_dag()
-        Determine whether the constructed graph is a DAG.
-    add_nodes(node_list, new)
-        If not new, add all nodes in the node_list to the current
-        CausalGraph, else new a new graph and add nodes.
-    add_edges_from(edge_list, new)
-        Add all edges in the edge_list to the graph.
-    add_edge(i, j, new)
-        Add an edge between nodes i and j.
-    remove_edge(i, j, new)
-        Remove the edge between nodes i and j.
-    remove_edges_from(edge_list, new)
-        Remove all edges in the edge_list in the graph.
-    remove_nodes(node_list, new)
-        Remove all nodes in the node_list. If new, do this in a new
-        CausalGraph.
     to_adj_matrix()
-        Return the adjacency matrix.
+        Return the numpy matrix of the adjecency matrix.
     to_adj_list()
-        Return the adjacency list.
-    c_components()
-        Return the C-components of the graph.
+        Return the numpy array of the adjecency matrix.
     ancestors(y)
         Return ancestors of y.
-    observed_graph()
-        Return the observed part of the graph, including observed nodes and
-        edges between them.
-    topo_order()
-        Return a generator of the nodes in the topological order.
+    add_nodes(nodes, new=False)
+        If not new, add all nodes in the nodes to the current
+        CausalGraph, else create a new graph and add nodes.
+    add_edges_from(edge_list, new=False, observed=True)
+        Add all edges in the edge_list to the CausalGraph.
+    add_edge(i, j, observed=True)
+        Add an edge between nodes i and j to the CausalGraph. Add an unobserved
+        confounding arc if not observed.
+    remove_nodes(nodes, new=False)
+        Remove all nodes in the graph. If new, do this in a new CausalGraph.
+    remove_edge(i, j, observed=True)
+        Remove the edge in the CausalGraph. If observed, remove the unobserved
+        latent confounding arcs.
+    remove_edges_from(edge_list, new=False, observed=True)
+        Remove all edges in the edge_list in the CausalGraph.
     build_sub_graph(subset)
-        Return a new CausalGraph as the subgraph of graph with nodes in the
+        Return a new CausalGraph as the subgraph of self with nodes in the
         subset.
-    remove_incoming_edges(y, new)
+    remove_incoming_edges(y, new=False)
         Remove all incoming edges of all nodes in y. If new, return a new
-        graph.
-    remove_outgoing_edges(y, new)
-        Remove all outgoing edges of all nodes in y.
+        CausalGraph.
+    remove_outgoing_edges(y, new=False)
+        Remove all outgoing edges of all nodes in y. If new, return a new
+        CausalGraph.
     """
 
     def __init__(self, causation, graph=None, latent_confounding_arcs=None):
-        self.causation = causation
-        # self.observed_var = set(observed)
-        # self.unobserved_var = set(causation.keys()) - self.observed_var
+        """
+        Parameters
+        ----------
+        causation : dict
+            data structure of the causation
+        graph : nx.MultiGraph, optional
+            the causal graph. Defaults to None.
+        latent_confounding_arcs : set or list, optional
+            unobserved bidirected edges. Defaults to None.
+        """
         # TODO: update the usage of DiGraph with MultiDiGraph, consider all
         # usages, or simply add new unobserved nodes
         # TODO: now only consider confounding arc for unobserved variables,
         # what about unobserved chain?
         # TODO: replace list or tuple with generator to save memory
+
+        self.causation = causation
+
         if graph is None:
-            edges = []
-            for k, v in causation.items():
-                for para in v:
-                    edges.append((para, k))
-            self.dag = nx.MultiDiGraph()
-            self.dag.add_edges_from(edges)
+            self.dag = self.observed_graph.copy()
         else:
             self.dag = graph
 
-        self.init_confounding_arcs = latent_confounding_arcs
+        # add unobserved bidirected confounding arcs to the graph, the letter
+        # 'n' representing that the edge is unobserved
         if latent_confounding_arcs is not None:
             for edge in latent_confounding_arcs:
                 self.dag.add_edges_from(
@@ -91,10 +94,25 @@ class CausalGraph:
 
     @property
     def prob(self):
+        """
+        The encoded probability distribution.
+
+        Returns
+        ----------
+        Prob
+        """
         return prob.Prob(variables=self.causation.keys())
 
     @property
     def latent_confounding_arcs(self):
+        """
+        Return the latent confounding arcs encoded in the graph.
+
+        Returns
+        ----------
+        arcs : list
+
+        """
         W = nx.to_numpy_matrix(self.dag)
         a, b = np.where(W >= 1), np.where(W.T >= 1)
         arcs, nodes = [], list(self.dag.nodes)
@@ -109,10 +127,101 @@ class CausalGraph:
 
     @property
     def is_dag(self):
+        """Determine whether the constructed graph is a DAG.
+        """
         # TODO: determin if the graph is a DAG, try tr(e^{W\circledot W}-d)=0
         return nx.is_directed_acyclic_graph(self.observed_graph)
 
+    def to_adj_matrix(self):
+        """Return the adjacency matrix.
+        """
+        W = nx.to_numpy_matrix(self.dag)
+        return W
+
+    def to_adj_list(self):
+        """Return the adjacency list."""
+        pass
+
+    @property
+    def c_components(self):
+        """
+        Return the C-component set of the graph.
+
+        Returns
+        ----------
+        c : set
+            the C-component set of graph
+        """
+        bi_directed_graph = nx.Graph()
+        bi_directed_graph.add_edges_from(self.latent_confounding_arcs)
+        return nx.connected_components(bi_directed_graph)
+
+    def ancestors(self, x):
+        """
+        Return the ancestors of all nodes in x.
+
+        Parameters
+        ----------
+        x : set
+            a set of nodes in the graph
+
+        Returns
+        ----------
+        an : set
+            ancestors of nodes in x of the graph
+        """
+        an = set()
+        for node in x:
+            an.add(node)
+            an.update(nx.ancestors(self.observed_graph, node))
+        return an
+
+    @property
+    def observed_graph(self):
+        """
+        Return the observed part of the graph, including observed nodes and
+        edges between them.
+
+        Returns
+        ----------
+        ob_graph : CausalGraph
+            the observed part of the graph
+        """
+        edges = []
+        for k, v in self.causation.items():
+            for para in v:
+                edges.append((para, k))
+        ob_graph = nx.MultiDiGraph()
+        ob_graph.add_edges_from(edges)
+        return ob_graph
+
+    @property
+    def topo_order(self):
+        """
+        Retrun the topological order of the nodes in the observed graph
+
+        Returns
+        ----------
+        topological_order : generator
+            nodes in the topological order
+        """
+        return nx.topological_sort(self.observed_graph)
+
     def add_nodes(self, nodes, new=False):
+        """
+        If not new, add all nodes in the nodes to the current
+        CausalGraph, else create a new graph and add nodes.
+
+        Parameters
+        ----------
+        nodes : set or list
+        new : bool, optional
+            If new create and return a new graph. Defaults to False.
+
+        Returns
+        ----------
+        CausalGraph
+        """
         if not new:
             self.dag.add_nodes_from(nodes)
             for node in nodes:
@@ -126,15 +235,18 @@ class CausalGraph:
             return CausalGraph(new_causation, graph=new_dag)
 
     def add_edges_from(self, edge_list, new=False, observed=True):
-        """Add edges to the causal graph.
+        """
+        Add edges to the causal graph.
 
         Parameters
         ----------
         edge_list : list
-            every element of the list contains two elements, the first for
+            Every element of the list contains two elements, the first for
             the parent
         new : bool
-            return a new graph if set as True
+            Return a new graph if set as True
+        observed : bool
+            Add unobserved bidirected confounding arcs if not observed.
         """
         if not new:
             if observed:
@@ -160,14 +272,42 @@ class CausalGraph:
                     )
             return CausalGraph(new_causation, graph=new_dag)
 
-    def add_edge(self, i, j, observed=True):
+    def add_edge(self, s, t, observed=True):
+        """
+        Add an edge between nodes i and j. Add an unobserved latent confounding
+        arc if not observed.
+
+        Parameters
+        ----------
+        s : str
+            Source of the edge.
+        t : str
+            Target of the edge.
+        observed : bool
+            Add an unobserved latent confounding arc if True.
+        """
         if observed:
-            self.dag.add_edge(i, j, 0)
-            self.causation[j].append(i)
+            self.dag.add_edge(s, t, 0)
+            self.causation[t].append(s)
         else:
-            self.dag.add_edge(i, j, 'n')
+            self.dag.add_edge(s, t, 'n')
 
     def remove_nodes(self, nodes, new=False):
+        """
+        Remove all nodes in the graph.
+
+        Parameters
+        ----------
+        nodes : set or list
+        new : bool, optional
+            If True, create a new graph, remove nodes in that graph and return
+            it. Defaults to False.
+
+        Returns
+        ---------
+        CausalGraph
+            Return a CausalGraph if new.
+        """
         if not new:
             for node in nodes:
                 # self.observed_var.remove(node)
@@ -192,7 +332,41 @@ class CausalGraph:
                     v.remove(node)
             return CausalGraph(new_causation, graph=new_dag)
 
+    def remove_edge(self, edge, observed=True):
+        """
+        Remove the edge in the CausalGraph. If observed, remove the unobserved
+        latent confounding arcs.
+
+        Parameters
+        ----------
+        edge : tuple
+            2 elements.
+        observed : bool
+            If not observed, remove the unobserved latent confounding arcs.
+        """
+        if observed:
+            self.dag.remove_edges(edge[0], edge[1], 0)
+            self.causation[edge[1]].remove(edge[0])
+        else:
+            self.dag.remove_edge(edge[0], edge[1], 'n')
+
     def remove_edges_from(self, edge_list, new=False, observed=True):
+        """
+        Remove all edges in the edge_list in the graph.
+
+        Parameters
+        ----------
+        edge_list : list
+        new : bool, optional
+            If new, creat a new CausalGraph and remove edges.
+        observed : bool, optional
+            Remove unobserved latent confounding arcs if not observed.
+
+        Returns
+        ----------
+        CausalGraph
+            If not observed, return a new CausalGraph.
+        """
         if not new:
             if observed:
                 for edge in edge_list:
@@ -217,94 +391,39 @@ class CausalGraph:
                     )
             return CausalGraph(new_causation, new_dag)
 
-    def remove_edge(self, edge, observed=True):
-        if observed:
-            self.dag.remove_edges(edge[0], edge[1], 0)
-            self.causation[edge[1]].remove(edge[0])
-        else:
-            self.dag.remove_edge(edge[0], edge[1], 'n')
-
-    def to_adj_matrix(self):
-        W = nx.to_numpy_matrix(self.dag)
-        return W
-
-    def to_adj_list(self):
-        pass
-
-    @property
-    def c_components(self):
-        """Return the C-component set of the graph.
-
-        Returns
-        ----------
-        c : set
-            the C-component set of graph
+    def build_sub_graph(self, subset):
         """
-        bi_directed_graph = nx.Graph()
-        bi_directed_graph.add_edges_from(self.latent_confounding_arcs)
-        return nx.connected_components(bi_directed_graph)
-
-    def ancestors(self, x):
-        """Return the ancestors of all nodes in x.
+        Return a new CausalGraph as the subgraph of graph with nodes in the
+        subset.
 
         Parameters
         ----------
-        x : set
-            a set of nodes in the graph
+        subset : set
 
         Returns
         ----------
-        an : set
-            ancestors of nodes in x of the graph
+        CausalGraph
         """
-        an = set()
-        for node in x:
-            an.add(node)
-            an.update(nx.ancestors(self.observed_graph, node))
-        return an
-
-    @property
-    def observed_graph(self):
-        """Return the observed subgraph of the graph.
-
-        Returns
-        ----------
-        ob_graph : CausalGraph
-            the observed part of the graph
-        """
-        pass
-
-    @property
-    def topo_order(self):
-        """Retrun the topological order of the nodes in the observed graph
-
-        Returns
-        ----------
-        topological_order : generator
-            nodes in the topological order
-        """
-        return nx.topological_sort(self.observed_graph)
-
-    def build_sub_graph(self, subset):
-        """Construct the subgraph with the nodes in subset"""
         nodes = set(self.causation.keys()).difference(subset)
         return self.remove_nodes(nodes, new=True)
 
     def remove_incoming_edges(self, x, new=False):
-        """remove incoming edges of all nodes in x.
+        """
+        Remove incoming edges of all nodes of x. If new, do this in the new
+        CausalGraph.
 
         Parameters
         ----------
         x : set
         new : bool
-            return a new graph if set as Ture
+            Return a new graph if set as Ture.
 
         Returns
         ----------
-        modified_graph : CausalGraph
-            subgraph of the graph without all incoming edges of nodes in x
+        CausalGraph
+            If new, return a subgraph of the graph without all incoming edges
+            of nodes in x
         """
-        # TODO: consider wether remove the bi-directed unobserved edges
         edges = list(self.dag.in_edges(x, keys=True))
         u_edges = []
 
@@ -320,8 +439,9 @@ class CausalGraph:
             self.remove_edges_from(edges, new)
             self.remove_edges_from(u_edges, new, observed=False)
 
-    def remove_outgoing_edges(self, x, new=True):
-        """remove outcoming edges of all nodes in x.
+    def remove_outgoing_edges(self, x, new=False):
+        """
+        Remove outcoming edges of all nodes in x.
 
         Parameters
         ----------
@@ -330,8 +450,9 @@ class CausalGraph:
 
         Returns
         ----------
-        modified_graph : CausalGraph
-            subgraph of the graph without all outcoming edges of nodes in x
+        CausalGraph
+            If new, return a subgraph of the graph without all outcoming edges
+            of nodes in x.
         """
         edges = list(self.dag.out_edges(x, keys=True))
         for i, edge in enumerate(edges):

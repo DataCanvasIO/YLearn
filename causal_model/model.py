@@ -1,5 +1,3 @@
-import copy
-from types import new_class
 import networkx as nx
 import numpy as np
 
@@ -12,6 +10,19 @@ np.random.seed(2022)
 
 
 def powerset(iterable):
+    """
+    Return the power set of the iterable.
+
+    Parameters
+    ----------
+    iterable : container
+        Can be a set or a list.
+
+    Returns
+    ----------
+    list
+        The list of power set.
+    """
     s = list(iterable)
     power_set = []
     for i in range(len(s) + 1):
@@ -30,47 +41,50 @@ class IdentificationError(Exception):
 
 
 class CausalModel:
-    """Basic object for performing causal inference.
+    """
+    Basic object for performing causal inference.
 
     Attributes
     ----------
     estimator_dic : dictionary
         Keys are estimation methods while values are corresponding objects.
-    estimator : EstimationMethod
-    causal_graph : CausalGraph
+    estimator : estimation_learner
+    causal_graph : CausalGraph #TODO: support CausalStructuralModel
 
     Methods
     ----------
-    id(y, x, prob, graph)
+    id(y, x, prob=None, graph=None)
         Identify the causal quantity P(y|do(x)) in the graph if identifiable
         else return False, where y can be a set of different outcomes and x
         can be a set of different treatments. #TODO: be careful about that
         currently we treat a random variable equally as its value, i.e., we
         do not discern P(Y|do(X)) and P(Y=y|do(X=x)). I don't know if this
         matters.
-    identify(treatment, outcome, identify_method)
+    identify(treatment, outcome, identify_method=None)
         Identify the causal effect of treatment on outocme expression.
-    estimate(x, y, treatment, adjustment_set, target)
+    estimate(x, y, treatment, adjustment_set, target='ATE')
         Estimate the causal effect of treatment on outcome (y).
-    identify_estimate(x, y, treatment, outcome, identify_method, target)
+    identify_estimate(
+        x, y, treatment, outcome, identify_method=None, target='ATE'
+    )
         Combination of identify and estimate.
     discover_graph(data)
         Perform causal discovery over data.
     is_valid_backdoor_set(set, treatment, outcome, graph=None)
         Determine if a given set is a valid backdoor adjustment set in the
         graph.
-    get_backdoor_set(treatment, outcome, adjust)
+    get_backdoor_set(treatment, outcome, adjust='simple')
         Return backdoor adjustment sets for the given treatment and outcome
         in the style stored in adjust (simple, minimal, or all).
-    get_backdoor_path(treatment, outcome, graph)
+    get_backdoor_path(treatment, outcome, graph=None)
         Return all backdoor paths in the graph between treatment and outcome.
-    has_collider(path, graph)
+    has_collider(path, graph=None, backdoor_path=True)
         If the path in the current graph has a collider, return True, else
         return False.
-    is_connected_backdoor_path(path, graph)
+    is_connected_backdoor_path(path, graph=None)
         Test whether a backdoor path is connected in the current graph, where
         path[0] is the start of the path and path[-1] is the end.
-    is_frontdoor_set(set)
+    is_frontdoor_set(set, treatment, outcome)
         Determine if a given set is a frontdoor adjustment set.
     get_frontdoor_set(treatment, outcome, adjust)
         Return the frontdoor adjustment set for given treatment and outcome.
@@ -106,17 +120,19 @@ class CausalModel:
             self.causal_graph = causal_graph
 
     def id(self, y, x, prob=None, graph=None):
-        """Identify the causal quantity P(y|do(x)) if identifiable else return False.
-            see Shpitser and Pearl (2006b)
-            (https://ftp.cs.ucla.edu/pub/stat_ser/r327.pdf) for reference.
+        """
+        Identify the causal quantity P(y|do(x)) if identifiable else return False.
+        see Shpitser and Pearl (2006b)
+        (https://ftp.cs.ucla.edu/pub/stat_ser/r327.pdf) for reference.
 
         Parameters
         ----------
         y : set
-            set of str type outcomes
+            Set of str type outcomes.
         x : set
-            set of str type treatments
+            Set of str type treatments.
         prob : Prob
+            Probability distribution encoded in the graph.
         graph : CausalGraph or CausalStructuralModel
 
         Returns
@@ -177,7 +193,7 @@ class CausalModel:
             )
         else:
             s = c.pop()
-            cg = graph.c_componets
+            cg = set(graph.c_componets)
             c_ = cg.pop()
             # 5
             if (c_ == v) and (len(cg) == 1):
@@ -216,56 +232,59 @@ class CausalModel:
                             y, x.intersection(subset), sub_prob, sub_graph
                         )
 
-    def identify(self, treatment, outcome,
-                 identify_method=None):
-        """Identify the causal effect expression.
+    def identify(self, treatment, outcome, identify_method=None):
+        """
+        Identify the causal effect expression.
 
         Parameters
         ----------
         treatment : str or set
-            set of names of the treatments
+            Set of names of the treatments.
         outcome : str or set
-            set of names of the outcomes
+            Set of names of the outcomes.
         identify_method : tuple
-            two elements where the first one is for the adjustment methods
+            Two elements where the first one is for the adjustment methods
             and the second is for the returned set style.
-            adjustment methods include backdoor, frontdoor, general, and
+            adjustment methods include backdoor, frontdoor, general_adjust, and
             default while returned set styles include simple, minimal,
             all, and default.
 
         Returns
         ----------
-        adjustment: list
-            the adjustment set
-            # TODO: should support more general identification,
-            # e.g., probability distribution
+        adjustment
+            Prob if identify_method is ('default', 'default'), ortherwise
+            return (list (the adjustment set), Prob).
+        # TODO: should support more general identification,
+        # e.g., probability distribution
         """
         if identify_method is None \
                 or identify_method == ('default', 'default'):
             return self.id(outcome, treatment)
         elif identify_method[0] == 'backdoor':
-            adjustment_set = self.get_backdoor_set(
-                treatment, outcome, adjust=identify_method[1])
+            adjustment = self.get_backdoor_set(
+                treatment, outcome, adjust=identify_method[1]
+            )
         elif identify_method[0] == 'frontdoor':
-            adjustment_set = self.get_frontdoor_set()
+            adjustment = self.get_frontdoor_set(treatment, outcome)
         else:
-            pass
-        return adjustment_set
+            adjustment = None
+        return adjustment
 
     def estimate(self, x, y, treatment, adjustment_set, target='ATE'):
-        """Estimate the causal effect.
+        """
+        Estimate the causal effect.
 
         Parameters
         ----------
         x : DataFrame
         y : DataFrame
-            data of the outcome
+            Data of the outcome.
         treatment : str
-            name of the treatment
+            Name of the treatment.
         adjustment_set : list
         target : str
-            the kind of the interested causal effect, including ATE, CATE,
-            ITE, and CITE
+            The kind of the interested causal effect, including ATE, CATE,
+            ITE, and CITE.
 
         Returns
         ----------
@@ -279,7 +298,28 @@ class CausalModel:
     def identify_estimate(self, x, y, treatment, outcome,
                           identify_method=('backdoor', 'simple'),
                           target='ATE'):
-        """Combination of identifiy and estimate.
+        """
+        Combination of identifiy and estimate.
+
+        Parameters
+        ----------
+        x : DataFrame
+            Data of the treatment.
+        y : DataFrame
+            Data of the outcome.
+        treatment : str
+            Name of the treatment.
+        outcome : str
+            Name of the outcome.
+        identify_method : tuple
+            Refer to docstring of identify().
+        target : str
+            The kind of the interested causal effect, including ATE, CATE,
+            ITE, and CITE.
+
+        Returns
+        ----------
+        effect : float, optional
         """
         adjustment_set = self.identify(treatment, outcome, identify_method)
         print(f'The corresponding adjustment set is {adjustment_set}')
@@ -288,7 +328,8 @@ class CausalModel:
         return self.estimate(x, y, treatment, adjustment_set, target)
 
     def discover_graph(self, data):
-        """Discover the causal graph from data.
+        """
+        Discover the causal graph from data.
 
         Parameters
         ----------
@@ -296,45 +337,72 @@ class CausalModel:
         """
         pass
 
-    def is_valid_backdoor_set(self, set, treatment, outcome, graph=None):
+    def is_valid_backdoor_set(self, set_, treatment, outcome, graph=None):
+        """
+        Determine if a given set is a valid backdoor adjustment set for
+        causal effect of treatments on the outcomes.
+
+        Parameters
+        ----------
+        set : set
+            The adjustment set.
+        treatment : str
+        outcome : str
+        graph : CausalGraph
+            If None, use self.causal_graph. Defaults to None.
+
+        Returns
+        ----------
+        Bool
+            True if the given set is a valid backdoor adjustment set.
+        """
         if graph is None:
             graph = self.causal_graph.dag
-
-        if set in self.get_backdoor_set(treatment, outcome, graph):
-            return True
-        else:
-            return False
+        return (set_ in self.get_backdoor_set(treatment, outcome, graph))
 
     def get_backdoor_set(self, treatment, outcome, adjust='simple'):
-        """Return the backdoor adjustment set for the given treatment and outcome.
+        """
+        Return the backdoor adjustment set for the given treatment and outcome.
 
         Parameters
         ----------
         treatment : str or set
-            name of the treatment
+            Name of the treatment.
         outcome : str or set
-            name of the outcome
+            Name of the outcome.
         adjust : str
-            set style of the backdoor set, e.g., simple, minimal and all
+            Set style of the backdoor set
+                simple: directly return the parent set of treatment
+                minimal: return the minimal backdoor adjustment set
+                all: return all valid backdoor adjustment set.
 
         Raises
         ----------
-        Exception: raise error if the style is not in simple, minimal or all.
+        Exception : IdentificationError
+            Raise error if the style is not in simple, minimal or all or no
+            set can satisfy the backdoor criterion.
 
         Returns
         ----------
-        backdoor_list : list
+        tuple
+            The first element is the adjustment list, the second is encoded
+            Prob.
         """
         # TODO: can I find the adjustment sets by using the adj matrix
         # TODO: improve the implementation
         # TODO: support set of treatments and outcomes
-        modified_graph = copy.deepcopy(self.causal_graph.dag)
-        remove_list = [(treatment, i)
-                       for i in modified_graph.successors(treatment)]
-        modified_graph.remove_edges_from(remove_list)
+        # modified_graph = self.causal_graph.dag.copy()
+        # remove_list = [(treatment, i)
+        #                for i in modified_graph.successors(treatment)]
+        # modified_graph.remove_edges_from(remove_list)
+        modified_graph = self.causal_graph.remove_incoming_edges(
+            set(treatment), new=True
+        )
 
         def determine(modified_graph, treatment, outcome):
-            if not list(self.causal_graph.dag.predecessors(treatment)):
+            if not list(
+                self.causal_graph.observed_graph.predecessors(treatment)
+            ):
                 return nx.d_separated(modified_graph, {treatment},
                                       {outcome}, set())
             return True
@@ -342,11 +410,11 @@ class CausalModel:
         assert determine(treatment, outcome), \
             'No set can satisfy the backdoor criterion!'
 
-        backdoor_expression = ''
+        # backdoor_expression = ''
         if adjust == 'simple':
             backdoor_list = list(self.causal_graph.causation[treatment])
-            for i in backdoor_list:
-                backdoor_expression += f'{i}, '
+            # for i in backdoor_list:
+            #     backdoor_expression += f'{i}, '
         else:
             # get all backdoor sets. currently implenmented
             # in a brutal force manner. NEED IMPROVEMENT
@@ -361,13 +429,13 @@ class CausalModel:
                                   {treatment}, {outcome}, i)
             ]
 
-            try:
-                backdoor_set_list[0]
-            except Exception:
-                backdoor_set_list = [[]]
-            finally:
-                for i in backdoor_set_list[0]:
-                    backdoor_expression += f'{i}, '
+            # try:
+            #     backdoor_set_list[0]
+            # except Exception:
+            #     backdoor_set_list = [[]]
+            # finally:
+            #     for i in backdoor_set_list[0]:
+            #         backdoor_expression += f'{i}, '
 
             if adjust == 'all':
                 backdoor_list = backdoor_set_list
@@ -379,22 +447,32 @@ class CausalModel:
                     'and minimal.'
                 )
 
-        backdoor_expression = backdoor_expression.strip(', ')
-
-        if backdoor_expression != '':
-            print(
-                f'The corresponding statistical estimand should be P({outcome}'
-                f'|{treatment}, {backdoor_expression})'
-            )
-        else:
-            print(
-                f'The corresponding statistical estimand should be P({outcome}'
-                f'|{treatment})'
-            )
-        return backdoor_list
+        adset = set(backdoor_list)
+        product_expression = {
+            Prob(variables=outcome,
+                 conditional=treatment.update(adset)),
+            Prob(variables=adset)
+        }
+        prob = Prob(marginal=adset, product=product_expression)
+        print(
+            f'The corresponding statistical estimand should be {prob.parse()})'
+        )
+        # backdoor_expression = backdoor_expression.strip(', ')
+        # if backdoor_expression != '':
+        #     print(
+        #         f'The corresponding statistical estimand should be P({outcome}'
+        #         f'|{treatment}, {backdoor_expression})'
+        #     )
+        # else:
+        #     print(
+        #         f'The corresponding statistical estimand should be P({outcome}'
+        #         f'|{treatment})'
+        #     )
+        return (backdoor_list, prob)
 
     def get_backdoor_path(self, treatment, outcome, graph=None):
-        """Return the backdoor path.
+        """
+        Return all backdoor path connecting treatment and outcome.
 
         Parameters
         ----------
@@ -404,11 +482,12 @@ class CausalModel:
 
         Returns
         ----------
-        A list containing all valid backdoor paths between the treatment and
-        outcome in the graph.
+        list
+            A list containing all valid backdoor paths between the treatment and
+            outcome in the graph.
         """
         if graph is None:
-            graph = self.causal_graph.dag
+            graph = self.causal_graph.observed_graph
         return [
             p for p in nx.all_simple_paths(graph.to_undirected(),
                                            treatment, outcome)
@@ -417,28 +496,32 @@ class CausalModel:
         ]
 
     def has_collider(self, path, graph=None, backdoor_path=True):
-        """If the path (must be a valid backdoor path) in the current graph
-            has a collider, return True, else return False.
+        """
+        If the path in the current graph has a collider, return True, else
+        return False.
 
         Parameters
         ----------
         path : list
-            list containing nodes in the path
+            A list containing nodes in the path.
         graph : nx.DiGraph, optional
 
         Returns
         ----------
         Boolean
+            True if the path has a collider.
         """
         # TODO: improve the implementation.
         if len(path) > 2:
             if graph is None:
                 graph = self.causal_graph.dag
 
-            assert (
-                path in list(nx.all_simple_paths(graph.to_undirected,
-                                                 path[0], path[-1]))
-            ), "Not a valid path."
+            # assert (
+            #     path in list(nx.all_simple_paths(graph.to_undirected,
+            #                                      path[0], path[-1]))
+            # ), "Not a valid path."
+
+            assert(nx.is_path(graph.to_undirected, path)), "Not a valid path."
 
             if backdoor_path:
                 for i, node in enumerate(path[1:]):
@@ -459,14 +542,15 @@ class CausalModel:
         return False
 
     def is_connected_backdoor_path(self, path, graph=None):
-        """Test whether a backdoor path is connected.
+        """
+        Test whether a backdoor path is connected.
 
         Parameters
         ----------
         path : list
-            a list containing the path
+            A list containing the path.
         graph : nx.DiGraph
-            the graph in which the criterion is tested
+            The graph in which the criterion is tested.
 
         Returns
         ----------
@@ -475,18 +559,34 @@ class CausalModel:
         """
         if graph is None:
             graph = self.causal_graph.dag
+
         assert path[1] in graph.precedecessors(path[0]), 'Not a backdoor path.'
         # TODO: improve the implementation
 
-        if path not in self.get_backdoor_path(path[0], path[-1], graph) \
-                or self.has_collider(path[1:], graph):
+        if self.has_collider(path[1:], graph) or \
+                path not in self.get_backdoor_path(path[0], path[-1], graph):
             return False
         return True
 
-    def is_frontdoor_set(self):
+    def is_frontdoor_set(self, set_, treatment, outcome):
+        """
+        True is the given set is a valid frontdoor adjustment set.
+
+        Parameters
+        ----------
+        set_ : set
+        treatement : str or set
+        outcome : str or set
+
+        Returns
+        ----------
+        Bool
+            True if the given set is a valid frontdoor adjustment set for
+            corresponding treatemtns and outcomes.
+        """
         pass
 
-    def get_frontdoor_set(self):
+    def get_frontdoor_set(self, treatment, outcome):
         """See the docstring for get_backdoor_set.
         """
         pass
