@@ -584,6 +584,7 @@ class CausalModel:
             True if the given set is a valid frontdoor adjustment set for
             corresponding treatemtns and outcomes.
         """
+        # TODO: support for set of treatments and outcomes
         # rule 1, intercept all directed paths from treatment to outcome
         if not skip_rule_one:
             for path in nx.all_simple_paths(
@@ -616,6 +617,8 @@ class CausalModel:
         tuple
             2 elements (adjustment_set, Prob)
         """
+        # TODO: support for set of treatments and outcomes
+
         initial_set = set()
         for path in nx.all_simple_paths(
             self.causal_graph.dag, treatment, outcome
