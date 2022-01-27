@@ -358,7 +358,7 @@ class CausalModel:
         """
         if graph is None:
             graph = self.causal_graph.dag
-        return (set_ in self.get_backdoor_set(treatment, outcome, graph))
+        return set_ in self.get_backdoor_set(treatment, outcome, graph)
 
     def get_backdoor_set(self, treatment, outcome, adjust='simple'):
         """
@@ -568,7 +568,7 @@ class CausalModel:
             return False
         return True
 
-    def is_frontdoor_set(self, set_, treatment, outcome):
+    def is_frontdoor_set(self, set_, treatment, outcome, skip_rule_one=False):
         """
         True is the given set is a valid frontdoor adjustment set.
 
@@ -584,12 +584,50 @@ class CausalModel:
             True if the given set is a valid frontdoor adjustment set for
             corresponding treatemtns and outcomes.
         """
-        pass
+        # rule 1, intercept all directed paths from treatment to outcome
+        if not skip_rule_one:
+            for path in nx.all_simple_paths(
+                self.causal_graph.dag, treatment, outcome
+            ):
+                if not any(path_node in set_ for path_node in path):
+                    return False
 
-    def get_frontdoor_set(self, treatment, outcome):
-        """See the docstring for get_backdoor_set.
+        # rule 2, there is no unblocked back-door path from treatment to set_
+        for path in self.get_backdoor_path(treatment, set_):
+            if self.is_connected_backdoor_path(path):
+                return False
+
+        # rule 3, all backdoor paths from set_ to outcome are blocked by
+        # treatment
+        return self.is_valid_backdoor_set(treatment, set_, outcome)
+
+    def get_frontdoor_set(self, treatment, outcome, adjust='simple'):
         """
-        pass
+        Return the frontdoor set for adjusting the causal effect between
+        treatment and outcome.
+
+        Parameters
+        ----------
+        treatment : str or set
+        outcome : str or set
+
+        Returns
+        ----------
+        tuple
+            2 elements (adjustment_set, Prob)
+        """
+        initial_set = set()
+        for path in nx.all_simple_paths(
+            self.causal_graph.dag, treatment, outcome
+        ):
+            initial_set.update(set(path))
+        all_adjust = [
+            i for i in powerset(initial_set) if self.is_frontdoor_set(
+                i, treatment, outcome, skip_rule_one=True
+            )
+        ]
+        prob = Prob()
+        return (adjust, prob)
 
     def __repr__(self):
         return f'A CausalModel for {self.causal_graph},'\
