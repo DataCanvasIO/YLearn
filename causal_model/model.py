@@ -2,7 +2,7 @@ import networkx as nx
 import numpy as np
 
 from causal_model.prob import Prob
-from itertools import combinations
+from itertools import combinations, product
 from estimator_model.estimation_learner.meta_learner import SLearner, \
     TLearner, XLearner, PropensityScore
 
@@ -110,37 +110,34 @@ class CausalModel:
 
         assert estimation[1] in self.estimator_dic.keys(), \
             f'Only support estimation methods in {self.estimator_dic.keys()}'
-        self.estimator = self.estimator_dic[estimation[1]]
 
-        if causal_graph is None:
-            assert data is not None, 'Need data to perform causal discovery.'
-            self.causal_graph = self.discover_graph(data)
-        else:
-            self.causal_graph = causal_graph
+        self.estimator = self.estimator_dic[estimation[1]]
+        self.causal_graph = causal_graph if causal_graph is not None\
+            else self.discover_graph(data)
 
     def id(self, y, x, prob=None, graph=None):
         """
-        Identify the causal quantity P(y|do(x)) if identifiable else return False.
-        see Shpitser and Pearl (2006b)
+        Identify the causal quantity P(y|do(x)) if identifiable else return
+        False. See Shpitser and Pearl (2006b)
         (https://ftp.cs.ucla.edu/pub/stat_ser/r327.pdf) for reference.
 
         Parameters
         ----------
         y : set
-            Set of str type outcomes.
+            Set of outcomes.
         x : set
-            Set of str type treatments.
+            Set of treatments.
         prob : Prob
             Probability distribution encoded in the graph.
         graph : CausalGraph or CausalStructuralModel
 
         Returns
         ----------
-        Prob if identifiable
+        Prob if identifiable.
 
         Raises
         ----------
-        IdentificationError if not identifiable
+        IdentificationError if not identifiable.
         """
         # TODO: need to be careful about the fact that set is not ordered,
         # be careful about the usage of list and set in the current
@@ -151,7 +148,7 @@ class CausalModel:
         if prob is None:
             prob = graph.prob
 
-        v = graph.causation.keys()
+        v = set(graph.causation.keys())
         v_topo = list(graph.topo_order)
         y, x = set(y), set(x)
 
@@ -290,7 +287,7 @@ class CausalModel:
         ----------
         effect : float, optional
         """
-        adjustment_set = list(adjustment_set[0])
+        adjustment_set = list(adjustment_set)
         adjustment_set.insert(0, treatment)
         x_adjusted = x[adjustment_set]
         effect = self.estimator.estimate(x_adjusted, y, treatment, target)
@@ -336,7 +333,8 @@ class CausalModel:
         ----------
         data : not sure
         """
-        pass
+        assert data is not None, 'Need data to perform causal discovery.'
+        raise NotImplementedError
 
     def is_valid_backdoor_set(self, set_, treatment, outcome):
         """
@@ -357,9 +355,13 @@ class CausalModel:
         Bool
             True if the given set is a valid backdoor adjustment set.
         """
-        return set_ in self.get_backdoor_set(
-            treatment, outcome, adjust='all'
-        )[0]
+        # TODO: improve the implementation
+        # A valid backdoor set d-separates all backdoor paths between
+        # treatments and outcomes.
+        modified_dag = self.causal_graph.remove_outgoing_edges(
+            treatment, new=True
+        ).observed_graph
+        return nx.d_separated(modified_dag, treatment, outcome, set_)
 
     def get_backdoor_set(self, treatment, outcome, adjust='simple'):
         """
@@ -420,7 +422,7 @@ class CausalModel:
             # for i in backdoor_list:
             #     backdoor_expression += f'{i}, '
         else:
-            # get all backdoor sets. currently implenmented
+            # Get all backdoor sets. currently implenmented
             # in a brutal force manner. NEED IMPROVEMENT
             des_set = set()
             for t in treatment:
@@ -454,6 +456,7 @@ class CausalModel:
                     'and minimal.'
                 )
 
+        # Build the corresponding probability distribution.
         product_expression = {
             Prob(variables=outcome,
                  conditional=treatment.update(adset)),
@@ -507,6 +510,9 @@ class CausalModel:
             True if the path has a collider.
         """
         # TODO: improve the implementation.
+        if path[1] not in self.causal_graph.causation[path[0]]:
+            backdoor_path = False
+
         if len(path) > 2:
             dag = self.causal_graph.observed_graph
 
@@ -547,8 +553,10 @@ class CausalModel:
         assert path[1] in self.causal_graph.causation[
             path[0]
         ], 'Not a backdoor path.'
-        # TODO: improve the implementation
 
+        # A backdoor path is not connected if it contains a collider or not a
+        # backdoor_path.
+        # TODO: improve the implementation
         if self.has_collider(path[1:]) or \
                 path not in self.get_backdoor_path(path[0], path[-1]):
             return False
@@ -604,25 +612,56 @@ class CausalModel:
         tuple
             2 elements (adjustment_set, Prob)
         """
-        # TODO: support for set of treatments and outcomes
         assert (
             len(treatment) == 1 and len(outcome) == 1
         ), 'Treatment and outcome should be sets which contain one'
         'element for frontdoor adjustment.'
         treatment, outcome = treatment.pop(), outcome.pop()
 
+        # Find the initial set which will then be used to generate all
+        # possible frontdoor set with the method powerset()
         initial_set = set()
         for path in nx.all_simple_paths(
             self.causal_graph.dag, treatment, outcome
         ):
             initial_set.update(set(path))
-        all_adjust = [
-            i for i in powerset(initial_set) if self.is_frontdoor_set(
-                i, treatment, outcome, skip_rule_one=True
+        potential_set = powerset(initial_set)
+
+        # Different frontdoor set styles.
+        if adjust == 'simple' or adjust == 'minimal':
+            for set_ in potential_set:
+                if self.is_frontdoor_set(
+                    set_, treatment, outcome, skip_rule_one=True
+                ):
+                    adjustment = set_
+                    adset = set_
+                    break
+        elif adjust == 'all':
+            adjustment = [
+                i for i in powerset(initial_set) if self.is_frontdoor_set(
+                    i, treatment, outcome, skip_rule_one=True
+                )
+            ]
+            adset = adjustment[0]
+        else:
+            raise IdentificationError(
+                'The frontdoor set style must be one of simple, all'
+                'and minimal.'
             )
-        ]
-        prob = Prob()
-        return (adjust, prob)
+
+        # Build the corresponding probability distribution.
+        product_expression = {
+            Prob(variables=adset, conditional=treatment),
+            Prob(
+                marginal=treatment, product={
+                    Prob(variables=outcome,
+                         conditional=set(treatment).union(adset)),
+                    Prob(treatment)
+                }
+            )
+        }
+        prob = Prob(marginal=adset, product=product_expression)
+        return (adjustment, prob)
 
     def __repr__(self):
         return f'A CausalModel for {self.causal_graph},'\

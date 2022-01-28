@@ -1,7 +1,6 @@
 import causal_model
 import networkx as nx
 import numpy as np
-import copy
 
 from causal_model import prob
 from estimator_model.estimation_learner.meta_learner import SLearner
