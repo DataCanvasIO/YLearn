@@ -178,7 +178,7 @@ class CausalModel:
             return self.id(y, x.union(w), prob, graph)
 
         # 4
-        c = graph.remove_nodes(x, new=True).c_components
+        c = list(graph.remove_nodes(x, new=True).c_components)
         if len(c) > 1:
             product_expressioin = set()
             for subset in c:
@@ -190,7 +190,7 @@ class CausalModel:
             )
         else:
             s = c.pop()
-            cg = set(graph.c_componets)
+            cg = list(graph.c_componets)
             c_ = cg.pop()
             # 5
             if (c_ == v) and (len(cg) == 1):

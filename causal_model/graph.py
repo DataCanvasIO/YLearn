@@ -1,7 +1,7 @@
-import causal_model
 import networkx as nx
 import numpy as np
 
+from collections import defaultdict
 from causal_model import prob
 from estimator_model.estimation_learner.meta_learner import SLearner
 
@@ -14,9 +14,7 @@ class CausalGraph:
     causation : dic
         Data structure of the causal graph where values are parents of the
         corresponding keys.
-    observed_var : list
-    unobserved_var : list
-    dag : nx.DiGraph
+    dag : nx.MultiDiGraph
         Graph represented by the networkx package.
     prob
     latent_confounding_arcs
@@ -59,16 +57,17 @@ class CausalGraph:
         CausalGraph.
     """
 
-    def __init__(self, causation, graph=None, latent_confounding_arcs=None):
+    def __init__(self, causation, dag=None, latent_confounding_arcs=None):
         """
         Parameters
         ----------
         causation : dict
-            data structure of the causation
+            Data structure of the causation
         graph : nx.MultiGraph, optional
-            the causal graph. Defaults to None.
+            The causal graph. Defaults to None.
         latent_confounding_arcs : set or list, optional
-            unobserved bidirected edges. Defaults to None.
+            Unobserved bidirected edges. Defaults to None. Each element is a
+            tuple containing 2 elements.
         """
         # TODO: update the usage of DiGraph with MultiDiGraph, consider all
         # usages, or simply add new unobserved nodes
@@ -76,12 +75,8 @@ class CausalGraph:
         # what about unobserved chain?
         # TODO: replace list or tuple with generator to save memory
 
-        self.causation = causation
-
-        if graph is None:
-            self.dag = self.observed_graph.copy()
-        else:
-            self.dag = graph
+        self.causation = defaultdict(list, causation)
+        self.dag = self.observed_graph.copy() if dag is None else dag
 
         # add unobserved bidirected confounding arcs to the graph, the letter
         # 'n' representing that the edge is unobserved
@@ -113,20 +108,16 @@ class CausalGraph:
 
         """
         W = nx.to_numpy_matrix(self.dag)
-        a, b = np.where(W >= 1), np.where(W.T >= 1)
+        a, w_t = np.where(W >= 1), W.T.A
         arcs, nodes = [], list(self.dag.nodes)
-        for i, (j, k) in enumerate(zip(a[0] == b[0], a[1] == b[1])):
-            if j and k:
-                arcs.append(
-                    (
-                        nodes[a[0][i]], nodes[a[1][i]]
-                    )
-                )
+        for row, col in zip(a[0], a[1]):
+            if w_t[row][col] >= 1 and (nodes[col], nodes[row]) not in arcs:
+                arcs.append((nodes[row], nodes[col]))
         return arcs
 
     @property
     def is_dag(self):
-        """Determine whether the constructed graph is a DAG.
+        """Verify whether the constructed graph is a DAG.
         """
         # TODO: determin if the graph is a DAG, try tr(e^{W\circledot W}-d)=0
         return nx.is_directed_acyclic_graph(self.observed_graph)
@@ -152,6 +143,7 @@ class CausalGraph:
             the C-component set of graph
         """
         bi_directed_graph = nx.Graph()
+        bi_directed_graph.add_nodes_from(self.dag.nodes)
         bi_directed_graph.add_edges_from(self.latent_confounding_arcs)
         return nx.connected_components(bi_directed_graph)
 
@@ -221,17 +213,21 @@ class CausalGraph:
         ----------
         CausalGraph
         """
+        ori_nodes = self.dag.nodes
+
         if not new:
             self.dag.add_nodes_from(nodes)
             for node in nodes:
-                self.causation[node] = []
+                if node not in ori_nodes:
+                    self.causation[node] = []
         else:
             new_dag = self.dag.copy()
             new_causation = dict(self.causation)
             new_dag.add_nodes_from(nodes)
             for node in nodes:
-                new_causation[node] = []
-            return CausalGraph(new_causation, graph=new_dag)
+                if node not in ori_nodes:
+                    new_causation[node] = []
+            return CausalGraph(new_causation, dag=new_dag)
 
     def add_edges_from(self, edge_list, new=False, observed=True):
         """
@@ -269,7 +265,7 @@ class CausalGraph:
                     new_dag.add_edges_from(
                         [(edge[0], edge[1], 'n'), (edge[1], edge[0], 'n')]
                     )
-            return CausalGraph(new_causation, graph=new_dag)
+            return CausalGraph(new_causation, dag=new_dag)
 
     def add_edge(self, s, t, observed=True):
         """
@@ -310,11 +306,14 @@ class CausalGraph:
         if not new:
             for node in nodes:
                 # self.observed_var.remove(node)
-                for k, v in self.causation:
+                for k in list(self.causation.keys()):
                     if k == node:
                         del self.causation[node]
                         continue
-                    v.remove(node)
+                    try:
+                        self.causation[k].remove(node)
+                    except Exception:
+                        pass
             self.dag.remove_nodes_from(nodes)
         else:
             # new_observed_var = set(self.observed_var)
@@ -324,12 +323,15 @@ class CausalGraph:
 
             for node in nodes:
                 # new_observed_var.remove(node)
-                for k, v in new_causation:
+                for k in list(new_causation.keys()):
                     if k == node:
                         del new_causation[node]
                         continue
-                    v.remove(node)
-            return CausalGraph(new_causation, graph=new_dag)
+                    try:
+                        new_causation[k].remove(node)
+                    except Exception:
+                        pass
+            return CausalGraph(new_causation, dag=new_dag)
 
     def remove_edge(self, edge, observed=True):
         """
@@ -345,7 +347,10 @@ class CausalGraph:
         """
         if observed:
             self.dag.remove_edges(edge[0], edge[1], 0)
-            self.causation[edge[1]].remove(edge[0])
+            try:
+                self.causation[edge[1]].remove(edge[0])
+            except:
+                pass
         else:
             self.dag.remove_edge(edge[0], edge[1], 'n')
 
@@ -370,7 +375,10 @@ class CausalGraph:
             if observed:
                 for edge in edge_list:
                     self.dag.remove_edge(edge[0], edge[1], 0)
-                    self.causation[edge[1]].remove(edge[0])
+                    try:
+                        self.causation[edge[1]].remove(edge[0])
+                    except Exception:
+                        pass
             else:
                 for edge in edge_list:
                     self.dag.remove_edges_from(
@@ -382,7 +390,10 @@ class CausalGraph:
             if observed:
                 for edge in edge_list:
                     new_dag.remove_edge(edge[0], edge[1], 0)
-                    new_causation[edge[1]].remove(edge[0])
+                    try:
+                        new_causation[edge[1]].remove(edge[0])
+                    except Exception:
+                        pass
             else:
                 for edge in edge_list:
                     new_dag.remove_edges_from(
@@ -413,7 +424,7 @@ class CausalGraph:
 
         Parameters
         ----------
-        x : set
+        x : set or list
         new : bool
             Return a new graph if set as Ture.
 
@@ -423,19 +434,21 @@ class CausalGraph:
             If new, return a subgraph of the graph without all incoming edges
             of nodes in x
         """
-        edges = list(self.dag.in_edges(x, keys=True))
-        u_edges = []
+        edges = self.dag.in_edges(x, keys=True)
+        o_edges, u_edges = [], []
 
-        for i, edge in enumerate(edges):
+        for edge in edges:
             if edge[2] == 'n':
-                u_edges.append(edges.pop(i))
+                u_edges.append(edge)
+            else:
+                o_edges.append(edge)
 
         if new:
-            return self.remove_edges_from(edges, new).remove_edges_from(
+            return self.remove_edges_from(o_edges, new).remove_edges_from(
                 u_edges, new, observed=False
             )
         else:
-            self.remove_edges_from(edges, new)
+            self.remove_edges_from(o_edges, new)
             self.remove_edges_from(u_edges, new, observed=False)
 
     def remove_outgoing_edges(self, x, new=False):
@@ -453,8 +466,7 @@ class CausalGraph:
             If new, return a subgraph of the graph without all outcoming edges
             of nodes in x.
         """
-        edges = list(self.dag.out_edges(x, keys=True))
-        for i, edge in enumerate(edges):
-            if edge[2] == 'n':
-                edges.pop(i)
-        return self.remove_edges_from(edges, new, observed=True)
+        remove_edge = [
+            edge for edge in self.dag.out_edges(x, keys=True) if edge[2] == 0
+        ]
+        return self.remove_edges_from(remove_edge, new, observed=True)
