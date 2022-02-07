@@ -349,7 +349,7 @@ class CausalGraph:
             self.dag.remove_edges(edge[0], edge[1], 0)
             try:
                 self.causation[edge[1]].remove(edge[0])
-            except:
+            except Exception:
                 pass
         else:
             self.dag.remove_edge(edge[0], edge[1], 'n')
@@ -369,7 +369,7 @@ class CausalGraph:
         Returns
         ----------
         CausalGraph
-            If not observed, return a new CausalGraph.
+            Return a new CausalGraph if new.
         """
         if not new:
             if observed:
@@ -403,7 +403,7 @@ class CausalGraph:
 
     def build_sub_graph(self, subset):
         """
-        Return a new CausalGraph as the subgraph of graph with nodes in the
+        Return a new CausalGraph as the subgraph of the graph with nodes in the
         subset.
 
         Parameters

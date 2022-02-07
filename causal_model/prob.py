@@ -44,7 +44,7 @@ class Prob:
         expression : str
         """
         # TODO
-        expression = None
+        expression = 'Not implemented yet.'
         return expression
 
 
