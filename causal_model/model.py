@@ -262,7 +262,8 @@ class CausalModel:
             and the second is for the returned set style.
             adjustment methods include backdoor, frontdoor, general_adjust, and
             default while returned set styles include simple, minimal,
-            all, and default.
+            all, and default. If None or default, the general identification
+            method self.id() will be called.
 
         Returns
         ----------
@@ -363,8 +364,8 @@ class CausalModel:
         ----------
         set_ : set
             The adjustment set.
-        treatment : set or list
-        outcome : set or list
+        treatment : set or list. (str is also acceptable for single treatment)
+        outcome : set or list. (str is also acceptable for single outcome)
         graph : CausalGraph
             If None, use self.causal_graph. Defaults to None.
 
@@ -376,6 +377,10 @@ class CausalModel:
         # TODO: improve the implementation
         # A valid backdoor set d-separates all backdoor paths between
         # treatments and outcomes.
+        treatment = set(treatment) if type(treatment) is not str \
+            else set([treatment])
+        outcome = set(outcome) if type(outcome) is not str else set([outcome])
+
         modified_dag = self.causal_graph.remove_outgoing_edges(
             treatment, new=True
         ).observed_graph
@@ -387,9 +392,9 @@ class CausalModel:
 
         Parameters
         ----------
-        treatment : set or list
+        treatment : set or list (str is also acceptable for single treatment)
             Names of the treatment.
-        outcome : set or list
+        outcome : set or list (str is also acceptable for single outcome)
             Names of the outcome.
         adjust : str
             Set style of the backdoor set
@@ -411,12 +416,13 @@ class CausalModel:
         """
         # TODO: can I find the adjustment sets by using the adj matrix
         # TODO: improve the implementation
-        # TODO: support set of treatments and outcomes
-        # modified_graph = self.causal_graph.dag.copy()
-        # remove_list = [(treatment, i)
-        #                for i in modified_graph.successors(treatment)]
-        # modified_graph.remove_edges_from(remove_list)
-        modified_dag = self.causal_graph.remove_incoming_edges(
+
+        # convert treatment and outcome to sets.
+        treatment = set(treatment) if type(treatment) is not str \
+            else set([treatment])
+        outcome = set(outcome) if type(outcome) is not str else set([outcome])
+
+        modified_dag = self.causal_graph.remove_outgoing_edges(
             treatment, new=True
         ).observed_graph
 
@@ -428,17 +434,14 @@ class CausalModel:
                                       outcome, set())
             return True
 
-        assert determine(treatment, outcome), \
+        assert determine(modified_dag, treatment, outcome), \
             'No set can satisfy the backdoor criterion!'
 
-        # backdoor_expression = ''
         if adjust == 'simple':
             backdoor_list = []
             for t in treatment:
                 backdoor_list += self.causal_graph.causation[t]
-            adset = {backdoor_list}
-            # for i in backdoor_list:
-            #     backdoor_expression += f'{i}, '
+            adset = set(backdoor_list)
         else:
             # Get all backdoor sets. currently implenmented
             # in a brutal force manner. NEED IMPROVEMENT
@@ -462,7 +465,7 @@ class CausalModel:
             except Exception:
                 backdoor_set_list = [[]]
             finally:
-                adset = backdoor_list[0]
+                adset = backdoor_set_list[0]
 
             if adjust == 'all':
                 backdoor_list = backdoor_set_list
@@ -534,23 +537,23 @@ class CausalModel:
         if len(path) > 2:
             dag = self.causal_graph.observed_graph
 
-            assert(nx.is_path(dag.to_undirected, path)), "Not a valid path."
+            assert(nx.is_path(dag.to_undirected(), path)), "Not a valid path."
 
+            j = 0
             if backdoor_path:
-                for i, node in enumerate(path[1:]):
+                if len(path) == 3:
+                    return False
+                
+                for i, node in enumerate(path[1:], 1):
                     if node in dag.successors(path[i-1]):
                         j = i
                         break
-                for i, node in enumerate(path[j+1]):
-                    if node in dag.precedecessors(path[j-1]):
+                for i, node in enumerate(path[j+1:], j+1):
+                    if node in dag.predecessors(path[j]):
                         return True
             else:
-                for i, node in enumerate(path[1:]):
-                    if node in dag.precedecessors(path[i-1]):
-                        j = i
-                        break
-                for i, node in enumerate(path[j+1]):
-                    if node in dag.successors(path[j-1]):
+                for i, node in enumerate(path[1:], 1):
+                    if node in dag.predecessors(path[i-1]):
                         return True
         return False
 
@@ -575,7 +578,7 @@ class CausalModel:
         # A backdoor path is not connected if it contains a collider or not a
         # backdoor_path.
         # TODO: improve the implementation
-        if self.has_collider(path[1:]) or \
+        if self.has_collider(path) or \
                 path not in self.get_backdoor_path(path[0], path[-1]):
             return False
         return True
