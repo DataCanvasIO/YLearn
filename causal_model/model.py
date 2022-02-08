@@ -1,6 +1,7 @@
 import networkx as nx
 import numpy as np
 
+from copy import deepcopy
 from causal_model.prob import Prob
 from itertools import combinations, product
 from estimator_model.estimation_learner.meta_learner import SLearner, \
@@ -97,9 +98,11 @@ class CausalModel:
         causal_graph : CausalGraph
         data : DataFrame (for now)
         estimation : tuple of 2 elements
-            describe estimation methods (the first element) and machine
-            learning models (the second element) used for estimation
+            Describe estimation methods (the first element) and machine
+            learning models (the second element) used for estimation.
         """
+        if estimation is None:
+            estimation = ('LR', 'S-Learner')
 
         self.estimator_dic = {
             'S-Learner': SLearner(ml_model=estimation[0]),
@@ -120,6 +123,11 @@ class CausalModel:
         Identify the causal quantity P(y|do(x)) if identifiable else return
         False. See Shpitser and Pearl (2006b)
         (https://ftp.cs.ucla.edu/pub/stat_ser/r327.pdf) for reference.
+        Note that here we only consider semi-Markovian causal model, where
+        each unobserved variable is a parent of exactly two nodes. This is
+        because any causal model with unobserved variables can be converted
+        to a semi-Markovian causal model encoding the same set of conditional
+        independences (Verma, 1993).
 
         Parameters
         ----------
@@ -154,32 +162,39 @@ class CausalModel:
 
         # 1
         if not x:
-            if (prob.divisor is not None) or (prob.product is not None):
+            if prob.divisor or prob.product:
                 prob.marginal = v.difference(y).union(prob.marginal)
             else:
+                # If the prob is not built with products, then
+                # simply replace the variables with y
                 prob.variables = y
-                return prob
+            print(f'line 1, var {prob.variables}')
+            return prob
 
         # 2
         ancestor = graph.ancestors(y)
+        prob_ = deepcopy(prob)
         if v.difference(ancestor) != set():
-            an_graph = graph.build_sub_graph(ancestor, new=True)
-            if (prob.divisor is not None) or (prob.product is not None):
-                prob.marginal = v.difference(ancestor).union(prob.marginal)
+            an_graph = graph.build_sub_graph(ancestor)
+            if prob_.divisor or prob_.product:
+                prob_.marginal = v.difference(ancestor).union(prob_.marginal)
             else:
-                prob.variables = ancestor
-            return self.id(y, x.intersection(ancestor), prob, an_graph)
+                prob_.variables = ancestor
+            print(f'line 2, var {prob_.variables}')
+            return self.id(y, x.intersection(ancestor), prob_, an_graph)
 
         # 3
         w = v.difference(x).difference(
             graph.remove_incoming_edges(x, new=True).ancestors(y)
         )
         if w:
+            print('line3')
             return self.id(y, x.union(w), prob, graph)
 
         # 4
         c = list(graph.remove_nodes(x, new=True).c_components)
         if len(c) > 1:
+            print('line 4')
             product_expressioin = set()
             for subset in c:
                 product_expressioin.add(
@@ -190,28 +205,30 @@ class CausalModel:
             )
         else:
             s = c.pop()
-            cg = list(graph.c_componets)
-            c_ = cg.pop()
+            cg = list(graph.c_components)
             # 5
-            if (c_ == v) and (len(cg) == 1):
+            if cg[0] == set(graph.dag.nodes):
+                print('line 5')
                 raise IdentificationError(
                     'The causal quantity is not identifiable in the'
                     'current graph.'
                 )
             # 6
-            elif s.intersection(c_) == s:
-                product_expressioin = set()
+            elif s in cg:
+                print('line 6')
+                product_expression = set()
                 for element in s:
-                    product_expressioin.add(
-                        Prob(variables=set(element),
+                    product_expression.add(
+                        Prob(variables={element},
                              conditional=set(v_topo[:v_topo.index(element)]))
                     )
                 return Prob(
-                    marginal=s.difference(y), product=product_expressioin
+                    marginal=s.difference(y), product=product_expression
                 )
 
             # 7
             else:
+                print('line 7')
                 # TODO: not clear whether directly replacing a random variable
                 # with one of its value matters in this line
                 for subset in cg:
@@ -219,9 +236,10 @@ class CausalModel:
                         product_expressioin = set()
                         for element in subset:
                             product_expressioin.add(
-                                Prob(variables=set(element),
-                                     conditional=set(v_topo[:v_topo.index(
-                                         element)]))
+                                Prob(variables={element},
+                                     conditional=set(v_topo[
+                                         :v_topo.index(element)
+                                     ]))
                             )
                         sub_prob = Prob(product=product_expressioin)
                         sub_graph = graph.build_sub_graph(subset)
@@ -418,7 +436,7 @@ class CausalModel:
             backdoor_list = []
             for t in treatment:
                 backdoor_list += self.causal_graph.causation[t]
-            adset = set(backdoor_list)
+            adset = {backdoor_list}
             # for i in backdoor_list:
             #     backdoor_expression += f'{i}, '
         else:

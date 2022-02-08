@@ -13,11 +13,11 @@ class Prob:
     """
 
     def __init__(self,
-                 variables=None,
-                 conditional=None,
-                 marginal=None,
-                 divisor=None,
-                 product=None):
+                 variables=set(),
+                 conditional=set(),
+                 marginal=set(),
+                 divisor=set(),
+                 product=set()):
         """Represent the probability distribution P(variable|conditional).
 
         Parameters

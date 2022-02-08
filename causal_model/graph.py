@@ -1,6 +1,7 @@
 import networkx as nx
 import numpy as np
 
+from copy import deepcopy
 from collections import defaultdict
 from causal_model import prob
 from estimator_model.estimation_learner.meta_learner import SLearner
@@ -95,7 +96,7 @@ class CausalGraph:
         ----------
         Prob
         """
-        return prob.Prob(variables=self.causation.keys())
+        return prob.Prob(variables=set(self.causation.keys()))
 
     @property
     def latent_confounding_arcs(self):
@@ -164,7 +165,10 @@ class CausalGraph:
         an = set()
         for node in x:
             an.add(node)
-            an.update(nx.ancestors(self.observed_graph, node))
+            try:
+                an.update(nx.ancestors(self.observed_graph, node))
+            except Exception:
+                pass
         return an
 
     @property
@@ -221,8 +225,8 @@ class CausalGraph:
                 if node not in ori_nodes:
                     self.causation[node] = []
         else:
-            new_dag = self.dag.copy()
-            new_causation = dict(self.causation)
+            new_dag = deepcopy(self.dag)
+            new_causation = deepcopy(self.causation)
             new_dag.add_nodes_from(nodes)
             for node in nodes:
                 if node not in ori_nodes:
@@ -254,8 +258,8 @@ class CausalGraph:
                         [(edge[0], edge[1], 'n'), (edge[1], edge[0], 'n')]
                     )
         else:
-            new_dag = self.dag.copy()
-            new_causation = dict(self.causation)
+            new_dag = deepcopy(self.dag)
+            new_causation = deepcopy(self.causation)
             if observed:
                 new_dag.add_edges_from(edge_list)
                 for edge in edge_list:
@@ -317,8 +321,8 @@ class CausalGraph:
             self.dag.remove_nodes_from(nodes)
         else:
             # new_observed_var = set(self.observed_var)
-            new_causation = dict(self.causation)
-            new_dag = self.dag.copy()
+            new_causation = deepcopy(self.causation)
+            new_dag = deepcopy(self.dag)
             new_dag.remove_nodes_from(nodes)
 
             for node in nodes:
@@ -385,8 +389,8 @@ class CausalGraph:
                         [(edge[0], edge[1], 'n'), (edge[1], edge[0], 'n')]
                     )
         else:
-            new_dag = self.dag.copy()
-            new_causation = self.causation
+            new_dag = deepcopy(self.dag)
+            new_causation = deepcopy(self.causation)
             if observed:
                 for edge in edge_list:
                     new_dag.remove_edge(edge[0], edge[1], 0)

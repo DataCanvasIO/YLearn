@@ -20,7 +20,7 @@ class BaseEstimationMethod:
         pass
 
     def add_model(self, model, name):
-        self.model_dic[name] = model
+        self.ml_model_dic[name] = model
         # add some other methods
         pass
 
