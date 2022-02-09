@@ -383,7 +383,7 @@ class CausalModel:
 
         modified_dag = self.causal_graph.remove_outgoing_edges(
             treatment, new=True
-        ).observed_graph
+        ).explicit_unob_var_dag
         return nx.d_separated(modified_dag, treatment, outcome, set_)
 
     def get_backdoor_set(self, treatment, outcome, adjust='simple'):
@@ -419,12 +419,12 @@ class CausalModel:
 
         # convert treatment and outcome to sets.
         treatment = set(treatment) if type(treatment) is not str \
-            else set([treatment])
-        outcome = set(outcome) if type(outcome) is not str else set([outcome])
+            else {treatment}
+        outcome = set(outcome) if type(outcome) is not str else {outcome}
 
         modified_dag = self.causal_graph.remove_outgoing_edges(
             treatment, new=True
-        ).observed_graph
+        ).explicit_unob_var_dag
 
         def determine(modified_dag, treatment, outcome):
             if all(
@@ -448,7 +448,7 @@ class CausalModel:
             des_set = set()
             for t in treatment:
                 des_set.update(
-                    nx.descendants(self.causal_graph.observed_graph, t)
+                    nx.descendants(self.causal_graph.observed_dag, t)
                 )
             initial_set = (
                 set(list(self.causal_graph.causation.keys())) -
@@ -498,7 +498,6 @@ class CausalModel:
         ----------
         treatment : str
         outcome : str
-        graph : nx.DiGraph
 
         Returns
         ----------
@@ -506,12 +505,12 @@ class CausalModel:
             A list containing all valid backdoor paths between the treatment and
             outcome in the graph.
         """
-        graph = self.causal_graph.observed_graph
+        dag = self.causal_graph.explicit_unob_var_dag
         return [
             p for p in nx.all_simple_paths(
-                graph.to_undirected(), treatment, outcome
+                dag.to_undirected(), treatment, outcome
             )
-            if len(p) > 2 and p[1] in graph.predecessors(treatment)
+            if len(p) > 2 and p[1] in dag.predecessors(treatment)
         ]
 
     def has_collider(self, path, backdoor_path=True):
@@ -535,7 +534,7 @@ class CausalModel:
             backdoor_path = False
 
         if len(path) > 2:
-            dag = self.causal_graph.observed_graph
+            dag = self.causal_graph.explicit_unob_var_dag
 
             assert(nx.is_path(dag.to_undirected(), path)), "Not a valid path."
 
@@ -543,7 +542,7 @@ class CausalModel:
             if backdoor_path:
                 if len(path) == 3:
                     return False
-                
+
                 for i, node in enumerate(path[1:], 1):
                     if node in dag.successors(path[i-1]):
                         j = i
@@ -571,9 +570,9 @@ class CausalModel:
         Boolean
             True if path is a d-connected backdoor path and False otherwise.
         """
-        assert path[1] in self.causal_graph.causation[
-            path[0]
-        ], 'Not a backdoor path.'
+        assert path[1] in \
+            self.causal_graph.explicit_unob_var_dag.predecessors(path[0]),\
+            'Not a backdoor path.'
 
         # A backdoor path is not connected if it contains a collider or not a
         # backdoor_path.
@@ -583,7 +582,7 @@ class CausalModel:
             return False
         return True
 
-    def is_frontdoor_set(self, set_, treatment, outcome, skip_rule_one=False):
+    def is_frontdoor_set(self, set_, treatment, outcome):
         """
         True is the given set is a valid frontdoor adjustment set.
 
@@ -600,21 +599,21 @@ class CausalModel:
             corresponding treatemtns and outcomes.
         """
         # rule 1, intercept all directed paths from treatment to outcome
-        if not skip_rule_one:
-            for path in nx.all_simple_paths(
-                self.causal_graph.dag, treatment, outcome
-            ):
-                if not any([path_node in set_ for path_node in path]):
-                    return False
+        for path in nx.all_simple_paths(
+            self.causal_graph.observed_dag, treatment, outcome
+        ):
+            if not any([path_node in set_ for path_node in path]):
+                return False
 
         # rule 2, there is no unblocked back-door path from treatment to set_
-        for path in self.get_backdoor_path(treatment, set_):
-            if self.is_connected_backdoor_path(path):
-                return False
+        for subset in set_:
+            for path in self.get_backdoor_path(treatment, subset):
+                if self.is_connected_backdoor_path(path):
+                    return False
 
         # rule 3, all backdoor paths from set_ to outcome are blocked by
         # treatment
-        return self.is_valid_backdoor_set(treatment, set_, outcome)
+        return self.is_valid_backdoor_set({treatment}, set_, {outcome})
 
     def get_frontdoor_set(self, treatment, outcome, adjust='simple'):
         """
@@ -623,44 +622,44 @@ class CausalModel:
 
         Parameters
         ----------
-        treatment : set
-            Contains only one element.
-        outcome : set
-            Contains only one element.
+        treatment : set or str
+            Contain only one element.
+        outcome : set or str
+            Contain only one element.
 
         Returns
         ----------
         tuple
             2 elements (adjustment_set, Prob)
         """
-        assert (
-            len(treatment) == 1 and len(outcome) == 1
-        ), 'Treatment and outcome should be sets which contain one'
-        'element for frontdoor adjustment.'
-        treatment, outcome = treatment.pop(), outcome.pop()
+        if type(treatment) is set and type(outcome) is set:
+            assert (
+                len(treatment) == 1 and len(outcome) == 1
+            ), 'Treatment and outcome should be sets which contain one'
+            'element for frontdoor adjustment.'
+            treatment, outcome = treatment.pop(), outcome.pop()
 
         # Find the initial set which will then be used to generate all
         # possible frontdoor set with the method powerset()
         initial_set = set()
         for path in nx.all_simple_paths(
-            self.causal_graph.dag, treatment, outcome
+            self.causal_graph.observed_dag, treatment, outcome
         ):
             initial_set.update(set(path))
+        initial_set = initial_set - {treatment} - {outcome}
         potential_set = powerset(initial_set)
 
         # Different frontdoor set styles.
         if adjust == 'simple' or adjust == 'minimal':
             for set_ in potential_set:
-                if self.is_frontdoor_set(
-                    set_, treatment, outcome, skip_rule_one=True
-                ):
+                if self.is_frontdoor_set(set_, treatment, outcome):
                     adjustment = set_
                     adset = set_
                     break
         elif adjust == 'all':
             adjustment = [
                 i for i in powerset(initial_set) if self.is_frontdoor_set(
-                    i, treatment, outcome, skip_rule_one=True
+                    i, treatment, outcome
                 )
             ]
             adset = adjustment[0]

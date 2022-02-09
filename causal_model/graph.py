@@ -12,7 +12,7 @@ class CausalGraph:
 
     Attributes
     ----------
-    causation : dic
+    causation : dict
         Data structure of the causal graph where values are parents of the
         corresponding keys.
     dag : nx.MultiDiGraph
@@ -21,8 +21,9 @@ class CausalGraph:
     latent_confounding_arcs
     is_dag
     c_components
-    observed_graph
+    observed_dag
     topo_order
+    explicit_unob_var_dag
 
     Methods
     ----------
@@ -77,7 +78,7 @@ class CausalGraph:
         # TODO: replace list or tuple with generator to save memory
 
         self.causation = defaultdict(list, causation)
-        self.dag = self.observed_graph.copy() if dag is None else dag
+        self.dag = self.observed_dag.copy() if dag is None else dag
 
         # add unobserved bidirected confounding arcs to the graph, the letter
         # 'n' representing that the edge is unobserved
@@ -121,7 +122,7 @@ class CausalGraph:
         """Verify whether the constructed graph is a DAG.
         """
         # TODO: determin if the graph is a DAG, try tr(e^{W\circledot W}-d)=0
-        return nx.is_directed_acyclic_graph(self.observed_graph)
+        return nx.is_directed_acyclic_graph(self.observed_dag)
 
     def to_adj_matrix(self):
         """Return the adjacency matrix.
@@ -166,29 +167,46 @@ class CausalGraph:
         for node in x:
             an.add(node)
             try:
-                an.update(nx.ancestors(self.observed_graph, node))
+                an.update(nx.ancestors(self.observed_dag, node))
             except Exception:
                 pass
         return an
 
     @property
-    def observed_graph(self):
+    def observed_dag(self):
         """
         Return the observed part of the graph, including observed nodes and
         edges between them.
 
         Returns
         ----------
-        ob_graph : CausalGraph
+        ob_dag : nx.MultiDiGraph
             the observed part of the graph
         """
         edges = []
         for k, v in self.causation.items():
             for para in v:
-                edges.append((para, k))
-        ob_graph = nx.MultiDiGraph()
-        ob_graph.add_edges_from(edges)
-        return ob_graph
+                edges.append((para, k, 0))
+        ob_dag = nx.MultiDiGraph()
+        ob_dag.add_edges_from(edges)
+        return ob_dag
+
+    @property
+    def explicit_unob_var_dag(self):
+        """
+        Build a new dag where all unobserved confounding arcs are replaced
+        by explicit unobserved variables
+
+        Returns
+        ----------
+        new_dag: nx.MultiDiGraph
+        """
+        new_dag = self.observed_dag
+        for i, (node1, node2) in enumerate(self.latent_confounding_arcs):
+            new_dag.add_edges_from(
+                [(f'U{i}', node1, 'n'), (f'U{i}', node2, 'n')]
+            )
+        return new_dag
 
     @property
     def topo_order(self):
@@ -200,7 +218,7 @@ class CausalGraph:
         topological_order : generator
             nodes in the topological order
         """
-        return nx.topological_sort(self.observed_graph)
+        return nx.topological_sort(self.observed_dag)
 
     def add_nodes(self, nodes, new=False):
         """
@@ -283,7 +301,7 @@ class CausalGraph:
         t : str
             Target of the edge.
         observed : bool
-            Add an unobserved latent confounding arc if True.
+            Add an unobserved latent confounding arc if False.
         """
         if observed:
             self.dag.add_edge(s, t, 0)
@@ -309,7 +327,6 @@ class CausalGraph:
         """
         if not new:
             for node in nodes:
-                # self.observed_var.remove(node)
                 for k in list(self.causation.keys()):
                     if k == node:
                         del self.causation[node]
@@ -320,13 +337,11 @@ class CausalGraph:
                         pass
             self.dag.remove_nodes_from(nodes)
         else:
-            # new_observed_var = set(self.observed_var)
             new_causation = deepcopy(self.causation)
             new_dag = deepcopy(self.dag)
             new_dag.remove_nodes_from(nodes)
 
             for node in nodes:
-                # new_observed_var.remove(node)
                 for k in list(new_causation.keys()):
                     if k == node:
                         del new_causation[node]
