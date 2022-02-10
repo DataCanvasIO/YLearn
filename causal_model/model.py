@@ -458,7 +458,7 @@ class CausalModel:
             except Exception:
                 backdoor_set_list = [[]]
             finally:
-                adset = backdoor_set_list[0]
+                adset = set(backdoor_set_list[0])
 
             if adjust == 'all':
                 backdoor_list = backdoor_set_list
@@ -473,7 +473,7 @@ class CausalModel:
         # Build the corresponding probability distribution.
         product_expression = {
             Prob(variables=outcome,
-                 conditional=treatment.update(adset)),
+                 conditional=treatment.union(adset)),
             Prob(variables=adset)
         }
         prob = Prob(marginal=adset, product=product_expression)
@@ -664,12 +664,12 @@ class CausalModel:
 
         # Build the corresponding probability distribution.
         product_expression = {
-            Prob(variables=adset, conditional=treatment),
+            Prob(variables=adset, conditional={treatment}),
             Prob(
-                marginal=treatment, product={
-                    Prob(variables=outcome,
-                         conditional=set(treatment).union(adset)),
-                    Prob(treatment)
+                marginal={treatment}, product={
+                    Prob(variables={outcome},
+                         conditional={treatment}.union(adset)),
+                    Prob(variables={treatment})
                 }
             )
         }
