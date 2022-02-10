@@ -4,7 +4,6 @@ import numpy as np
 from copy import deepcopy
 from collections import defaultdict
 from causal_model import prob
-from estimator_model.estimation_learner.meta_learner import SLearner
 
 
 class CausalGraph:

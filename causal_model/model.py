@@ -168,7 +168,6 @@ class CausalModel:
                 # If the prob is not built with products, then
                 # simply replace the variables with y
                 prob.variables = y
-            print(f'line 1, var {prob.variables}')
             return prob
 
         # 2
@@ -180,7 +179,6 @@ class CausalModel:
                 prob_.marginal = v.difference(ancestor).union(prob_.marginal)
             else:
                 prob_.variables = ancestor
-            print(f'line 2, var {prob_.variables}')
             return self.id(y, x.intersection(ancestor), prob_, an_graph)
 
         # 3
@@ -188,13 +186,11 @@ class CausalModel:
             graph.remove_incoming_edges(x, new=True).ancestors(y)
         )
         if w:
-            print('line3')
             return self.id(y, x.union(w), prob, graph)
 
         # 4
         c = list(graph.remove_nodes(x, new=True).c_components)
         if len(c) > 1:
-            print('line 4')
             product_expressioin = set()
             for subset in c:
                 product_expressioin.add(
@@ -208,14 +204,12 @@ class CausalModel:
             cg = list(graph.c_components)
             # 5
             if cg[0] == set(graph.dag.nodes):
-                print('line 5')
                 raise IdentificationError(
                     'The causal quantity is not identifiable in the'
                     'current graph.'
                 )
             # 6
             elif s in cg:
-                print('line 6')
                 product_expression = set()
                 for element in s:
                     product_expression.add(
@@ -228,7 +222,6 @@ class CausalModel:
 
             # 7
             else:
-                print('line 7')
                 # TODO: not clear whether directly replacing a random variable
                 # with one of its value matters in this line
                 for subset in cg:
@@ -378,8 +371,8 @@ class CausalModel:
         # A valid backdoor set d-separates all backdoor paths between
         # treatments and outcomes.
         treatment = set(treatment) if type(treatment) is not str \
-            else set([treatment])
-        outcome = set(outcome) if type(outcome) is not str else set([outcome])
+            else {treatment}
+        outcome = set(outcome) if type(outcome) is not str else {outcome}
 
         modified_dag = self.causal_graph.remove_outgoing_edges(
             treatment, new=True

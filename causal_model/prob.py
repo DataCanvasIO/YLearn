@@ -16,7 +16,6 @@ class Prob:
                  variables=set(),
                  conditional=set(),
                  marginal=set(),
-                 divisor=set(),
                  product=set()):
         """Represent the probability distribution P(variable|conditional).
 
@@ -27,13 +26,12 @@ class Prob:
         marginal : set
             elements are strings, summing over these elements will return the
             marginal distribution
-        divisor : set
         product : set
+            set of Prob
         """
         self.variables = variables
         self.conditional = conditional
         self.marginal = marginal
-        self.divisor = divisor
         self.product = product
 
     def parse(self):
@@ -46,24 +44,3 @@ class Prob:
         # TODO
         expression = 'Not implemented yet.'
         return expression
-
-
-class ProbProduct:
-    """Product of several single probability distribution.
-
-    Attributes
-    ----------
-
-    Methods
-    ----------
-    """
-
-    def __init__(self, prob_list):
-        """
-        Parameters
-        ----------
-        prob_list : list
-            each element is a Prob object representing a probability
-            distribution
-        """
-        pass
