@@ -263,8 +263,8 @@ class CausalModel:
         adjustment
             Prob if identify_method is ('default', 'default'), ortherwise
             return (list (the adjustment set), Prob).
-        # TODO: should support more general identification,
-        # e.g., probability distribution
+        # TODO: support finding the minimal general adjustment set in linear
+        # time
         """
         if identify_method is None \
                 or identify_method == ('default', 'default'):
@@ -274,7 +274,9 @@ class CausalModel:
                 treatment, outcome, adjust=identify_method[1]
             )
         elif identify_method[0] == 'frontdoor':
-            adjustment = self.get_frontdoor_set(treatment, outcome)
+            adjustment = self.get_frontdoor_set(
+                treatment, outcome, adjust=identify_method[1]
+            )
         else:
             adjustment = None
         return adjustment
@@ -368,8 +370,8 @@ class CausalModel:
             True if the given set is a valid backdoor adjustment set.
         """
         # TODO: improve the implementation
-        # A valid backdoor set d-separates all backdoor paths between
-        # treatments and outcomes.
+        # A valid backdoor set d-separates all backdoor paths between any pairs
+        # of treatments and outcomes.
         treatment = set(treatment) if type(treatment) is not str \
             else {treatment}
         outcome = set(outcome) if type(outcome) is not str else {outcome}
@@ -447,11 +449,13 @@ class CausalModel:
                 set(list(self.causal_graph.causation.keys())) -
                 treatment - outcome - des_set
             )
-            backdoor_set_list = [
-                i for i in powerset(initial_set)
-                if nx.d_separated(modified_dag,
-                                  treatment, outcome, i)
-            ]
+
+            backdoor_set_list = []
+            for i in powerset(initial_set):
+                if nx.d_separated(modified_dag, treatment, outcome, i):
+                    backdoor_set_list.append(i)
+                    if adjust == 'minimal':
+                        break
 
             try:
                 backdoor_set_list[0]
@@ -466,8 +470,8 @@ class CausalModel:
                 backdoor_list = backdoor_set_list[0]
             else:
                 raise IdentificationError(
-                    'The backdoor set style must be one of simple, all'
-                    'and minimal.'
+                    'Do not support backdoor set styles other than simple, all'
+                    'or minimal.'
                 )
 
         # Build the corresponding probability distribution.
@@ -538,10 +542,14 @@ class CausalModel:
 
                 for i, node in enumerate(path[1:], 1):
                     if node in dag.successors(path[i-1]):
+                        # if path[i] is the last element, then it is impossible
+                        # to have collider
+                        if i == len(path) - 1:
+                            return False
                         j = i
                         break
                 for i, node in enumerate(path[j+1:], j+1):
-                    if node in dag.predecessors(path[j]):
+                    if node in dag.predecessors(path[i-1]):
                         return True
             else:
                 for i, node in enumerate(path[1:], 1):
@@ -633,7 +641,7 @@ class CausalModel:
             treatment, outcome = treatment.pop(), outcome.pop()
 
         # Find the initial set which will then be used to generate all
-        # possible frontdoor set with the method powerset()
+        # possible frontdoor sets with the method powerset()
         initial_set = set()
         for path in nx.all_simple_paths(
             self.causal_graph.observed_dag, treatment, outcome

@@ -70,17 +70,13 @@ class CausalGraph:
             Unobserved bidirected edges. Defaults to None. Each element is a
             tuple containing 2 elements.
         """
-        # TODO: update the usage of DiGraph with MultiDiGraph, consider all
-        # usages, or simply add new unobserved nodes
-        # TODO: now only consider confounding arc for unobserved variables,
-        # what about unobserved chain?
         # TODO: replace list or tuple with generator to save memory
 
         self.causation = defaultdict(list, causation)
         self.dag = self.observed_dag.copy() if dag is None else dag
 
-        # add unobserved bidirected confounding arcs to the graph, the letter
-        # 'n' representing that the edge is unobserved
+        # add unobserved bidirected confounding arcs to the graph, with the
+        # letter 'n' representing that the edge is unobserved
         if latent_confounding_arcs is not None:
             for edge in latent_confounding_arcs:
                 self.dag.add_edges_from(
@@ -118,13 +114,15 @@ class CausalGraph:
 
     @property
     def is_dag(self):
-        """Verify whether the constructed graph is a DAG.
+        """
+        Verify whether the constructed graph is a DAG.
         """
         # TODO: determin if the graph is a DAG, try tr(e^{W\circledot W}-d)=0
         return nx.is_directed_acyclic_graph(self.observed_dag)
 
     def to_adj_matrix(self):
-        """Return the adjacency matrix.
+        """
+        Return the adjacency matrix.
         """
         W = nx.to_numpy_matrix(self.dag)
         return W
@@ -133,6 +131,22 @@ class CausalGraph:
         """Return the adjacency list."""
         pass
 
+    def is_d_separated(self, x, y, test_set):
+        """
+        Check if test_set d-separates x and y.
+
+        Parameters
+        ----------
+        x : set
+        y : set
+        test_set : set
+
+        Returns
+        Bool
+            If test_set d-separates x and y, return True else return False.
+        """
+        return nx.d_separated(self.explicit_unob_var_dag, x, y, test_set)
+
     @property
     def c_components(self):
         """
@@ -140,8 +154,8 @@ class CausalGraph:
 
         Returns
         ----------
-        c : set
-            the C-component set of graph
+        set
+            the C-component set of the graph
         """
         bi_directed_graph = nx.Graph()
         bi_directed_graph.add_nodes_from(self.dag.nodes)
@@ -160,7 +174,7 @@ class CausalGraph:
         Returns
         ----------
         an : set
-            ancestors of nodes in x of the graph
+            ancestors of nodes x of the graph
         """
         an = set()
         for node in x:
@@ -364,13 +378,15 @@ class CausalGraph:
             If not observed, remove the unobserved latent confounding arcs.
         """
         if observed:
-            self.dag.remove_edges(edge[0], edge[1], 0)
+            self.dag.remove_edge(edge[0], edge[1], 0)
             try:
                 self.causation[edge[1]].remove(edge[0])
             except Exception:
                 pass
         else:
-            self.dag.remove_edge(edge[0], edge[1], 'n')
+            self.dag.remove_edges_from(
+                [(edge[0], edge[1], 'n'), (edge[1], edge[0], 'n')]
+            )
 
     def remove_edges_from(self, edge_list, new=False, observed=True):
         """
@@ -484,7 +500,7 @@ class CausalGraph:
             If new, return a subgraph of the graph without all outcoming edges
             of nodes in x.
         """
-        remove_edge = [
+        removing_edges = [
             edge for edge in self.dag.out_edges(x, keys=True) if edge[2] == 0
         ]
-        return self.remove_edges_from(remove_edge, new, observed=True)
+        return self.remove_edges_from(removing_edges, new, observed=True)
