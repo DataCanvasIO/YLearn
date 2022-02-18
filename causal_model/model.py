@@ -24,6 +24,7 @@ def powerset(iterable):
     list
         The list of power set.
     """
+    # TODO: return a generator instead of a list
     s = list(iterable)
     power_set = []
     for i in range(len(s) + 1):
@@ -429,10 +430,13 @@ class CausalModel:
                                       outcome, set())
             return True
 
-        assert determine(modified_dag, treatment, outcome), \
-            'No set can satisfy the backdoor criterion!'
+        if not determine(modified_dag, treatment, outcome):
+            raise IdentificationError(
+                'No set can satisfy the backdoor criterion.'
+            )
 
         if adjust == 'simple':
+            # TODO: if the parent of x_i is the descendent of another x_j
             backdoor_list = []
             for t in treatment:
                 backdoor_list += self.causal_graph.causation[t]
@@ -440,7 +444,7 @@ class CausalModel:
         else:
             # Get all backdoor sets. currently implenmented
             # in a brutal force manner. NEED IMPROVEMENT
-            des_set = set()
+            des_set, backdoor_set_list = set(), []
             for t in treatment:
                 des_set.update(
                     nx.descendants(self.causal_graph.observed_dag, t)
@@ -450,12 +454,23 @@ class CausalModel:
                 treatment - outcome - des_set
             )
 
-            backdoor_set_list = []
-            for i in powerset(initial_set):
-                if nx.d_separated(modified_dag, treatment, outcome, i):
-                    backdoor_set_list.append(i)
-                    if adjust == 'minimal':
+            if adjust == 'minimal':
+                for i in powerset(initial_set):
+                    if nx.d_separated(modified_dag, treatment, outcome, i):
+                        backdoor_set_list.append(i)
                         break
+            else:
+                backdoor_set_list = [
+                    i for i in powerset(initial_set)
+                    if nx.d_separated(modified_dag, treatment, outcome, i)
+                ]
+
+            if not backdoor_set_list and not nx.d_separated(
+                modified_dag, treatment, outcome, set()
+            ):
+                raise IdentificationError(
+                    'No set can satisfy the backdoor criterion.'
+                )
 
             try:
                 backdoor_set_list[0]
@@ -652,10 +667,11 @@ class CausalModel:
 
         # Different frontdoor set styles.
         if adjust == 'simple' or adjust == 'minimal':
+            adjustment, adset = set(), set()
             for set_ in potential_set:
                 if self.is_frontdoor_set(set_, treatment, outcome):
-                    adjustment = set_
-                    adset = set_
+                    adjustment.update(set_)
+                    adset.update(set_)
                     break
         elif adjust == 'all':
             adjustment = [
@@ -663,11 +679,16 @@ class CausalModel:
                     i, treatment, outcome
                 )
             ]
-            adset = adjustment[0]
+            adset = adjustment[0] if adjustment else set()
         else:
             raise IdentificationError(
                 'The frontdoor set style must be one of simple, all'
                 'and minimal.'
+            )
+
+        if not adjustment:
+            raise IdentificationError(
+                'No set can satisfy the frontdoor adjustment criterion.'
             )
 
         # Build the corresponding probability distribution.

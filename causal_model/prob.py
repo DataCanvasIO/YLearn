@@ -21,7 +21,7 @@ class Prob:
     product : set
         If not set(), then the probability is composed of the first probability
         object (P(v|y)) and several other probabiity objects that are all saved
-        in the set product, i.e., product = {P1, P2, P3} where P1 for P(w|z),
+        in the set product, e.g., product = {P1, P2, P3} where P1 for P(w|z),
         P2 for P(x|y), and P3 for P(u) in the above example.
 
     Methods
