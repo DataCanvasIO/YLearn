@@ -25,17 +25,55 @@ class MetaLearner:
         Parameters
         ----------
         data : DataFrame
-        outcome : string
-        treatment : string
+        outcome : str
+            Name of the outcome.
+        treatment : str
+            Name of the treatment.
         adjustment : set or list
-        condition_set : set or list
-            The computation will be conducted in the group of data where
-            variables in the condition_set have certain fixed values.
+            The adjutment set for the causal effect,
+            i.e., P(outcome|do(treatment)) =
+                \sum_{adjustment} P(outcome|treatment, adjustment)P(adjustment)
+        individual : DataFrame, default to None
+            The individual data for computing its causal effect.
         """
         pass
 
     def estimate(self, data, outcome, treatment, adjustment, quantity='ATE',
                  condition_set=None, condition=None, individual=None):
+        """
+        General estimation method for quantities like ATE of
+        outcome|do(treatment)
+
+        Parameter
+        ----------
+        data : DataFrame
+        outcome : str
+            Name of the outcome.
+        treatment : str
+            Name of the treatment.
+        adjustment : set or list
+            The valid adjustment set.
+        quantity: str
+            The type of desired quantity, including ATE, CATE, ITE and
+            CITE. Defaults to 'ATE'.
+        condition_set : set or list. Defaults to None.
+        condition : list
+            A list whose length is the size of dataset and elements are
+            boolean such that we only perform the computation of
+            quantities if the corresponding element is True]. Defaults
+            to None.
+        individual : DataFrame. Defaults to None.
+
+        Raises
+        ----------
+        Exception
+            Raise exception if quantity is not in ATE, CATE, ITE or CITE.
+
+        Returns
+        ----------
+        float
+            The desired causal effect.
+        """
         if quantity == 'ATE':
             return self.estimate_ate(data, outcome, treatment, adjustment)
         elif quantity == 'CATE':
@@ -55,12 +93,51 @@ class MetaLearner:
             )
 
     def estimate_ate(self, data, outcome, treatment, adjustment):
+        """
+        Estimate E[outcome|do(treatment=t1) - outcome|do(treatment=t0)]
+
+        Parameters
+        ----------
+        data : DataFrame
+        outcome : str
+            Name of the outcome.
+        treatment : str
+            Name of the treatment.
+        adjustment : set or list
+            The valid adjustment set.
+
+        Returns
+        ----------
+        float
+        """
         return self.prepare(
             data, outcome, treatment, adjustment=adjustment
         ).mean()
 
     def estimate_cate(self, data, outcome, treatment, adjustment,
                       condition_set, condition):
+        """
+        Estimate E[outcome|do(treatment=t1), condition_set=condition
+                    - outcome|do(treatment=t0), condition_set=condition]
+
+        Parameters
+        ----------
+        data : DataFrame
+        outcome : str
+            Name of the outcome.
+        treatment : str
+            Name of the treatment.
+        adjustment : set or list
+            The valid adjustment set.
+        condition_set : set
+        condition : boolean
+            The computation will be performed in the data where conition is
+            True.
+
+        Returns
+        ----------
+        float
+        """
         # modify the data for estmating cate.
         new_data = data.loc[condition].drop(list(condition_set), axis=1)
         cate = self.prepare(new_data, outcome, treatment, adjustment).mean()
@@ -111,8 +188,15 @@ class SLearner(MetaLearner):
         ----------
         data : DataFrame
         outcome : string
+            Name of the outcome.
         treatment : string
+            Name of the treatment.
         adjustment : set or list
+            The adjutment set for the causal effect,
+            i.e., P(outcome|do(treatment)) =
+                \sum_{adjustment} P(outcome|treatment, adjustment)P(adjustment)
+        individual : DataFrame, default to None
+            The individual data for computing its causal effect.
         """
         x = list(adjustment).append(treatment)
         self.model.fit(X=data[x], y=data[outcome])
@@ -120,12 +204,12 @@ class SLearner(MetaLearner):
         if individual:
             data = individual
 
-        Xt1 = pd.DataFrame.copy(data)
-        Xt1[treatment] = 1
-        Xt0 = pd.DataFrame.copy(data)
-        Xt0[treatment] = 0
+        t1_data = pd.DataFrame.copy(data)
+        t1_data[treatment] = 1
+        t0_data = pd.DataFrame.copy(data)
+        t0_data[treatment] = 0
         result = (
-            self.ml_model.predict(Xt1) - self.ml_model.predict(Xt0)
+            self.ml_model.predict(t1_data) - self.ml_model.predict(t0_data)
         )
         return result
 
@@ -153,8 +237,15 @@ class TLearner(MetaLearner):
         ----------
         data : DataFrame
         outcome : string
+            Name of the outcome.
         treatment : string
+            Name of the treatment.
         adjustment : set or list
+            The adjutment set for the causal effect,
+            i.e., P(outcome|do(treatment)) =
+                \sum_{adjustment} P(outcome|treatment, adjustment)P(adjustment)
+        individual : DataFrame, default to None
+            The individual data for computing its causal effect.
         """
         data_without_treatment = data.drop([treatment], axis=1)
         t1_data = data_without_treatment.loc[data[treatment] > 0]
@@ -163,18 +254,90 @@ class TLearner(MetaLearner):
         self.ml_model_t0.fit(t0_data[adjustment], t0_data[outcome])
 
         if individual:
-            data_without_treatment = individual.drop(list(treatment), axis=1)
+            data_ = individual[adjustment]
+        else:
+            data_ = data[adjustment]
 
         result = (
-            self.ml_model_t1.predict(data_without_treatment) -
-            self.ml_model_t0.predict(data_without_treatment)
+            self.ml_model_t1.predict(data_) - self.ml_model_t0.predict(data_)
         )
         return result
 
 
 class XLearner(MetaLearner):
-    def __init__(self) -> None:
-        super().__init__()
+    """
+    The XLearner is composed of 3 steps:
+        1. Train two different models for the control group and treated group
+            f_0(w), f_1(w)
+        2. Generate two new datasets (h_0, w) using the control group and
+            (h_1, w) using the treated group where
+            h_0 = f_1(w) - y_0(w), h_1 = y_1(w) - f_0(w). Then train two models
+            k_0(w) and k_1(w) in these datasets.
+        3. Get the final model using the above two models:
+            g(w) = k_0(w)a(w) + k_1(w)(1 - a(w)).
+    Finally,  we estimate the ATE as follows:
+        ATE = E_w(g(w)).
+    See Kunzel, et al., (https://arxiv.org/abs/1706.03461) for reference.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.f1 = kwargs['ml_model']
+        self.f0 = deepcopy(kwargs['ml_model'])
+        self.k1 = deepcopy(kwargs['ml_model'])
+        self.k0 = deepcopy(kwargs['ml_model'])
+
+    def prepare(self, data, outcome, treatment, adjustment, individual=None):
+        """
+        Prepare (fit the model) for estimating the quantities
+            ATE: E[y|do(x_1)] - E[y|do(x_0)] = E_w[E[y|x=x_1,w] - E[y|x=x_0, w]
+                                           := E_{adjustment}[
+                                               Delta E[outcome|treatment,
+                                                                adjustment]]
+            CATE: E[y|do(x_1), z] - E[y|do(x_0), z] = E_w[E[y|x=x_1, w, z] -
+                                                        E[y|x=x_0, w, z]]
+            ITE: y_i(do(x_1)) - y_i(do(x_0))
+            CITE: y_i(do(x_1))|z_i - y_i(do(x_0))|z_i
+
+        Parameters
+        ----------
+        data : DataFrame
+        outcome : string
+            Name of the outcome.
+        treatment : string
+            Name of the treatment.
+        adjustment : set or list
+            The adjutment set for the causal effect,
+            i.e., P(outcome|do(treatment)) =
+                \sum_{adjustment} P(outcome|treatment, adjustment)P(adjustment)
+        individual : DataFrame, default to None
+            The individual data for computing its causal effect.
+        """
+        # step 1
+        data_without_treatment = data.drop([treatment], axis=1)
+        t1_data = data_without_treatment.loc[data[treatment] > 0]
+        t0_data = data_without_treatment.loc[data[treatment] <= 0]
+        self.f1.fit(t1_data[adjustment], t1_data[outcome])
+        self.f0.fit(t0_data[adjustment], t0_data[outcome])
+
+        # setp 2
+        h1_data = t1_data.drop(outcome, axis=1)
+        h0_data = t0_data.drop(outcome, axis=1)
+        h1 = t1_data[outcome] - self.f0.predict(h1_data[adjustment])
+        h0 = self.f1.predict(h0_data[adjustment]) - t0_data[outcome]
+        self.k1.fit(h1_data, h1)
+        self.k0.fit(h0_data, h0)
+
+        # step 3
+        if individual:
+            data_ = individual[adjustment]
+        else:
+            data_ = data[adjustment]
+        # TODO: more choices of rho
+        rho = 0.5
+        result = rho * self.k1.predict(data_) - \
+            (1 - rho) * self.k0.predict(data_)
+        return result
 
 
 class DragonNet(MetaLearner):
