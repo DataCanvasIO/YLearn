@@ -1,6 +1,8 @@
+from _typeshed import SupportsDunderLE
 import pandas as pd
 import numpy as np
 
+from sklearn import linear_model
 from copy import deepcopy
 
 np.random.seed(2022)
@@ -15,10 +17,24 @@ class MetaLearner:
 
     Methods
     ----------
+    prepare(data, outcome, treatment, adjustment, individual=None)
+        Prepare (fit the model) for estimating various quantities including
+        ATE, CATE, ITE, and CITE.
+    estimate(data, outcome, treatment, adjustment, quantity='ATE',
+                 condition_set=None, condition=None, individual=None)
+        Integrate estimations for various quantities into a single method.
+    estimate_ate(self, data, outcome, treatment, adjustment)
+    estimate_cate(self, data, outcome, treatment, adjustment,
+                      condition_set, condition)
+    estimate_ite(self, data, outcome, treatment, adjustment, individual)
+    estimate_cite(self, data, outcome, treatment, adjustment,
+                      condition_set, condition, individual)
     """
 
-    def __init__(self, ml_model):
-        self.ml_model = ml_model
+    def __init__(self):
+        self.ml_model_dic = {
+            'LR': linear_model.LinearRegression()
+        }
 
     def prepare(self, data, outcome, treatment, adjustment, individual=None):
         """Prepare (fit the model) for estimating the quantities
@@ -180,7 +196,11 @@ class SLearner(MetaLearner):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.ml_model = kwargs['ml_model']
+
+        try:
+            self.ml_model = self.ml_model_dic[kwargs['ml_model']]
+        except Exception:
+            self.ml_model = kwargs['ml_model']
 
     def prepare(self, data, outcome, treatment, adjustment, individual=None):
         """Prepare (fit the model) for estimating the quantities
@@ -223,17 +243,23 @@ class SLearner(MetaLearner):
         t0_data = pd.DataFrame.copy(data)
         t0_data[treatment] = 0
         result = (
-            self.ml_model.predict(t1_data[x]) - self.ml_model.predict(t0_data[x])
+            self.ml_model.predict(t1_data[x]) -
+            self.ml_model.predict(t0_data[x])
         )
         return result
 
 
 class TLearner(MetaLearner):
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.ml_model_t1 = kwargs['ml_model']
-        self.ml_model_t0 = deepcopy(kwargs['ml_model'])
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        model = kwargs['ml_model']
+
+        if type(model) is str:
+            model = self.ml_model_dic[model]
+
+        self.ml_model_t1 = model
+        self.ml_model_t0 = deepcopy(model)
 
     def prepare(self, data, outcome, treatment, adjustment, individual=None):
         """Prepare (fit the model) for estimating the quantities
@@ -297,12 +323,17 @@ class XLearner(MetaLearner):
     See Kunzel, et al., (https://arxiv.org/abs/1706.03461) for reference.
     """
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.f1 = kwargs['ml_model']
-        self.f0 = deepcopy(kwargs['ml_model'])
-        self.k1 = deepcopy(kwargs['ml_model'])
-        self.k0 = deepcopy(kwargs['ml_model'])
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        model = kwargs['ml_model']
+
+        if type(model) is str:
+            model = self.ml_model_dic[model]
+
+        self.f1 = model
+        self.f0 = deepcopy(model)
+        self.k1 = deepcopy(model)
+        self.k0 = deepcopy(model)
 
     def prepare(self, data, outcome, treatment, adjustment, individual=None):
         """Prepare (fit the model) for estimating the quantities

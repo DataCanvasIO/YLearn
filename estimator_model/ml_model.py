@@ -1,6 +1,3 @@
-from sklearn import linear_model
-
-
 class MlModels:
     def __init__(self) -> None:
         pass
@@ -10,18 +7,6 @@ class MlModels:
 
     def predict(self, X):
         pass
-
-
-class LR(MlModels):
-    def __init__(self) -> None:
-        self.ml_model = linear_model.LinearRegression()
-
-    def fit(self, X, y):
-        return self.ml_model.fit(X, y)
-
-    def predict(self, X):
-        return self.ml_model.predict(X)
-
 
 class NewEgModel(MlModels):
     def __init__(self) -> None:

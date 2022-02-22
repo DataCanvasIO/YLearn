@@ -63,10 +63,10 @@ class CausalModel:
         matters.
     identify(treatment, outcome, identify_method=None)
         Identify the causal effect of treatment on outocme expression.
-    estimate(x, y, treatment, adjustment_set, target='ATE')
+    estimate(x, y, treatment, adjustment_set, quantity='ATE')
         Estimate the causal effect of treatment on outcome (y).
     identify_estimate(
-        x, y, treatment, outcome, identify_method=None, target='ATE'
+        x, y, treatment, outcome, identify_method=None, quantity='ATE'
     )
         Combination of identify and estimate.
     discover_graph(data)
@@ -107,7 +107,7 @@ class CausalModel:
         self.estimator_dic = {
             'S-Learner': SLearner(ml_model=estimation[0]),
             'T-Learner': TLearner(ml_model=estimation[0]),
-            # 'XLearner': XLearner(ml_model=estimation[0]),
+            'XLearner': XLearner(ml_model=estimation[0]),
             # 'PropensityScore': PropensityScore(ml_model=estimation[0]),
         }
 
@@ -276,10 +276,16 @@ class CausalModel:
                 treatment, outcome, adjust=identify_method[1]
             )
         else:
-            adjustment = None
+            raise IdentificationError(
+                'Not support other identification methods'
+            )
         return adjustment
 
-    def estimate(self, x, y, treatment, adjustment_set, target='ATE'):
+    def estimate(self, data, outcome, treatment, adjustment,
+                 quantity='ATE',
+                 condition_set=None,
+                 condition=None,
+                 individual=None):
         """Estimate the causal effect.
 
         Parameters
@@ -289,8 +295,8 @@ class CausalModel:
             Data of the outcome.
         treatment : str
             Name of the treatment.
-        adjustment_set : list
-        target : str
+        adjustment_set : list or set of str
+        quantity : str
             The kind of the interested causal effect, including ATE, CATE,
             ITE, and CITE.
 
@@ -298,15 +304,18 @@ class CausalModel:
         ----------
         float, optional
         """
-        adjustment_set = list(adjustment_set)
-        adjustment_set.insert(0, treatment)
-        x_adjusted = x[adjustment_set]
-        effect = self.estimator.estimate(x_adjusted, y, treatment, target)
+        effect = self.estimator.estimate(
+            data, outcome, treatment, adjustment, quantity, condition_set,
+            condition_set, individual
+        )
         return effect
 
-    def identify_estimate(self, x, y, treatment, outcome,
-                          identify_method=('backdoor', 'simple'),
-                          target='ATE'):
+    def identify_estimate(self, data, outcome, treatment, adjustment,
+                          quantity='ATE',
+                          condition_set=None,
+                          condition=None,
+                          individual=None,
+                          identify_method=('backdoor', 'simple')):
         """Combination of identifiy and estimate.
 
         Parameters
@@ -321,7 +330,7 @@ class CausalModel:
             Name of the outcome.
         identify_method : tuple
             Refer to docstring of identify().
-        target : str
+        quantity : str
             The kind of the interested causal effect, including ATE, CATE,
             ITE, and CITE.
 
@@ -329,11 +338,17 @@ class CausalModel:
         ----------
         float, optional
         """
-        adjustment_set = self.identify(treatment, outcome, identify_method)
+        # TODO: now only supports estimation with adjustment set. This needs
+        # to be updated if the estimation of general identification problem
+        # is solved.
+        adjustment_set = self.identify(treatment, outcome, identify_method)[0]
         print(f'The corresponding adjustment set is {adjustment_set}')
         if identify_method[1] == 'all':
             adjustment_set = list(adjustment_set[0])
-        return self.estimate(x, y, treatment, adjustment_set, target)
+        return self.estimate(
+            data, outcome, treatment, adjustment_set, quantity, condition_set,
+            condition, individual
+        )
 
     def discover_graph(self, data):
         """Discover the causal graph from data.
