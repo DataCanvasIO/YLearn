@@ -7,7 +7,8 @@ from causal_model import prob
 
 
 class CausalGraph:
-    """Causal Graph.
+    """
+    Class for building a causal graphical model.
 
     Attributes
     ----------
@@ -85,8 +86,7 @@ class CausalGraph:
 
     @property
     def prob(self):
-        """
-        The encoded probability distribution.
+        """The encoded probability distribution.
 
         Returns
         ----------
@@ -96,12 +96,11 @@ class CausalGraph:
 
     @property
     def latent_confounding_arcs(self):
-        """
-        Return the latent confounding arcs encoded in the graph.
+        """Return the latent confounding arcs encoded in the graph.
 
         Returns
         ----------
-        arcs : list
+        list
 
         """
         W = nx.to_numpy_matrix(self.dag)
@@ -114,15 +113,13 @@ class CausalGraph:
 
     @property
     def is_dag(self):
-        """
-        Verify whether the constructed graph is a DAG.
+        """Verify whether the constructed graph is a DAG.
         """
         # TODO: determin if the graph is a DAG, try tr(e^{W\circledot W}-d)=0
         return nx.is_directed_acyclic_graph(self.observed_dag)
 
     def to_adj_matrix(self):
-        """
-        Return the adjacency matrix.
+        """Return the adjacency matrix.
         """
         W = nx.to_numpy_matrix(self.dag)
         return W
@@ -132,16 +129,16 @@ class CausalGraph:
         pass
 
     def is_d_separated(self, x, y, test_set):
-        """
-        Check if test_set d-separates x and y.
+        """Check if test_set d-separates x and y.
 
         Parameters
         ----------
-        x : set
-        y : set
-        test_set : set
+        x : set of str
+        y : set of str
+        test_set : set of str
 
         Returns
+        ----------
         Bool
             If test_set d-separates x and y, return True else return False.
         """
@@ -149,13 +146,12 @@ class CausalGraph:
 
     @property
     def c_components(self):
-        """
-        Return the C-component set of the graph.
+        """Return the C-component set of the graph.
 
         Returns
         ----------
-        set
-            the C-component set of the graph
+        set of str
+            The C-component set of the graph
         """
         bi_directed_graph = nx.Graph()
         bi_directed_graph.add_nodes_from(self.dag.nodes)
@@ -163,18 +159,17 @@ class CausalGraph:
         return nx.connected_components(bi_directed_graph)
 
     def ancestors(self, x):
-        """
-        Return the ancestors of all nodes in x.
+        """Return the ancestors of all nodes in x.
 
         Parameters
         ----------
-        x : set
+        x : set of str
             a set of nodes in the graph
 
         Returns
         ----------
-        an : set
-            ancestors of nodes x of the graph
+        set of str
+            Ancestors of nodes x of the graph
         """
         an = set()
         for node in x:
@@ -187,14 +182,13 @@ class CausalGraph:
 
     @property
     def observed_dag(self):
-        """
-        Return the observed part of the graph, including observed nodes and
+        """Return the observed part of the graph, including observed nodes and
         edges between them.
 
         Returns
         ----------
-        ob_dag : nx.MultiDiGraph
-            the observed part of the graph
+        nx.MultiDiGraph
+            The observed part of the graph
         """
         edges = []
         for k, v in self.causation.items():
@@ -206,13 +200,12 @@ class CausalGraph:
 
     @property
     def explicit_unob_var_dag(self):
-        """
-        Build a new dag where all unobserved confounding arcs are replaced
+        """Build a new dag where all unobserved confounding arcs are replaced
         by explicit unobserved variables
 
         Returns
         ----------
-        new_dag: nx.MultiDiGraph
+        nx.MultiDiGraph
         """
         new_dag = self.observed_dag
         for i, (node1, node2) in enumerate(self.latent_confounding_arcs):
@@ -223,13 +216,12 @@ class CausalGraph:
 
     @property
     def topo_order(self):
-        """
-        Retrun the topological order of the nodes in the observed graph
+        """Retrun the topological order of the nodes in the observed graph
 
         Returns
         ----------
-        topological_order : generator
-            nodes in the topological order
+        generator
+            Nodes in the topological order
         """
         return nx.topological_sort(self.observed_dag)
 
@@ -436,8 +428,7 @@ class CausalGraph:
             return CausalGraph(new_causation, new_dag)
 
     def build_sub_graph(self, subset):
-        """
-        Return a new CausalGraph as the subgraph of the graph with nodes in the
+        """Return a new CausalGraph as the subgraph of the graph with nodes in the
         subset.
 
         Parameters
@@ -452,8 +443,7 @@ class CausalGraph:
         return self.remove_nodes(nodes, new=True)
 
     def remove_incoming_edges(self, x, new=False):
-        """
-        Remove incoming edges of all nodes of x. If new, do this in the new
+        """Remove incoming edges of all nodes of x. If new, do this in the new
         CausalGraph.
 
         Parameters
@@ -486,8 +476,7 @@ class CausalGraph:
             self.remove_edges_from(u_edges, new, observed=False)
 
     def remove_outgoing_edges(self, x, new=False):
-        """
-        Remove outcoming edges of all nodes in x.
+        """Remove outcoming edges of all nodes in x.
 
         Parameters
         ----------

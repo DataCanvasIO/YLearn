@@ -7,12 +7,21 @@ np.random.seed(2022)
 
 
 class MetaLearner:
+    """
+    Base class for various metalearner.
+
+    Attributes
+    ----------
+
+    Methods
+    ----------
+    """
+
     def __init__(self, ml_model):
         self.ml_model = ml_model
 
     def prepare(self, data, outcome, treatment, adjustment, individual=None):
-        """
-        Prepare (fit the model) for estimating the quantities
+        """Prepare (fit the model) for estimating the quantities
             ATE: E[y|do(x_1)] - E[y|do(x_0)] = E_w[E[y|x=x_1,w] - E[y|x=x_0, w]
                                            := E_{adjustment}[
                                                Delta E[outcome|treatment,
@@ -35,14 +44,17 @@ class MetaLearner:
                 \sum_{adjustment} P(outcome|treatment, adjustment)P(adjustment)
         individual : DataFrame, default to None
             The individual data for computing its causal effect.
+
+        Returns
+        ----------
+        np.array
         """
         pass
 
     def estimate(self, data, outcome, treatment, adjustment, quantity='ATE',
                  condition_set=None, condition=None, individual=None):
-        """
-        General estimation method for quantities like ATE of
-        outcome|do(treatment)
+        """General estimation method for quantities like ATE of
+        outcome|do(treatment).
 
         Parameter
         ----------
@@ -67,7 +79,7 @@ class MetaLearner:
         Raises
         ----------
         Exception
-            Raise exception if quantity is not in ATE, CATE, ITE or CITE.
+            Raise exception if the quantity is not in ATE, CATE, ITE or CITE.
 
         Returns
         ----------
@@ -93,8 +105,7 @@ class MetaLearner:
             )
 
     def estimate_ate(self, data, outcome, treatment, adjustment):
-        """
-        Estimate E[outcome|do(treatment=t1) - outcome|do(treatment=t0)]
+        """Estimate E[outcome|do(treatment=t1) - outcome|do(treatment=t0)]
 
         Parameters
         ----------
@@ -116,8 +127,7 @@ class MetaLearner:
 
     def estimate_cate(self, data, outcome, treatment, adjustment,
                       condition_set, condition):
-        """
-        Estimate E[outcome|do(treatment=t1), condition_set=condition
+        """Estimate E[outcome|do(treatment=t1), condition_set=condition
                     - outcome|do(treatment=t0), condition_set=condition]
 
         Parameters
@@ -131,7 +141,7 @@ class MetaLearner:
             The valid adjustment set.
         condition_set : set
         condition : boolean
-            The computation will be performed in the data where conition is
+            The computation will be performed only using data where conition is
             True.
 
         Returns
@@ -173,8 +183,7 @@ class SLearner(MetaLearner):
         self.ml_model = kwargs['ml_model']
 
     def prepare(self, data, outcome, treatment, adjustment, individual=None):
-        """
-        Prepare (fit the model) for estimating the quantities
+        """Prepare (fit the model) for estimating the quantities
             ATE: E[y|do(x_1)] - E[y|do(x_0)] = E_w[E[y|x=x_1,w] - E[y|x=x_0, w]
                                            := E_{adjustment}[
                                                Delta E[outcome|treatment,
@@ -197,9 +206,14 @@ class SLearner(MetaLearner):
                 \sum_{adjustment} P(outcome|treatment, adjustment)P(adjustment)
         individual : DataFrame, default to None
             The individual data for computing its causal effect.
+
+        Returns
+        ----------
+        np.array
         """
-        x = list(adjustment).append(treatment)
-        self.model.fit(X=data[x], y=data[outcome])
+        x = list(adjustment)
+        x.append(treatment)
+        self.ml_model.fit(X=data[x], y=data[outcome])
 
         if individual:
             data = individual
@@ -209,7 +223,7 @@ class SLearner(MetaLearner):
         t0_data = pd.DataFrame.copy(data)
         t0_data[treatment] = 0
         result = (
-            self.ml_model.predict(t1_data) - self.ml_model.predict(t0_data)
+            self.ml_model.predict(t1_data[x]) - self.ml_model.predict(t0_data[x])
         )
         return result
 
@@ -222,8 +236,7 @@ class TLearner(MetaLearner):
         self.ml_model_t0 = deepcopy(kwargs['ml_model'])
 
     def prepare(self, data, outcome, treatment, adjustment, individual=None):
-        """
-        Prepare (fit the model) for estimating the quantities
+        """Prepare (fit the model) for estimating the quantities
             ATE: E[y|do(x_1)] - E[y|do(x_0)] = E_w[E[y|x=x_1,w] - E[y|x=x_0, w]
                                            := E_{adjustment}[
                                                Delta E[outcome|treatment,
@@ -246,6 +259,10 @@ class TLearner(MetaLearner):
                 \sum_{adjustment} P(outcome|treatment, adjustment)P(adjustment)
         individual : DataFrame, default to None
             The individual data for computing its causal effect.
+
+        Returns
+        ----------
+        np.array
         """
         data_without_treatment = data.drop([treatment], axis=1)
         t1_data = data_without_treatment.loc[data[treatment] > 0]
@@ -288,8 +305,7 @@ class XLearner(MetaLearner):
         self.k0 = deepcopy(kwargs['ml_model'])
 
     def prepare(self, data, outcome, treatment, adjustment, individual=None):
-        """
-        Prepare (fit the model) for estimating the quantities
+        """Prepare (fit the model) for estimating the quantities
             ATE: E[y|do(x_1)] - E[y|do(x_0)] = E_w[E[y|x=x_1,w] - E[y|x=x_0, w]
                                            := E_{adjustment}[
                                                Delta E[outcome|treatment,
@@ -325,8 +341,8 @@ class XLearner(MetaLearner):
         h0_data = t0_data.drop(outcome, axis=1)
         h1 = t1_data[outcome] - self.f0.predict(h1_data[adjustment])
         h0 = self.f1.predict(h0_data[adjustment]) - t0_data[outcome]
-        self.k1.fit(h1_data, h1)
-        self.k0.fit(h0_data, h0)
+        self.k1.fit(h1_data[adjustment], h1)
+        self.k0.fit(h0_data[adjustment], h0)
 
         # step 3
         if individual:
@@ -340,6 +356,13 @@ class XLearner(MetaLearner):
         return result
 
 
-class DragonNet(MetaLearner):
-    def __init__(self) -> None:
-        super().__init__()
+# class DragonNet(MetaLearner):
+#     """
+#     See Shi., et al., (https://arxiv.org/pdf/1906.02120.pdf) for reference.
+
+#     Args:
+#         MetaLearner ([type]): [description]
+#     """
+
+#     def __init__(self) -> None:
+#         super().__init__()

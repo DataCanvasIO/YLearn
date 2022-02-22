@@ -1,6 +1,4 @@
-"""
-Generalization of other machine learning models in the sci-kit style.
-"""
+from sklearn import linear_model
 
 
 class MlModels:
@@ -14,12 +12,15 @@ class MlModels:
         pass
 
 
-class LinearRegression(MlModels):
+class LR(MlModels):
     def __init__(self) -> None:
-        super().__init__()
+        self.ml_model = linear_model.LinearRegression()
 
     def fit(self, X, y):
-        return super().fit(X, y)
+        return self.ml_model.fit(X, y)
+
+    def predict(self, X):
+        return self.ml_model.predict(X)
 
 
 class NewEgModel(MlModels):
