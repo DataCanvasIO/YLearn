@@ -1,4 +1,3 @@
-from _typeshed import SupportsDunderLE
 import pandas as pd
 import numpy as np
 
