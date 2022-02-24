@@ -108,8 +108,14 @@ class MetaLearner:
                 data, outcome, treatment, adjustment, condition_set, condition
             )
         elif quantity == 'ITE':
-            return self.estimate_ite(data, outcome, treatment, adjustment)
+            assert individual is not None, \
+                'Need an explicit individual to perform the analysis.'
+            return self.estimate_ite(
+                data, outcome, treatment, adjustment, individual
+            )
         elif quantity == 'CITE':
+            assert condition_set is not None, \
+                ''
             return self.estimate_cite(
                 data, outcome, treatment, adjustment, condition_set, condition
             )
@@ -164,13 +170,17 @@ class MetaLearner:
         float
         """
         # modify the data for estmating cate.
+        assert condition_set is not None, \
+            'Need an explicit condition set to perform the analysis.'
+            
         new_data = data.loc[condition].drop(list(condition_set), axis=1)
         cate = self.prepare(new_data, outcome, treatment, adjustment).mean()
         return cate
 
     def estimate_ite(self, data, outcome, treatment, adjustment, individual):
-        assert individual is not None, 'Need an explicit individual to perform'
-        'computation of individual causal effect.'
+        assert individual is not None, \
+            'Need an explicit individual to perform computation of individual'
+        'causal effect.'
 
         return self.prepare(
             data, outcome, treatment, adjustment, individual=individual
@@ -178,8 +188,12 @@ class MetaLearner:
 
     def estimate_cite(self, data, outcome, treatment, adjustment,
                       condition_set, condition, individual):
-        assert individual is not None, 'Need an explicit individual to perform'
-        'computation of individual causal effect.'
+        assert individual is not None, \
+            'Need an explicit individual to perform computation of individual'
+        'causal effect.'
+
+        assert condition_set is not None, \
+            'Need an explicit condition set to perform the analysis.'
 
         new_data = data.loc[condition].drop(list(condition_set), axis=1)
         cite = self.prepare(

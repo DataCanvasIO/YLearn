@@ -1,3 +1,5 @@
+import numpy as np
+
 from sklearn import linear_model
 
 # TODO: consider treatments other than binary treatment.
@@ -60,12 +62,16 @@ class InversePorbWeighting:
         t1_data = data.loc[data[treatment] > 0]
         t0_data = data.loc[data[treatment] <= 0]
         t1_ew = self.ew_model.get_ps(t1_data, adjustment)
-        t0_ew = self.ew_model.get_ps(t0_data, adjustment)
+        t0_ew = np.ones(len(t0_data)) \
+            - self.ew_model.get_ps(t0_data, adjustment)
         result = (t1_data[outcome] / t1_ew).mean() \
             - (t0_data[outcome] / t0_ew).mean()
         return result
 
     def estimate_cate(self, data, outcome, treatment,
                       adjustment, condition, condition_set):
+        assert condition_set is not None, \
+            'Need an explicit condition set to perform computation of'
+        'individual causal effect.'
         new_data = data.loc[condition].drop(list(condition_set), axis=1)
         return self.estimate_ate(new_data, outcome, treatment, adjustment)
