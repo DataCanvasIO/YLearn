@@ -7,6 +7,11 @@ class BaseEstLearner:
 
     Attributes
     ----------
+    ml_model_dic : dict
+        A dictionary of default machine learning sklearn models currently
+        including
+            'LR': LinearRegression
+            'LogistR': LogisticRegression.
 
     Methods
     ----------
@@ -103,14 +108,10 @@ class BaseEstLearner:
                 data, outcome, treatment, adjustment, condition_set, condition
             )
         elif quantity == 'ITE':
-            assert individual is not None, \
-                'Need an explicit individual to perform the analysis.'
             return self.estimate_ite(
                 data, outcome, treatment, adjustment, individual
             )
         elif quantity == 'CITE':
-            assert condition_set is not None, \
-                ''
             return self.estimate_cite(
                 data, outcome, treatment, adjustment, condition_set, condition
             )
@@ -200,7 +201,12 @@ class BaseEstLearner:
         pass
 
 
-class MlModels:
+class MLModels:
+    """
+    A parent class for possible new machine learning models which are not
+    supported by sklearn.
+    """
+
     def __init__(self) -> None:
         pass
 
@@ -211,7 +217,12 @@ class MlModels:
         pass
 
 
-class NewEgModel(MlModels):
+class EgModel(MLModels):
+    """
+    An example class for constructing a new machine learning model to be used
+    in YLearn.
+    """
+
     def __init__(self) -> None:
         super().__init__()
 

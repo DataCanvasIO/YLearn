@@ -1,7 +1,6 @@
 import pandas as pd
 import numpy as np
 
-from sklearn import linear_model
 from copy import deepcopy
 
 from .base_models import BaseEstLearner
@@ -9,8 +8,50 @@ np.random.seed(2022)
 
 
 class SLearner(BaseEstLearner):
+    """
+    SLearn uses one machine learning model to compute the causal effects.
+    Specifically, we fit a model to predict outcome (y) from treatment (x) and
+    adjustment (w):
+        y = f(x, w)
+    and the causal effect is
+        causal_effect = f(x=1, w) - f(x=0, w).
+
+    Attributes
+    ----------
+    ml_model_dic : dict
+        A dictionary of default machine learning sklearn models currently
+        including
+            'LR': LinearRegression
+            'LogistR': LogisticRegression.
+    ml_model :
+        The machine learning model for modeling the relation between outcome
+        and (treatment, adjustment).
+
+    Methods
+    ----------
+    prepare(data, outcome, treatment, adjustment, individual=None)
+        Prepare (fit the model) for estimating various quantities including
+        ATE, CATE, ITE, and CITE.
+    estimate(data, outcome, treatment, adjustment, quantity='ATE',
+                 condition_set=None, condition=None, individual=None)
+        Integrate estimations for various quantities into a single method.
+    estimate_ate(self, data, outcome, treatment, adjustment)
+    estimate_cate(self, data, outcome, treatment, adjustment,
+                      condition_set, condition)
+    estimate_ite(self, data, outcome, treatment, adjustment, individual)
+    estimate_cite(self, data, outcome, treatment, adjustment,
+                      condition_set, condition, individual)
+    """
 
     def __init__(self, *args, **kwargs):
+        """
+        Parameters
+        ----------
+        ml_model : str, optional
+            If str, ml_model is the name of the machine learning mdoels used
+            for our TLearner. If not str, then ml_model should be some valid
+            machine learning model wrapped by the class MLModels.
+        """
         super().__init__(*args, **kwargs)
 
         try:
@@ -49,7 +90,7 @@ class SLearner(BaseEstLearner):
         """
         x = list(adjustment)
         x.append(treatment)
-        self.ml_model.fit(X=data[x], y=data[outcome])
+        self.ml_model.fit(data[x], data[outcome])
 
         if individual:
             data = individual
@@ -66,8 +107,48 @@ class SLearner(BaseEstLearner):
 
 
 class TLearner(BaseEstLearner):
+    """
+    TLearner uses two machine learning models to estimate the causal
+    effect. Specifically, we
+    1. fit two models for the treatment group (x=1) and control group (x=0),
+        respectively:
+        y1 = x1_model(w) with data where x=1,
+        y0 = x0_model(w) with data where x=0;
+    2. compute the causal effect as the difference between these two models:
+        causal_effect = x1_model(w) - x0_model(w).
+
+    Attributes
+    -----------
+    x1_model : MLModel, optional
+        The machine learning model for the treatment group data.
+    x0_model : MLModel, optional
+        The machine learning model for the control group data.
+
+    Methods
+    ----------
+    prepare(data, outcome, treatment, adjustment, individual=None)
+        Prepare (fit the model) for estimating various quantities including
+        ATE, CATE, ITE, and CITE.
+    estimate(data, outcome, treatment, adjustment, quantity='ATE',
+                 condition_set=None, condition=None, individual=None)
+        Integrate estimations for various quantities into a single method.
+    estimate_ate(self, data, outcome, treatment, adjustment)
+    estimate_cate(self, data, outcome, treatment, adjustment,
+                      condition_set, condition)
+    estimate_ite(self, data, outcome, treatment, adjustment, individual)
+    estimate_cite(self, data, outcome, treatment, adjustment,
+                      condition_set, condition, individual)
+    """
 
     def __init__(self, **kwargs):
+        """
+        Parameters
+        ----------
+        ml_model : str, optional
+            If str, ml_model is the name of the machine learning mdoels used
+            for our TLearner. If not str, then ml_model should be some valid
+            machine learning model wrapped by the class MLModels.
+        """
         super().__init__(**kwargs)
         model = kwargs['ml_model']
 
@@ -137,9 +218,28 @@ class XLearner(BaseEstLearner):
     Finally,  we estimate the ATE as follows:
         ATE = E_w(g(w)).
     See Kunzel, et al., (https://arxiv.org/abs/1706.03461) for reference.
+    
+    Attributes
+    ----------
+    f1 : MLModel, optional
+        Machine learning model for the treatment gropu in the step 1.
+    f0 : MLModel, optional
+        Machine learning model for the control gropu in the step 1.
+    k1 : MLModel, optional
+        Machine learning model for the treatment gropu in the step 2.
+    k0 : MLModel, optional
+        Machine learning model for the control gropu in the step 2.
     """
 
     def __init__(self, **kwargs):
+        """
+        Parameters
+        ----------
+        ml_model : str, optional
+            If str, ml_model is the name of the machine learning mdoels used
+            for our TLearner. If not str, then ml_model should be some valid
+            machine learning model wrapped by the class MLModels.
+        """
         super().__init__(**kwargs)
         model = kwargs['ml_model']
 
