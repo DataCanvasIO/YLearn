@@ -201,13 +201,13 @@ class BaseEstLearner:
         pass
 
 
-class MLModels:
+class MLModel:
     """
     A parent class for possible new machine learning models which are not
     supported by sklearn.
     """
 
-    def __init__(self) -> None:
+    def __init__(self):
         pass
 
     def fit(self, X, y):
@@ -216,8 +216,12 @@ class MLModels:
     def predict(self, X):
         pass
 
+    def fit_predict(self, X, y):
+        self.fit(X, y)
+        return self.predict(X)
 
-class EgModel(MLModels):
+
+class EgModel(MLModel):
     """
     An example class for constructing a new machine learning model to be used
     in YLearn.

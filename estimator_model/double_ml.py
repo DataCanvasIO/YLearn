@@ -1,5 +1,5 @@
+from copy import deepcopy
 from .base_models import BaseEstLearner
-
 
 class DoubleML(BaseEstLearner):
     """
@@ -21,9 +21,9 @@ class DoubleML(BaseEstLearner):
         if type(y_model) is str:
             y_model = self.ml_model_dic[y_model]
         if type(x_model) is str:
-            x_model = self.ml_model_dic[x_model]
+            x_model = deepcopy(self.ml_model_dic[x_model])
         if type(yx_model) is str:
-            yx_model = self.ml_model_dic[yx_model]
+            yx_model = deepcopy(self.ml_model_dic[yx_model])
 
         self.y_model = y_model
         self.x_model = x_model
