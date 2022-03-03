@@ -1,12 +1,20 @@
 """
 See (http://proceedings.mlr.press/v70/hartford17a/hartford17a.pdf) for
 reference.
+
+To use self-defined mixture density network and outcome network, one only
+needs to define new MixtureDensityNetwork and OutcomeNet and wrap them with
+MDNWrapper and OutcomeNetWrapper, respectively.
 """
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import torch.optim as optim
 
+from copy import deepcopy
 from torch.utils.data import DataLoader
+from torch.distributions import Categorical, Normal, MixtureSameFamily,\
+    Independent
 
 from .utils import GaussianProb, BatchData
 from .base_models import BaseEstLearner, MLModel
@@ -74,7 +82,7 @@ class MixtureDensityNetwork(nn.Module):
         return pi, mu, sigma
 
 
-class MDNWrapped(MLModel):
+class MDNWrapper(MLModel):
     """
     Wrapped class for MixtureDensityNetwork.
 
@@ -100,10 +108,13 @@ class MDNWrapped(MLModel):
         """
         Parameters
         ----------
-        mdn : MixtureDensityNetwork
+        model : MixtureDensityNetwork
         """
         super().__init__()
-        self.mdn = mdn
+        self.model = mdn
+        self.in_d = mdn.in_d
+        self.out_d = mdn.out_d
+        self.num_gaussian = mdn.num_gaussian
 
     def loss_fn(self, pi, mu, sigma, y):
         """Calculate the loss used for training the mdn.
@@ -130,9 +141,9 @@ class MDNWrapped(MLModel):
             modeled by the mdn. Has the same shape as y.
         """
         gaussian_prob = GaussianProb(mu, sigma)
-        p = pi * gaussian_prob.prod_prob(y)
+        p = gaussian_prob.mixture_density(pi, y)
         loss = torch.mean(
-            -torch.log(torch.sum(p, dim=1))
+            -torch.log(p)
         )
         return loss
 
@@ -141,14 +152,15 @@ class MDNWrapped(MLModel):
             lr=0.01,
             epoch=1000,
             optimizer='SGD',
-            batch_size=128):
+            batch_size=128,
+            **optim_config):
         """Train the mdn model with data (X, y).
 
         Parameters
         ----------
         X : tensor
-            Has shape (b, in_d) where b is the batch size and in_d is the
-            dimension of each data point.
+            Has shape (b, in_d) where b is the batch size or the number of data
+            points and in_d is the dimension of each data point.
         y : tensor
             Has shape (b, out_d) where out_d is the dimension of each y.
         device : str, optional. Defaults to 'cuda'.
@@ -160,11 +172,12 @@ class MDNWrapped(MLModel):
             Currently including SGD and Adam The type of optimizer used for
             training.
         batch_size: int, optional. Defaults to 128.
+        optim_config : other parameters for various optimizers.
         """
-        self.mdn = self.mdn.to(device)
+        self.model = self.model.to(device)
         op = {
-            'SGD': optim.SGD(self.mdn.parameters(), lr=lr),
-            'Adam': optim.Adam(self.mdn.parameters(), lr=lr)
+            'SGD': optim.SGD(self.model.parameters(), lr=lr),
+            'Adam': optim.Adam(self.model.parameters(), lr=lr, **optim_config)
         }
         opt = op[optimizer]
         data = BatchData(X=X, y=y)
@@ -172,9 +185,9 @@ class MDNWrapped(MLModel):
 
         for e in range(epoch):
             for i, (X, y) in enumerate(train_loader):
-                self.mdn.train()
+                self.model.train()
                 X, y = X.to(device), y.to(device)
-                pi, mu, sigma = self.mdn(X)
+                pi, mu, sigma = self.model(X)
                 loss = self.loss_fn(pi, mu, sigma, y)
                 opt.zero_grad()
                 loss.backward()
@@ -196,12 +209,142 @@ class MDNWrapped(MLModel):
         Returns
         ----------
         tensor
-            The probability P(y|X) evaluated with the trained mdn.
+            The probability density p(y|X) evaluated with the trained mdn.
         """
-        pi, mu, sigma = self.mdn(X)
+        pi, mu, sigma = self.model(X)
         gaussian_prob = GaussianProb(mu, sigma)
-        p = pi * gaussian_prob.prod_prob(y)
+        p = gaussian_prob.mixture_density(pi, y)
         return p
 
-    def sample(self):
+    def sample(self, X, sample_shape, one_hot=False):
+        """Generate a sample according to the probability density returned by
+        the MDN model.
+
+        Args:
+            X ([tensor]): Shape (1, in_d)
+            one_hot (bool, optional): [description]. Defaults to False.
+
+        Returns:
+            [type]: [description]
+        """
+        pi, mu, sigma = self.model(X)
+
+        if one_hot:
+            pass
+        else:
+            mix = Categorical(pi)
+            comp = Normal(mu, sigma)
+            density = MixtureSameFamily(mix, comp)
+        return density.sample(sample_shape).view(-1, self.out_d)
+
+    def prob_one_hot(self, X):
+        # TODO: possible implementation for one_hot vector.
+        pi, mu, sigma = self.model(X)
+        n = X.shape[0]
+
+        # construct the conditional probability when y is a one-hot vector.
+        id_matrix = torch.eye(self.out_d)
+        pi_ = pi.repeat(self.out_d, 1)
+        # x_ = X.repeat(self.out_d, 1)
+        mu_ = mu.repeat(self.out_d, 1, 1)
+        sigma_ = sigma.repeat(self.out_d, 1, 1)
+        y = id_matrix[0].repeat(n, 1)
+        # build a large y with size (n * out_d, out_d) where out_d is the
+        # dimension of the one-hot vector y
+        for i in range(1, self.out_d):
+            y = torch.cat(
+                (y, id_matrix[i].repeat(n, 1)), dim=0
+            )
+        gaussian_prob = GaussianProb(mu_, sigma_)
+        # p = torch.sum(pi_ * gaussian_prob.prod_prob(y), dim=1)
         pass
+
+
+class OutcomeNet(nn.module):
+    def __init__(self, in_d, out_d, hidden_d1, hidden_d2, hidden_d3):
+        super().__init__()
+        self.fc1 = nn.Linear(in_d, hidden_d1)
+        self.fc2 = nn.Linear(hidden_d1, hidden_d2)
+        self.fc3 = nn.Linear(hidden_d2, hidden_d3)
+        self.fc4 = nn.Linear(hidden_d3, out_d)
+
+    def forward(self, x):
+        x = torch.flatten(x, 1)
+        x = self.fc1(x)
+        x = F.relu(x)
+        x = self.fc2(x)
+        x = F.relu(x)
+        x = self.fc3(x)
+        x = F.relu(x)
+        output = self.fc4(x)
+        return output
+
+
+class OutcomeNetWrapper(MLModel):
+    def __init__(self, outcome_net):
+        super().__init__()
+        self.outcome_net = outcome_net
+
+
+class DeepIV(BaseEstLearner):
+    def __init__(self, treatment_net, outcome_net):
+        """
+        Parameters
+        ----------
+        treatment_net : MDNWrapper
+            Representation of the mixture density network.
+        outcome_net : OutcomeNetWrapper
+            Representation of the outcome network.
+        """
+        super().__init__()
+        self.treatment_net = treatment_net
+        self.outcome_net = outcome_net
+
+    def fit(self, z, x, y, c=None, sample_n=None):
+        """Train the DeepIV model.
+
+        Parameters
+        ----------
+        z : tensor
+            Instrument variables.
+        x : tensor
+            Treatments.
+        y : tensor
+            Outcomes.
+        c : tensor, defaults to None.
+            Observed confounders.
+        """
+        # TODO: can we use str type z, c, x, y to be consistent with other api?
+        tnet_in = torch.cat((z, c), dim=1) if c is not None else z
+        self.treatment_net.fit(tnet_in, x)
+        x_ = self.treatment_net.sample(tnet_in, sample_n)
+        # TODO: more details
+        x_ = torch.cat(c, x_)
+        self.outcome_net.fit(x_, y, nn_torch=True, loss=nn.MSELoss())
+
+    def prepare(self, data, outcome, treatment, confounder=None,
+                individual=None, instrument=None):
+
+        def convert_to_tensor(x):
+            return torch.tensor(x.values)
+
+        c = convert_to_tensor(data[confounder]) if confounder is not None \
+            else None
+        x = convert_to_tensor(data[treatment])
+        y = convert_to_tensor(data[outcome])
+        z = convert_to_tensor(data[instrument])
+        self.fit(z, x, y, c)
+
+        if individual:
+            x = convert_to_tensor(individual[treatment])
+            c = convert_to_tensor(individual[confounder])
+
+        # TODO: binary treatment, the continuous version should be taking
+        # derivitive
+        x1, x0 = deepcopy(x), deepcopy(x)
+        x1[:] = 1
+        x0[:] = 0
+        x1 = torch.cat((c, x1), dim=1)
+        x0 = torch.cat((c, x0), dim=0)
+        result = self.outcome_net.predict(x1) - self.outcome_net.predict(x0)
+        return result

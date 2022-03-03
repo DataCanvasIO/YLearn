@@ -23,6 +23,7 @@ class BatchData(Dataset):
     def __getitem__(self, index):
         return self.data[:, index], self.target[:, index]
 
+
 class GaussianProb:
     """
     A class for gaussian distribution.
@@ -58,13 +59,13 @@ class GaussianProb:
         self.mu = mu
         self.sigma = sigma
 
-    def prob(self, y):
+    def prob_density(self, y):
         """Return the probability of taking y.
 
         Parameters
         ----------
         y : tensor
-
+            Shape (b, out_d) where b is the batch size.
         Returns
         ----------
         tensor
@@ -76,10 +77,30 @@ class GaussianProb:
         ) / self.sigma
         return p
 
+    def mixture_density(self, pi, y):
+        """Can replace the implementation with the one provided by pytorch, see
+        (https://pytorch.org/docs/stable/distributions.html#mixturesamefamily)
+            for details.
+
+        Args:
+            pi ([type]): [description]
+            y ([type]): [description]
+
+        Returns:
+            [type]: [description]
+        """
+        p_k = self.prob_density(y)
+        pi_k = pi.unsqueeze(dim=2).expand_as(p_k)
+        density = torch.sum(
+            p_k * pi_k, dim=1
+        )
+        return density
+
     def prod_prob(self, y):
         """Taking product of the last dimension of returned probability.
         """
         return torch.prod(self.prob(y), dim=2)
+
 
 def sample(pi, sigma, mu):
     """Draw samples from a MoG.

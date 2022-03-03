@@ -1,6 +1,7 @@
 from copy import deepcopy
 from .base_models import BaseEstLearner
 
+
 class DoubleML(BaseEstLearner):
     """
     Double machine learning has two stages:

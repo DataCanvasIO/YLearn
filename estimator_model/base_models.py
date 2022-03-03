@@ -1,4 +1,12 @@
+import torch
+import torch.nn as nn
+import torch.optim as optim
+
+from copy import deepcopy
 from sklearn import linear_model
+from torch.utils.data import DataLoader
+
+from .utils import BatchData
 
 
 class BaseEstLearner:
@@ -35,7 +43,8 @@ class BaseEstLearner:
             'LogistR': linear_model.LogisticRegression(),
         }
 
-    def prepare(self, data, outcome, treatment, adjustment, individual=None):
+    def prepare(self, data, outcome, treatment, adjustment,
+                individual=None, **kwargs):
         """Prepare (fit the model) for estimating the quantities
             ATE: E[y|do(x_1)] - E[y|do(x_0)] = E_w[E[y|x=x_1,w] - E[y|x=x_0, w]
                                            := E_{adjustment}[
@@ -66,8 +75,12 @@ class BaseEstLearner:
         """
         pass
 
-    def estimate(self, data, outcome, treatment, adjustment, quantity='ATE',
-                 condition_set=None, condition=None, individual=None):
+    def estimate(self, data, outcome, treatment, adjustment,
+                 quantity='ATE',
+                 condition_set=None,
+                 condition=None,
+                 individual=None,
+                 **kwargs):
         """General estimation method for quantities like ATE of
         outcome|do(treatment).
 
@@ -102,18 +115,22 @@ class BaseEstLearner:
             The desired causal effect.
         """
         if quantity == 'ATE':
-            return self.estimate_ate(data, outcome, treatment, adjustment)
+            return self.estimate_ate(
+                data, outcome, treatment, adjustment, **kwargs
+            )
         elif quantity == 'CATE':
             return self.estimate_cate(
-                data, outcome, treatment, adjustment, condition_set, condition
+                data, outcome, treatment, adjustment, condition_set,
+                condition, **kwargs
             )
         elif quantity == 'ITE':
             return self.estimate_ite(
-                data, outcome, treatment, adjustment, individual
+                data, outcome, treatment, adjustment, individual, **kwargs
             )
         elif quantity == 'CITE':
             return self.estimate_cite(
-                data, outcome, treatment, adjustment, condition_set, condition
+                data, outcome, treatment, adjustment, condition_set,
+                condition, **kwargs
             )
         else:
             raise Exception(
@@ -121,7 +138,7 @@ class BaseEstLearner:
                 'than ATE, CATE, ITE, or CITE'
             )
 
-    def estimate_ate(self, data, outcome, treatment, adjustment):
+    def estimate_ate(self, data, outcome, treatment, adjustment, **kwargs):
         """Estimate E[outcome|do(treatment=x1) - outcome|do(treatment=x0)]
 
         Parameters
@@ -139,11 +156,11 @@ class BaseEstLearner:
         float
         """
         return self.prepare(
-            data, outcome, treatment, adjustment=adjustment
+            data, outcome, treatment, adjustment=adjustment, **kwargs
         ).mean()
 
     def estimate_cate(self, data, outcome, treatment, adjustment,
-                      condition_set, condition):
+                      condition_set, condition, **kwargs):
         """Estimate E[outcome|do(treatment=x1), condition_set=condition
                     - outcome|do(treatment=x0), condition_set=condition]
 
@@ -170,20 +187,23 @@ class BaseEstLearner:
             'Need an explicit condition set to perform the analysis.'
 
         new_data = data.loc[condition].drop(list(condition_set), axis=1)
-        cate = self.estimate_ate(new_data, outcome, treatment, adjustment)
+        cate = self.estimate_ate(
+            new_data, outcome, treatment, adjustment, **kwargs)
         return cate
 
-    def estimate_ite(self, data, outcome, treatment, adjustment, individual):
+    def estimate_ite(self, data, outcome, treatment, adjustment,
+                     individual, **kwargs):
         assert individual is not None, \
             'Need an explicit individual to perform computation of individual'
         'causal effect.'
 
         return self.prepare(
-            data, outcome, treatment, adjustment, individual=individual
+            data, outcome, treatment, adjustment,
+            individual=individual, **kwargs
         )
 
     def estimate_cite(self, data, outcome, treatment, adjustment,
-                      condition_set, condition, individual):
+                      condition_set, condition, individual, **kwargs):
         assert individual is not None, \
             'Need an explicit individual to perform computation of individual'
         'causal effect.'
@@ -193,7 +213,7 @@ class BaseEstLearner:
 
         new_data = data.loc[condition].drop(list(condition_set), axis=1)
         cite = self.prepare(
-            new_data, outcome, treatment, adjustment, individual
+            new_data, outcome, treatment, adjustment, individual, **kwargs
         )
         return cite
 
@@ -207,28 +227,79 @@ class MLModel:
     supported by sklearn.
     """
 
-    def __init__(self):
-        pass
+    def __init__(self, model):
+        self.model = model
 
-    def fit(self, X, y):
-        pass
+    def fit(self, X, y, nn_torch=False, **kwargs):
+        if nn_torch:
+            self._fit_nn_torch(X, y, **kwargs)
+        else:
+            pass
+
+    def _fit_nn_torch(self, X, y,
+                      device='cuda',
+                      lr=0.01,
+                      epoch=1000,
+                      optimizer='SGD',
+                      batch_size=128,
+                      **optim_config):
+        """Train the nn model with data (X, y).
+
+        Parameters
+        ----------
+        X : tensor
+            Has shape (b, in_d) where b is the batch size or the number of data
+            points and in_d is the dimension of each data point.
+        y : tensor
+            Has shape (b, out_d) where out_d is the dimension of each y.
+        device : str, optional. Defaults to 'cuda'.
+        lr : float, optional. Defaults to 0.01.
+            Learning rate.
+        epoch : int, optional. Defaults to 1000.
+            The number of epochs used for training.
+        optimizer : str, optional. Defaults to 'SGD'.
+            Currently including SGD and Adam The type of optimizer used for
+            training.
+        batch_size: int, optional. Defaults to 128.
+        optim_config : other parameters for various optimizers.
+        """
+        self.model = self.model.to(device)
+        op = {
+            'SGD': optim.SGD(self.model.parameters(), lr=lr),
+            'Adam': optim.Adam(self.model.parameters(), lr=lr, **optim_config)
+        }
+        opt = op[optimizer]
+        loss_fn = optim_config['loss']
+        data = BatchData(X=X, y=y)
+        train_loader = DataLoader(data, batch_size=batch_size)
+
+        for e in range(epoch):
+            for i, (X, y) in enumerate(train_loader):
+                self.model.train()
+                X, y = X.to(device), y.to(device)
+                y_predict = self.model(X)
+                loss = loss_fn(y_predict, y)
+                opt.zero_grad()
+                loss.backward()
+                opt.step()
+            print(f'End of epoch {e} | current loss {loss.data}')
 
     def predict(self, X):
-        pass
+        return self.model(X)
 
-    def fit_predict(self, X, y):
-        self.fit(X, y)
+    def fit_predict(self, X, y, **kwargs):
+        self.fit(X, y, **kwargs)
         return self.predict(X)
 
 
-class EgModel(MLModel):
-    """
-    An example class for constructing a new machine learning model to be used
-    in YLearn.
-    """
+# class EgModel(MLModel):
+#     """
+#     An example class for constructing a new machine learning model to be used
+#     in YLearn.
+#     """
 
-    def __init__(self) -> None:
-        super().__init__()
+#     def __init__(self) -> None:
+#         super().__init__()
 
-    def fit(self, X, y):
-        return super().fit(X, y)
+#     def fit(self, X, y):
+#         return super().fit(X, y)
