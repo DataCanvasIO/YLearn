@@ -216,48 +216,49 @@ class MDNWrapper(MLModel):
         p = gaussian_prob.mixture_density(pi, y)
         return p
 
-    def sample(self, X, sample_shape, one_hot=False):
-        """Generate a sample according to the probability density returned by
-        the MDN model.
+    def sample(self, X, sample_num):
+        """Generate a batch of sample according to the probability density returned by
+            the MDN model.
 
-        Args:
-            X ([tensor]): Shape (1, in_d)
-            one_hot (bool, optional): [description]. Defaults to False.
+        Parameters
+        ----------
+        X : tensor
+            Shape (b, in_d) where b is the batch size.
+        sample_num : tuple of int
+            Eg., (5, ) means generating (5*b) samples.
 
-        Returns:
-            [type]: [description]
+        Returns
+        ----------
+        tensor
+            Shape (b*sample_num, out_d).
         """
         pi, mu, sigma = self.model(X)
+        mix = Categorical(pi)
+        comp = Independent(Normal(mu, sigma))
+        density = MixtureSameFamily(mix, comp)
+        return density.sample(sample_num).view(-1, self.out_d)
 
-        if one_hot:
-            pass
-        else:
-            mix = Categorical(pi)
-            comp = Normal(mu, sigma)
-            density = MixtureSameFamily(mix, comp)
-        return density.sample(sample_shape).view(-1, self.out_d)
+    # def prob_one_hot(self, X):
+    #     # TODO: possible implementation for one_hot vector.
+    #     pi, mu, sigma = self.model(X)
+    #     n = X.shape[0]
 
-    def prob_one_hot(self, X):
-        # TODO: possible implementation for one_hot vector.
-        pi, mu, sigma = self.model(X)
-        n = X.shape[0]
-
-        # construct the conditional probability when y is a one-hot vector.
-        id_matrix = torch.eye(self.out_d)
-        pi_ = pi.repeat(self.out_d, 1)
-        # x_ = X.repeat(self.out_d, 1)
-        mu_ = mu.repeat(self.out_d, 1, 1)
-        sigma_ = sigma.repeat(self.out_d, 1, 1)
-        y = id_matrix[0].repeat(n, 1)
-        # build a large y with size (n * out_d, out_d) where out_d is the
-        # dimension of the one-hot vector y
-        for i in range(1, self.out_d):
-            y = torch.cat(
-                (y, id_matrix[i].repeat(n, 1)), dim=0
-            )
-        gaussian_prob = GaussianProb(mu_, sigma_)
-        # p = torch.sum(pi_ * gaussian_prob.prod_prob(y), dim=1)
-        pass
+    #     # construct the conditional probability when y is a one-hot vector.
+    #     id_matrix = torch.eye(self.out_d)
+    #     pi_ = pi.repeat(self.out_d, 1)
+    #     # x_ = X.repeat(self.out_d, 1)
+    #     mu_ = mu.repeat(self.out_d, 1, 1)
+    #     sigma_ = sigma.repeat(self.out_d, 1, 1)
+    #     y = id_matrix[0].repeat(n, 1)
+    #     # build a large y with size (n * out_d, out_d) where out_d is the
+    #     # dimension of the one-hot vector y
+    #     for i in range(1, self.out_d):
+    #         y = torch.cat(
+    #             (y, id_matrix[i].repeat(n, 1)), dim=0
+    #         )
+    #     gaussian_prob = GaussianProb(mu_, sigma_)
+    #     # p = torch.sum(pi_ * gaussian_prob.prod_prob(y), dim=1)
+    #     pass
 
 
 class OutcomeNet(nn.module):
@@ -291,7 +292,7 @@ class DeepIV(BaseEstLearner):
         """
         Parameters
         ----------
-        treatment_net : MDNWrapper
+        treatment_net : MDNWrapper, optional
             Representation of the mixture density network.
         outcome_net : OutcomeNetWrapper
             Representation of the outcome network.
@@ -300,30 +301,40 @@ class DeepIV(BaseEstLearner):
         self.treatment_net = treatment_net
         self.outcome_net = outcome_net
 
-    def fit(self, z, x, y, c=None, sample_n=None):
+    def fit(self, z, x, y, c=None, sample_n=None, discrete_treatment=False):
         """Train the DeepIV model.
 
         Parameters
         ----------
         z : tensor
-            Instrument variables.
+            Instrument variables. Shape (b, z_d) where b is the batch size and
+            z_d is the dimension of a single instrument variable data point.
         x : tensor
-            Treatments.
+            Treatments. Shape (b, x_d).
         y : tensor
-            Outcomes.
+            Outcomes. Shape (b, y_d)
         c : tensor, defaults to None.
-            Observed confounders.
+            Observed confounders. Shape (b, c_d)
+        sample_n : tuple of int
+            Eg., (5, ) means generating (5*b) samples according to the
+            probability density modeled by the treatment_net.
+        discrete_treatment : bool
+            If True, the treatment_net is chosen as the MixtureDensityNetwork.
         """
         # TODO: can we use str type z, c, x, y to be consistent with other api?
         tnet_in = torch.cat((z, c), dim=1) if c is not None else z
+        # tnet_in has shape (b, z_d+c_d).
         self.treatment_net.fit(tnet_in, x)
         x_ = self.treatment_net.sample(tnet_in, sample_n)
-        # TODO: more details
-        x_ = torch.cat(c, x_)
+        c_ = c.repeat(sample_n[0], 1)
+        x_ = torch.cat((c_, x_), dim=1)
         self.outcome_net.fit(x_, y, nn_torch=True, loss=nn.MSELoss())
 
-    def prepare(self, data, outcome, treatment, confounder=None,
-                individual=None, instrument=None):
+    def prepare(self, data, outcome, treatment,
+                confounder=None,
+                individual=None,
+                instrument=None,
+                discrete_treatment=True):
 
         def convert_to_tensor(x):
             return torch.tensor(x.values)
@@ -339,12 +350,18 @@ class DeepIV(BaseEstLearner):
             x = convert_to_tensor(individual[treatment])
             c = convert_to_tensor(individual[confounder])
 
-        # TODO: binary treatment, the continuous version should be taking
-        # derivitive
-        x1, x0 = deepcopy(x), deepcopy(x)
-        x1[:] = 1
-        x0[:] = 0
-        x1 = torch.cat((c, x1), dim=1)
-        x0 = torch.cat((c, x0), dim=0)
-        result = self.outcome_net.predict(x1) - self.outcome_net.predict(x0)
-        return result
+        # TODO: binary treatment
+        if discrete_treatment:
+            x1, x0 = deepcopy(x), deepcopy(x)
+            x1[:] = 1
+            x0[:] = 0
+            x1 = torch.cat((c, x1), dim=1)
+            x0 = torch.cat((c, x0), dim=1)
+            r = self.outcome_net.predict(x1) - self.outcome_net.predict(x0)
+        else:
+            x_ = torch.cat((c, x), dim=1)
+            x_.requires_grad = True
+            y = self.outcome_net.predict(x_)
+            r = x_.grad.detach()[:, -self.treatment_net.out_d:]
+
+        return r
