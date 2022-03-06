@@ -1,11 +1,11 @@
 import networkx as nx
 import numpy as np
+from sklearn.linear_model import LinearRegression as LR
 
 from copy import deepcopy
 from causal_model.prob import Prob
 from itertools import combinations, product
-from estimator_model.estimation_learner.meta_learner import SLearner, \
-    TLearner, XLearner, PropensityScore
+from estimator_model.meta_learner import SLearner, TLearner, XLearner, PropensityScore
 
 np.random.seed(2022)
 
@@ -89,6 +89,8 @@ class CausalModel:
         Determine if a given set is a frontdoor adjustment set.
     get_frontdoor_set(treatment, outcome, adjust)
         Return the frontdoor adjustment set for given treatment and outcome.
+    estimate_hidden_cofounder()
+        Estimation of hidden cofounders.
     """
 
     def __init__(self, causal_graph=None, data=None, estimation=None):
@@ -101,20 +103,24 @@ class CausalModel:
             Describe estimation methods (the first element) and machine
             learning models (the second element) used for estimation.
         """
+        self.data = data
         if estimation is None:
             estimation = ('LR', 'S-Learner')
-
+            
+        
         self.estimator_dic = {
             'S-Learner': SLearner(ml_model=estimation[0]),
             'T-Learner': TLearner(ml_model=estimation[0]),
             'XLearner': XLearner(ml_model=estimation[0]),
             # 'PropensityScore': PropensityScore(ml_model=estimation[0]),
         }
-
+        
         assert estimation[1] in self.estimator_dic.keys(), \
             f'Only support estimation methods in {self.estimator_dic.keys()}'
 
         self.estimator = self.estimator_dic[estimation[1]]
+        
+
         self.causal_graph = causal_graph if causal_graph is not None\
             else self.discover_graph(data)
 
@@ -708,6 +714,61 @@ class CausalModel:
         }
         prob = Prob(marginal=adset, product=product_expression)
         return (adjustment, prob)
+
+    def estimate_hidden_cofounder(self, method = 'lr'):
+
+        def check_ancestors_chain(dag, node, U):
+            an = nx.ancestors(dag, node)
+            if len(an) == 0:
+                return True
+            elif U in an:
+                return False
+            for n in an:
+                if not check_ancestors_chain(dag, n, U):
+                    return False
+            return True
+
+
+        full_dag = self.causal_graph.explicit_unob_var_dag
+        all_nodes = full_dag.nodes
+        hidden_cofounders = [node for node in all_nodes if "U" in node]
+        if len(hidden_cofounders) == 0:
+            print('Hidden cofounder estimation done, no hidden cofounders now')
+            return 
+        estimated = 0
+        for node in all_nodes:
+            if node not in hidden_cofounders:
+                ancestors = nx.ancestors(full_dag, node)
+                hidden_ancestors = [an for an in ancestors if an in hidden_cofounders]
+                if len(hidden_ancestors) == 1:
+                    ob_ancestors = [an for an in ancestors if an not in hidden_cofounders]
+                    if sum([check_ancestors_chain(full_dag, node, hidden_ancestors[0]) for node in ob_ancestors]) == len(ob_ancestors):
+                        data_input = self.data[ob_ancestors]
+                        target = self.data[node]
+                        if method == "lr":
+                            reg = LR()
+                            reg.fit(data_input, target)
+                            predict = reg.predict(data_input)
+                        self.data['estimate_' + hidden_ancestors[0].lower()] = target - predict
+                        modified_nodes = list(nx.descendants(full_dag, hidden_ancestors[0]))
+                        edge_list_del=[]
+                        for i in range(len(modified_nodes)):
+                            for j in range(i + 1, len(modified_nodes)):
+                                edge_list_del.append((modified_nodes[i], modified_nodes[j]))
+                                edge_list_del.append((modified_nodes[j], modified_nodes[i]))
+                        self.causal_graph.remove_edges_from(edge_list = edge_list_del, observed = False)
+                        self.causal_graph.add_nodes(['estimate_' + hidden_ancestors[0].lower()])
+                        edge_list_add=[('estimate_' + hidden_ancestors[0].lower(), i) for i in modified_nodes]
+                        self.causal_graph.add_edges_from(edge_list = edge_list_add)
+                        estimated = estimated + 1
+        if estimated > 0:
+            print(str(estimated) + ' hidden cofounders estimated in this turn.')
+            self.estimate_hidden_cofounder(method)
+        else:
+            print('Hidden cofounder estimation done, and there could be ' + str(len(hidden_cofounders)) + ' hidden cofounders remaining.')
+            return 
+
+
 
     def __repr__(self):
         return f'A CausalModel for {self.causal_graph},'\
