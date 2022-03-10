@@ -1,2 +1,2 @@
-from . import ml_model, double_ml, doubly_robust, matching, meta_learner,\
+from . import base_models, double_ml, doubly_robust, matching, meta_learner,\
     propensity_score

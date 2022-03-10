@@ -7,11 +7,13 @@ from .base_models import BaseEstLearner
 
 
 class PropensityScore:
-    def __init__(self, ml_model='LogisticR'):
+    def __init__(self, ml_model=None):
         self.ml_model_dic = {
             'LogisticR': linear_model.LogisticRegression()
         }
 
+        if ml_model is None:
+            model = self.ml_model_dic['LogisticR']
         if type(ml_model) is str:
             model = self.ml_model_dic[ml_model]
 
@@ -23,20 +25,23 @@ class PropensityScore:
     def predict(self, data, adjustment):
         return self.ml_model.predict(data[adjustment])
 
+    def predict_prob(self, data, adjustment, target):
+        return self.ml_model.predict_prob(data[adjustment], target)
+
     def fit_predict(self, train_data, treatment, adjustment, pre_data):
         self.ml_model.fit(train_data, treatment, adjustment)
         return self.predict(pre_data, adjustment)
 
 
 class InversePorbWeighting(BaseEstLearner):
-    """
+    r"""
     Inverse Probability Weighting. The identification equation is defined as
         E[y|do(x)] = E[I(X=x)y / P(x|W)],
     where I is the indicator function and W is the adjustment set.
     For binary treatment, we have
-        ATE = E[y|do(x=1) - y|do(x=0)] = 
+        ATE = E[y|do(x=1) - y|do(x=0)] =
             E[I(X=1)y / e(W)] - E[E[I(X=0)y / (1 - e(w))]
-    where e(w) is the propensity score 
+    where e(w) is the propensity score
         e(w) = P(x|W).
     Therefore, the final estimated ATE should be
         1 / n_1 \sum_{i| x_i = 1} y_i / e(w_i)

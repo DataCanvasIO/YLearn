@@ -23,7 +23,7 @@ class SLearner(BaseEstLearner):
         including
             'LR': LinearRegression
             'LogistR': LogisticRegression.
-    ml_model :
+    ml_model : str, optional
         The machine learning model for modeling the relation between outcome
         and (treatment, adjustment).
 
@@ -159,7 +159,7 @@ class TLearner(BaseEstLearner):
         self.x0_model = deepcopy(model)
 
     def prepare(self, data, outcome, treatment, adjustment, individual=None):
-        """Prepare (fit the model) for estimating the quantities
+        r"""Prepare (fit the model) for estimating the quantities
             ATE: E[y|do(x_1)] - E[y|do(x_0)] = E_w[E[y|x=x_1,w] - E[y|x=x_0, w]
                                            := E_{adjustment}[
                                                Delta E[outcome|treatment,
@@ -218,7 +218,7 @@ class XLearner(BaseEstLearner):
     Finally,  we estimate the ATE as follows:
         ATE = E_w(g(w)).
     See Kunzel, et al., (https://arxiv.org/abs/1706.03461) for reference.
-    
+
     Attributes
     ----------
     f1 : MLModel, optional
@@ -252,7 +252,7 @@ class XLearner(BaseEstLearner):
         self.k0 = deepcopy(model)
 
     def prepare(self, data, outcome, treatment, adjustment, individual=None):
-        """Prepare (fit the model) for estimating the quantities
+        r"""Prepare (fit the model) for estimating the quantities
             ATE: E[y|do(x_1)] - E[y|do(x_0)] = E_w[E[y|x=x_1,w] - E[y|x=x_0, w]
                                            := E_{adjustment}[
                                                Delta E[outcome|treatment,

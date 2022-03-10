@@ -4,7 +4,8 @@ import math
 import torch.nn as nn
 import numpy as np
 
-from torch.distributions import Categorical
+from torch.distributions import Categorical, Independent, MixtureSameFamily, \
+    Normal
 from torch.utils.data import Dataset
 
 
@@ -77,23 +78,21 @@ class GaussianProb:
         ) / self.sigma
         return p
 
-    def mixture_density(self, pi, y):
+    def mixture_density(self, pi, y, torch_D=False):
         """Can replace the implementation with the one provided by pytorch, see
         (https://pytorch.org/docs/stable/distributions.html#mixturesamefamily)
             for details.
-
-        Args:
-            pi ([type]): [description]
-            y ([type]): [description]
-
-        Returns:
-            [type]: [description]
         """
-        p_k = self.prob_density(y)
-        pi_k = pi.unsqueeze(dim=2).expand_as(p_k)
-        density = torch.sum(
-            p_k * pi_k, dim=1
-        )
+        if torch_D:
+            mix = Categorical(pi)
+            comp = Independent(Normal(self.mu, self.sigma))
+            density = MixtureSameFamily(mix, comp).log_prob(y)
+        else:
+            p_k = self.prob_density(y)
+            pi_k = pi.unsqueeze(dim=2).expand_as(p_k)
+            density = torch.sum(
+                p_k * pi_k, dim=1
+            )
         return density
 
     def prod_prob(self, y):

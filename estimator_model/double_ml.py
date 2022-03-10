@@ -3,11 +3,11 @@ from .base_models import BaseEstLearner
 
 
 class DoubleML(BaseEstLearner):
-    """
+    r"""
     Double machine learning has two stages:
     In stage I, we
         1. fit a model (y_model) to predict outcome (y) from confounders (w) to
-            get the predicted (py);
+            get the predicted outcome (py);
         2. fit a model (x_model) to predict treatment (x) from confounders (w)
             to get the predicted treatement (px).
     In stage II, we
@@ -42,5 +42,6 @@ class DoubleML(BaseEstLearner):
         result = self.yx_model.coef_
         return result
 
-    def estimate_cate(self, data, outcome, treatment, adjustment, condition_set, condition):
+    def estimate_cate(self, data, outcome, treatment, adjustment,
+                      condition_set, condition):
         raise NotImplementedError

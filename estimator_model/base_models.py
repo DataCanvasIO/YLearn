@@ -45,7 +45,7 @@ class BaseEstLearner:
 
     def prepare(self, data, outcome, treatment, adjustment,
                 individual=None, **kwargs):
-        """Prepare (fit the model) for estimating the quantities
+        r"""Prepare (fit the model) for estimating the quantities
             ATE: E[y|do(x_1)] - E[y|do(x_0)] = E_w[E[y|x=x_1,w] - E[y|x=x_0, w]
                                            := E_{adjustment}[
                                                Delta E[outcome|treatment,
@@ -182,13 +182,16 @@ class BaseEstLearner:
         ----------
         float
         """
+        # TODO: considering let the final model also be the function of
+        # conditional variables.
         # modify the data for estmating cate.
         assert condition_set is not None, \
             'Need an explicit condition set to perform the analysis.'
 
         new_data = data.loc[condition].drop(list(condition_set), axis=1)
         cate = self.estimate_ate(
-            new_data, outcome, treatment, adjustment, **kwargs)
+            new_data, outcome, treatment, adjustment, **kwargs
+        )
         return cate
 
     def estimate_ite(self, data, outcome, treatment, adjustment,
@@ -286,6 +289,9 @@ class MLModel:
 
     def predict(self, X):
         return self.model(X)
+    
+    def predict_prob(self, X, target):
+        pass
 
     def fit_predict(self, X, y, **kwargs):
         self.fit(X, y, **kwargs)
