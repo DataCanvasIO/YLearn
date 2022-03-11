@@ -1,9 +1,7 @@
-import numpy as np
 
 from copy import deepcopy
-from sklearn import linear_model
 
-from . import propensity_score, base_models
+from . import propensity_score
 from .base_models import BaseEstLearner
 
 
@@ -18,20 +16,8 @@ class DoublyRobust(BaseEstLearner):
        yt_i = xt_model.predict(w_i), y0_i = x0_model.predict(w_i)
     2. Estimate the propensity score
        ps(w_i) = ps_model.predict(w_i)
-    3. Calculate the final result (expected effect, this is the case for binary
-        treatment)
-        1/n \sum_i^n [
-            (
-                \frac{y_i x_i}{ps(w_i)}
-                -\frac{x_i - ps(w_i)}{ps(w_i)}yt_i
-            )
-            -(
-                \frac{y_i(1-x_i)}{1-ps(w_i)}
-                +\frac{y0_i(x_i - ps(w_i))}{1-ps(w_i)}
-            )
-            ]
-        If the treatment is not binary, we calculate (note that ps_model should
-        be a multi-classification here):
+    3. Calculate the final result (expected result, note that ps_model should
+        be a multi-classification for discrete treatment):
         1/n \sum_i^n [
             (\frac{I(x_i=xt)y_i}{ps_{x_i=xt}(w_i)}
             - yt_i\frac{I(x_i=xt)-ps_{x_i=xt}(w_i)}{ps_{x_i=xt}(w_i)})
@@ -45,7 +31,7 @@ class DoublyRobust(BaseEstLearner):
         A dictionary of default machine learning sklearn models currently
         including
             'LR': LinearRegression
-            'LogistR': LogisticRegression.
+            'LogisticR': LogisticRegression.
     ps_model : PropensityScore
     xt_model : MLModel, optional
         The machine learning model trained in the treated group.
@@ -54,9 +40,21 @@ class DoublyRobust(BaseEstLearner):
 
     Methods
     ----------
+    prepare(data, outcome, treatment, adjustment, individual=None)
+        Prepare (fit the model) for estimating various quantities including
+        ATE, CATE, ITE, and CITE.
+    estimate(data, outcome, treatment, adjustment, quantity='ATE',
+                 condition_set=None, condition=None, individual=None)
+        Integrate estimations for various quantities into a single method.
+    estimate_ate(self, data, outcome, treatment, adjustment)
+    estimate_cate(self, data, outcome, treatment, adjustment,
+                      condition_set, condition)
+    estimate_ite(self, data, outcome, treatment, adjustment, individual)
+    estimate_cite(self, data, outcome, treatment, adjustment,
+                      condition_set, condition, individual)
     """
 
-    def __init__(self, ps_model, est_model):
+    def __init__(self, ps_model='LogisticR', est_model='LR'):
         """
         Parameters
         ----------
@@ -108,29 +106,16 @@ class DoublyRobust(BaseEstLearner):
         yt = self.xt_model.predict(data_[adjustment])
         y0 = self.x0_model.predict(data_[adjustment])
         x, y = data_[treatment], data_[outcome]
+        # eps = 1e-7
 
-        if num_treatment == 2:
-            # binary case
-            o, ps = np.ones(len(data_)), self.ps_model.predict(
-                data_, adjustment)
-            one_x, one_ps = o - x, o - ps
-            x_ps = x - ps
-
-            result = (
-                (y * x / ps - yt * x_ps / ps)
-                - (y * one_x / one_ps + y0 * x_ps / one_ps)
-            )
-        else:
-            # discrete case
-            x0_index = (x == 0).astype(int)
-            x0_prob = self.ps_model.predict_prob(data_, adjustment, 0)
-            xt_index = (x == treatment_value).astype(int)
-            xt_prob = self.ps_model.predict_prob(
-                data_, adjustment, treatment_value
-            )
-            result = (
-                (xt_index * y / xt_prob - yt * (xt_index - xt_prob) / xt_prob)
-                - (x0_index * y / x0_prob
-                   - y0 * (x0_index - x0_prob) / x0_prob)
-            )
+        x0_index = (x == 0).astype(int)
+        x0_prob = self.ps_model.predict_proba(data_, adjustment, 0)
+        xt_index = (x == treatment_value).astype(int)
+        xt_prob = self.ps_model.predict_proba(
+            data_, adjustment, treatment_value
+        )
+        result = (
+            (y * xt_index / xt_prob + (xt_prob - xt_index) * yt / xt_prob)
+            - (y * x0_index / x0_prob + (x0_prob - x0_index) * y0 / x0_prob)
+        )
         return result

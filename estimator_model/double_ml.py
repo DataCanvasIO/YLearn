@@ -14,6 +14,24 @@ class DoubleML(BaseEstLearner):
         fit a final model (yx_model) to predict y - py from x - px.
 
     See https://arxiv.org/pdf/1608.00060.pdf for reference.
+    
+    Attributes
+    ----------
+    
+    Methods
+    ----------
+    prepare(data, outcome, treatment, adjustment, individual=None)
+        Prepare (fit the model) for estimating various quantities including
+        ATE, CATE, ITE, and CITE.
+    estimate(data, outcome, treatment, adjustment, quantity='ATE',
+                 condition_set=None, condition=None, individual=None)
+        Integrate estimations for various quantities into a single method.
+    estimate_ate(self, data, outcome, treatment, adjustment)
+    estimate_cate(self, data, outcome, treatment, adjustment,
+                      condition_set, condition)
+    estimate_ite(self, data, outcome, treatment, adjustment, individual)
+    estimate_cite(self, data, outcome, treatment, adjustment,
+                      condition_set, condition, individual)
     """
     # TODO: support more final models, e.g., non-parametric models.
 

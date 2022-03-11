@@ -40,7 +40,7 @@ class BaseEstLearner:
     def __init__(self):
         self.ml_model_dic = {
             'LR': linear_model.LinearRegression(),
-            'LogistR': linear_model.LogisticRegression(),
+            'LogisticR': linear_model.LogisticRegression(),
         }
 
     def prepare(self, data, outcome, treatment, adjustment,
@@ -290,7 +290,7 @@ class MLModel:
     def predict(self, X):
         return self.model(X)
     
-    def predict_prob(self, X, target):
+    def predict_proba(self, X, target):
         pass
 
     def fit_predict(self, X, y, **kwargs):

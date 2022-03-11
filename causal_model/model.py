@@ -4,8 +4,9 @@ from sklearn.linear_model import LinearRegression as LR
 
 from copy import deepcopy
 from causal_model.prob import Prob
-from itertools import combinations, product
-from estimator_model.meta_learner import SLearner, TLearner, XLearner, PropensityScore
+from itertools import combinations
+from estimator_model.meta_learner import SLearner, TLearner, XLearner, \
+    PropensityScore
 
 np.random.seed(2022)
 
@@ -105,13 +106,13 @@ class CausalModel:
         """
         self.data = data
         if estimation is None:
-            estimation = ('LR', 'S-Learner')
+            estimation = ('LR', 'SLearner')
 
         self.estimator_dic = {
-            'S-Learner': SLearner(ml_model=estimation[0]),
-            'T-Learner': TLearner(ml_model=estimation[0]),
+            'SLearner': SLearner(ml_model=estimation[0]),
+            'TLearner': TLearner(ml_model=estimation[0]),
             'XLearner': XLearner(ml_model=estimation[0]),
-            # 'PropensityScore': PropensityScore(ml_model=estimation[0]),
+            'PropensityScore': PropensityScore(ml_model=estimation[0]),
         }
 
         assert estimation[1] in self.estimator_dic.keys(), \
@@ -737,11 +738,17 @@ class CausalModel:
             if node not in hidden_cofounders:
                 ancestors = nx.ancestors(full_dag, node)
                 hidden_ancestors = [
-                    an for an in ancestors if an in hidden_cofounders]
+                    an for an in ancestors if an in hidden_cofounders
+                ]
                 if len(hidden_ancestors) == 1:
                     ob_ancestors = [
-                        an for an in ancestors if an not in hidden_cofounders]
-                    if sum([check_ancestors_chain(full_dag, node, hidden_ancestors[0]) for node in ob_ancestors]) == len(ob_ancestors):
+                        an for an in ancestors if an not in hidden_cofounders
+                    ]
+                    if sum(
+                        [check_ancestors_chain(
+                            full_dag, node, hidden_ancestors[0]
+                        ) for node in ob_ancestors]
+                    ) == len(ob_ancestors):
                         data_input = self.data[ob_ancestors]
                         target = self.data[node]
                         if method == "lr":

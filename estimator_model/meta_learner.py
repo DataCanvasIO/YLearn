@@ -52,7 +52,7 @@ class SLearner(BaseEstLearner):
             for our TLearner. If not str, then ml_model should be some valid
             machine learning model wrapped by the class MLModels.
         """
-        super().__init__(*args, **kwargs)
+        super().__init__()
 
         try:
             self.ml_model = self.ml_model_dic[kwargs['ml_model']]
@@ -149,7 +149,7 @@ class TLearner(BaseEstLearner):
             for our TLearner. If not str, then ml_model should be some valid
             machine learning model wrapped by the class MLModels.
         """
-        super().__init__(**kwargs)
+        super().__init__()
         model = kwargs['ml_model']
 
         if type(model) is str:
@@ -240,7 +240,7 @@ class XLearner(BaseEstLearner):
             for our TLearner. If not str, then ml_model should be some valid
             machine learning model wrapped by the class MLModels.
         """
-        super().__init__(**kwargs)
+        super().__init__()
         model = kwargs['ml_model']
 
         if type(model) is str:
@@ -298,7 +298,7 @@ class XLearner(BaseEstLearner):
             data_ = data[adjustment]
         # TODO: more choices of rho
         rho = 0.5
-        result = rho * self.k1.predict(data_) - \
+        result = rho * self.k1.predict(data_) + \
             (1 - rho) * self.k0.predict(data_)
         return result
 
