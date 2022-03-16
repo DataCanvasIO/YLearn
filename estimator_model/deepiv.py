@@ -19,6 +19,8 @@ from torch.distributions import Categorical, Normal, MixtureSameFamily,\
 from .utils import GaussianProb, BatchData
 from .base_models import BaseEstLearner, MLModel
 
+# We first build the mixture density network.
+
 
 class MixtureDensityNetwork(nn.Module):
     """
@@ -80,6 +82,10 @@ class MixtureDensityNetwork(nn.Module):
             -1, self.num_gaussian, self.out_d
         )
         return pi, mu, sigma
+
+# To make the above MDN consistant to the standard machine learning models, we
+# use the following wrapper to wrap it so that the methods such as fit() can
+# be applied.
 
 
 class MDNWrapper(MLModel):
@@ -260,14 +266,17 @@ class MDNWrapper(MLModel):
     #     # p = torch.sum(pi_ * gaussian_prob.prod_prob(y), dim=1)
     #     pass
 
+# Then we build the outcome network.
+
 
 class OutcomeNet(nn.module):
-    def __init__(self, in_d, out_d, hidden_d1, hidden_d2, hidden_d3):
+    def __init__(self, in_d, out_d, hidden_d1, hidden_d2, hidden_d3, discrete=False):
         super().__init__()
         self.fc1 = nn.Linear(in_d, hidden_d1)
         self.fc2 = nn.Linear(hidden_d1, hidden_d2)
         self.fc3 = nn.Linear(hidden_d2, hidden_d3)
         self.fc4 = nn.Linear(hidden_d3, out_d)
+        self.discrete = discrete
 
     def forward(self, x):
         x = torch.flatten(x, 1)
@@ -280,11 +289,16 @@ class OutcomeNet(nn.module):
         output = self.fc4(x)
         return output
 
+# Similarly, we wrap the above outcome network with a warpper.
+
 
 class OutcomeNetWrapper(MLModel):
     def __init__(self, outcome_net):
         super().__init__()
         self.outcome_net = outcome_net
+
+# We are now ready to build the complete model with above wrapped outcome and
+# treatment nets.
 
 
 class DeepIV(BaseEstLearner):
@@ -314,7 +328,7 @@ class DeepIV(BaseEstLearner):
         y : tensor
             Outcomes. Shape (b, y_d)
         c : tensor, defaults to None.
-            Observed confounders. Shape (b, c_d)
+            Observed adjustments. Shape (b, c_d)
         sample_n : tuple of int
             Eg., (5, ) means generating (5*b) samples according to the
             probability density modeled by the treatment_net.
@@ -331,7 +345,7 @@ class DeepIV(BaseEstLearner):
         self.outcome_net.fit(x_, y, nn_torch=True, loss=nn.MSELoss())
 
     def prepare(self, data, outcome, treatment,
-                confounder=None,
+                adjustment=None,
                 individual=None,
                 instrument=None,
                 discrete_treatment=True):
@@ -339,7 +353,8 @@ class DeepIV(BaseEstLearner):
         def convert_to_tensor(x):
             return torch.tensor(x.values)
 
-        c = convert_to_tensor(data[confounder]) if confounder is not None \
+        # Make all vars as tensors
+        c = convert_to_tensor(data[adjustment]) if adjustment is not None \
             else None
         x = convert_to_tensor(data[treatment])
         y = convert_to_tensor(data[outcome])
@@ -348,7 +363,7 @@ class DeepIV(BaseEstLearner):
 
         if individual:
             x = convert_to_tensor(individual[treatment])
-            c = convert_to_tensor(individual[confounder])
+            c = convert_to_tensor(individual[adjustment])
 
         # TODO: binary treatment
         if discrete_treatment:

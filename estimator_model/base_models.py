@@ -1,8 +1,8 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import torch.nn.functional as F
 
-from copy import deepcopy
 from sklearn import linear_model
 from torch.utils.data import DataLoader
 
@@ -233,10 +233,11 @@ class MLModel:
     def __init__(self, model):
         self.model = model
 
-    def fit(self, X, y, nn_torch=False, **kwargs):
+    def fit(self, X, y, nn_torch=True, **kwargs):
         if nn_torch:
             self._fit_nn_torch(X, y, **kwargs)
         else:
+            # define this for other types of fit functions
             pass
 
     def _fit_nn_torch(self, X, y,
@@ -244,7 +245,7 @@ class MLModel:
                       lr=0.01,
                       epoch=1000,
                       optimizer='SGD',
-                      batch_size=128,
+                      batch_size=64,
                       **optim_config):
         """Train the nn model with data (X, y).
 
@@ -289,7 +290,7 @@ class MLModel:
 
     def predict(self, X):
         return self.model(X)
-    
+
     def predict_proba(self, X, target):
         pass
 
@@ -309,3 +310,49 @@ class MLModel:
 
 #     def fit(self, X, y):
 #         return super().fit(X, y)
+
+class MultiClassNet(nn.Module):
+    def __init__(self, in_d, out_d,
+                 hidden_d1=100,
+                 hidden_d2=128,
+                 hidden_d3=64):
+        super().__init__()
+        self.in_d = in_d
+        self.out_d = out_d
+        self.fc1 = nn.Linear(in_d, hidden_d1)
+        self.fc2 = nn.Linear(hidden_d1, hidden_d2)
+        self.fc3 = nn.Linear(hidden_d2, hidden_d3)
+        self.fc4 = nn.Linear(hidden_d3, out_d)
+
+    def fowrad(self, x):
+        x = torch.flatten(x, 1)
+        x = self.fc1(x)
+        x = F.relu(x)
+        x = self.fc2(x)
+        x = F.relu(x)
+        x = self.fc3(x)
+        output = F.relu(x)
+        return output
+
+
+class MCNWrapper(MLModel):
+    def __init__(self, treatment_net):
+        super().__init__()
+        self.model = treatment_net
+
+    def fit(self, X, y, **optim_config):
+        loss = nn.CrossEntropyLoss()
+        self._fit_nn_torch(X, y, loss=loss, **optim_config)
+
+    def predict(self, X, label=True):
+        y_pred = nn.Softmax(dim=1)(self.model(X))
+        if label:
+            y_pred = y_pred.argmax(dim=1).view(X.shape[0], -1)
+        return y_pred
+
+    def predict_proba(self, X, target):
+        return self.predict(X, label=False)
+
+    def sample(self, X, sample_num):
+        # This method is unnecessary for many tasks.
+        pass

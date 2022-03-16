@@ -1,6 +1,83 @@
-from typing import no_type_check
 import numpy as np
 import pandas as pd
+
+
+def meaningless_discrete_dataset_(num, confounder_n,
+                                  treatment_effct=None,
+                                  w_var=5,
+                                  eps=1e-4,
+                                  data_frame=True,
+                                  random_seed=2022,
+                                  instrument=False):
+    """Generate a dataset where the treatment and outcome have some
+    confounders while the relation between the treatment and outcome
+    is linear. The treatment is an array of integers where each integer
+    indicates the treatment group assigned to the corresponding example.
+    The outcome is an array of float, i.e., we are building continuous
+    outcome.
+
+    Parameters
+    ----------
+    num : int
+        The number of examples in the dataset.
+    confounder_n : int
+        The number of confounders of the treatment and outcome.
+    treatment_effct : list, optional. Defaults to None.
+    w_var : float, optional. Defaults to 0.5.
+        Variance of the confounder around its mean.
+    eps : float, optional. Defaults to 1e-4.
+        Noise level imposed to the data generating process.
+    data_frame : bool, optional. Defaults to True.
+        Return pandas.DataFrame if True.
+    random_seed : int, optional. Defaults to 2022.
+    instrument : bool, optional. Defaults to False.
+        Add instrument variables to the dataset if True.
+
+    Returns
+    ----------
+    pandas.DataFrame, optional.
+        w_j's are confounders of outcome and treatment.
+    """
+    np.random.seed(random_seed)
+
+    # Build treatment x which depends on the confounder w
+    x_num = len(treatment_effct)
+    w = [
+        np.random.normal(0, w_var*np.random.random_sample(), size=(num, 1))
+        for i in range(confounder_n)
+    ]
+    w = np.concatenate(tuple(w), axis=1)
+    w_coef = np.random.rand(x_num, confounder_n)
+    x = w.dot(w_coef.T) + np.random.normal(0, eps, size=(num, x_num))
+    if instrument:
+        z = None
+    x = x.argmax(axis=1)
+    x_one_hot = np.eye(x_num)[x]
+
+    # Now we build the outcome y which depends on both x and w
+    x_coef = np.random.randn(1, confounder_n)
+    x_coef = np.concatenate(
+        (np.array(treatment_effct).reshape(1, -1), x_coef), axis=1
+    )
+    x_ = np.concatenate((x_one_hot, w), axis=1)
+    y = x_.dot(x_coef.T) + np.random.normal(0, eps, size=(num, 1))
+
+    # Return the dataset
+    if data_frame:
+        data_dict = {}
+        data_dict['treatment'] = x
+        if instrument:
+            data_dict['instrument'] = z
+        for i, j in enumerate(w.T):
+            data_dict[f'w_{i}'] = j
+        data_dict['outcome'] = y.reshape(num,)
+        data = pd.DataFrame(data_dict)
+        return data
+    else:
+        if instrument:
+            return (x, w, z, y)
+        else:
+            return (x, w, y)
 
 
 def coupon_dataset(n_users, treatment_style='binary', with_income=False):
@@ -41,7 +118,7 @@ def coupon_dataset(n_users, treatment_style='binary', with_income=False):
     return df
 
 
-def meaningless_discrete_dataset(num, confounder_num,
+def meaningless_discrete_dataset(num, confounder_n,
                                  treatment_effct=None,
                                  prob=None,
                                  w_var=0.5,
@@ -61,7 +138,7 @@ def meaningless_discrete_dataset(num, confounder_num,
 
     # construct the confounder w
     w = [
-        np.random.normal(0, w_var, size=(num,)) for i in range(confounder_num)
+        np.random.normal(0, w_var, size=(num,)) for i in range(confounder_n)
     ]
     for i, w_ in enumerate(w, 1):
         x = x + w_
@@ -73,7 +150,7 @@ def meaningless_discrete_dataset(num, confounder_num,
             x[i] = 0
 
     # construct the outcome y
-    coef = np.random.randint(int(coef_range*eps), size=(confounder_num,))
+    coef = np.random.randint(int(coef_range*eps), size=(confounder_n,))
     y = np.random.normal(eps, size=(num,))
     for i in range(len(y)):
         y[i] = y[i] + treatment_effct[x[i]] * x[i]
@@ -89,4 +166,4 @@ def meaningless_discrete_dataset(num, confounder_num,
         data = pd.DataFrame(data_dict)
         return data, coef
     else:
-        return x, w, y, coef
+        return (x, w, y, coef)

@@ -9,6 +9,10 @@ from torch.distributions import Categorical, Independent, MixtureSameFamily, \
 from torch.utils.data import Dataset
 
 
+def convert_to_tensor():
+    pass
+
+
 class BatchData(Dataset):
     def __init__(self, X=None, y=None, X_test=None, y_test=None, train=True):
         if train:
@@ -90,9 +94,7 @@ class GaussianProb:
         else:
             p_k = self.prob_density(y)
             pi_k = pi.unsqueeze(dim=2).expand_as(p_k)
-            density = torch.sum(
-                p_k * pi_k, dim=1
-            )
+            density = torch.sum(p_k * pi_k, dim=1)
         return density
 
     def prod_prob(self, y):
@@ -110,7 +112,8 @@ def sample(pi, sigma, mu):
     # Do a (output dims)X(batch size) tensor here, so the broadcast works in
     # the next step, but we have to transpose back.
     gaussian_noise = torch.randn(
-        (sigma.size(2), sigma.size(0)), requires_grad=False)
+        (sigma.size(2), sigma.size(0)), requires_grad=False
+    )
     variance_samples = sigma.gather(1, pis).detach().squeeze()
     mean_samples = mu.detach().gather(1, pis).squeeze()
     return (gaussian_noise * variance_samples + mean_samples).transpose(0, 1)

@@ -1,8 +1,10 @@
 import numpy as np
+import torch
+import torch.nn as nn
 
 from sklearn import linear_model
 
-from .base_models import BaseEstLearner
+from .base_models import BaseEstLearner, MLModel
 # TODO: consider treatments other than binary treatment.
 
 
@@ -56,7 +58,10 @@ class PropensityScore:
 
     def predict_proba(self, data, adjustment, target=None):
         p = self.ml_model.predict_proba(data[adjustment])
-        p_ = p.transpose()[target]
+        try:
+            p_ = p.transpose()[target]
+        except TypeError:
+            p_ = p.transpose(0, 1)[target]
         return p_
 
     def fit_predict(self, train_data, treatment, adjustment, pre_data=None):
