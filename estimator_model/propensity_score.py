@@ -74,13 +74,15 @@ class PropensityScore:
         train_data : pd.DataFrame
         treatment : str
         adjustment : list of str
-        pre_data : pd.DataFrame. Defaults to None.
+        pre_data : pd.DataFrame. Defaults to None
 
         Returns
         ----------
         np.array
         """
         self.ml_model.fit(train_data, treatment, adjustment)
+        if pre_data is None:
+            pre_data = train_data
         return self.predict(pre_data, adjustment)
 
 

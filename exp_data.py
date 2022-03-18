@@ -2,8 +2,8 @@ import numpy as np
 import pandas as pd
 
 
-def meaningless_discrete_dataset_(num, confounder_n,
-                                  treatment_effct=None,
+def meaningless_discrete_dataset_(num, treatment_effct,
+                                  confounder_n=2,
                                   w_var=5,
                                   eps=1e-4,
                                   data_frame=True,

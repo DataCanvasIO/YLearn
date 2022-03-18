@@ -119,6 +119,11 @@ class TLearner(BaseEstLearner):
 
     Attributes
     -----------
+    ml_model_dic : dict
+        A dictionary of default machine learning sklearn models currently
+        including
+            'LR': LinearRegression
+            'LogistR': LogisticRegression.
     x1_model : MLModel, optional
         The machine learning model for the treatment group data.
     x0_model : MLModel, optional
@@ -221,6 +226,11 @@ class XLearner(BaseEstLearner):
 
     Attributes
     ----------
+    ml_model_dic : dict
+        A dictionary of default machine learning sklearn models currently
+        including
+            'LR': LinearRegression
+            'LogistR': LogisticRegression.
     f1 : MLModel, optional
         Machine learning model for the treatment gropu in the step 1.
     f0 : MLModel, optional
@@ -229,6 +239,21 @@ class XLearner(BaseEstLearner):
         Machine learning model for the treatment gropu in the step 2.
     k0 : MLModel, optional
         Machine learning model for the control gropu in the step 2.
+
+    Methods
+    ----------
+    prepare(data, outcome, treatment, adjustment, individual=None)
+        Prepare (fit the model) for estimating various quantities including
+        ATE, CATE, ITE, and CITE.
+    estimate(data, outcome, treatment, adjustment, quantity='ATE',
+                 condition_set=None, condition=None, individual=None)
+        Integrate estimations for various quantities into a single method.
+    estimate_ate(self, data, outcome, treatment, adjustment)
+    estimate_cate(self, data, outcome, treatment, adjustment,
+                      condition_set, condition)
+    estimate_ite(self, data, outcome, treatment, adjustment, individual)
+    estimate_cite(self, data, outcome, treatment, adjustment,
+                      condition_set, condition, individual)
     """
 
     def __init__(self, **kwargs):

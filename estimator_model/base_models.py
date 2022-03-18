@@ -96,13 +96,14 @@ class BaseEstLearner:
         quantity: str
             The type of desired quantity, including ATE, CATE, ITE and
             CITE. Defaults to 'ATE'.
-        condition_set : set or list. Defaults to None.
+        condition_set : set or list. Defaults to None
         condition : list
             A list whose length is the size of dataset and elements are
             boolean such that we only perform the computation of
             quantities if the corresponding element is True]. Defaults
             to None.
-        individual : DataFrame. Defaults to None.
+        individual : DataFrame. Defaults to None
+        kwargs : dict
 
         Raises
         ----------
@@ -148,7 +149,7 @@ class BaseEstLearner:
             Name of the outcome.
         treatment : str
             Name of the treatment.
-        adjustment : set or list
+        adjustment : set or list of str
             The valid adjustment set.
 
         Returns
@@ -171,9 +172,9 @@ class BaseEstLearner:
             Name of the outcome.
         treatment : str
             Name of the treatment.
-        adjustment : set or list
+        adjustment : set or list of str
             The valid adjustment set.
-        condition_set : set
+        condition_set : set of str
         condition : boolean
             The computation will be performed only using data where conition is
             True.
@@ -210,7 +211,6 @@ class BaseEstLearner:
         assert individual is not None, \
             'Need an explicit individual to perform computation of individual'
         'causal effect.'
-
         assert condition_set is not None, \
             'Need an explicit condition set to perform the analysis.'
 
@@ -231,6 +231,12 @@ class MLModel:
     """
 
     def __init__(self, model):
+        """
+        Parameters
+        ----------
+        model : nn, optional
+            This can be any machine learning models.
+        """
         self.model = model
 
     def fit(self, X, y, nn_torch=True, **kwargs):
@@ -257,14 +263,14 @@ class MLModel:
         y : tensor
             Has shape (b, out_d) where out_d is the dimension of each y.
         device : str, optional. Defaults to 'cuda'.
-        lr : float, optional. Defaults to 0.01.
+        lr : float, optional. Defaults to 0.01
             Learning rate.
-        epoch : int, optional. Defaults to 1000.
+        epoch : int, optional. Defaults to 1000
             The number of epochs used for training.
-        optimizer : str, optional. Defaults to 'SGD'.
+        optimizer : str, optional. Defaults to 'SGD'
             Currently including SGD and Adam The type of optimizer used for
             training.
-        batch_size: int, optional. Defaults to 128.
+        batch_size: int, optional. Defaults to 128
         optim_config : other parameters for various optimizers.
         """
         self.model = self.model.to(device)
@@ -294,23 +300,14 @@ class MLModel:
     def predict_proba(self, X, target):
         pass
 
-    def fit_predict(self, X, y, **kwargs):
+    def fit_predict(self, X, y, X_test=None, **kwargs):
         self.fit(X, y, **kwargs)
-        return self.predict(X)
+        if X_test is None:
+            X_test = X
+        return self.predict(X_test)
 
 
-# class EgModel(MLModel):
-#     """
-#     An example class for constructing a new machine learning model to be used
-#     in YLearn.
-#     """
-
-#     def __init__(self) -> None:
-#         super().__init__()
-
-#     def fit(self, X, y):
-#         return super().fit(X, y)
-
+# Modify this if you want to use networks with other structures.
 class MultiClassNet(nn.Module):
     def __init__(self, in_d, out_d,
                  hidden_d1=100,
@@ -350,8 +347,12 @@ class MCNWrapper(MLModel):
             y_pred = y_pred.argmax(dim=1).view(X.shape[0], -1)
         return y_pred
 
-    def predict_proba(self, X, target):
-        return self.predict(X, label=False)
+    def predict_proba(self, X, target=None):
+        y_pred = self.predict(X, label=False)
+        if target is None:
+            return y_pred
+        else:
+            return y_pred[:, target]
 
     def sample(self, X, sample_num):
         # This method is unnecessary for many tasks.
