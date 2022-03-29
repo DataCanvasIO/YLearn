@@ -4,10 +4,16 @@ from copy import deepcopy
 
 
 class CausalEffectBound:
-    def __init__(self, y_model, data, outcome, treatment,
-                 condition_set=None,
-                 x_prob=None,
-                 x_model=None):
+    def __init__(
+        self,
+        y_model,
+        data,
+        outcome,
+        treatment,
+        condition_set=None,
+        x_prob=None,
+        x_model=None
+    ):
         """
         Parameters
         ----------
@@ -47,10 +53,13 @@ class CausalEffectBound:
                 self.x.values.reshape(-1, 1), self.y.values.reshape(-1, 1)
             )
 
-    def effect_bound(self, y_upper=None,
-                     y_lower=None,
-                     treatment_value=None,
-                     assump='non-negative'):
+    def effect_bound(
+        self,
+        y_upper=None,
+        y_lower=None,
+        treatment_value=None,
+        assump='non-negative'
+    ):
         """Calculate the approximation bound of causal effects.
 
         Parameters

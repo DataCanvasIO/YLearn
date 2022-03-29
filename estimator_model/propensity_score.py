@@ -4,7 +4,7 @@ import torch.nn as nn
 
 from sklearn import linear_model
 
-from .base_models import BaseEstLearner, MLModel
+from .base_models import BaseEstLearner
 # TODO: consider treatments other than binary treatment.
 
 
@@ -113,7 +113,7 @@ class InversePorbWeighting(BaseEstLearner):
 
     Methods
     ----------
-    prepare(data, outcome, treatment, adjustment, individual=None)
+    _prepare(data, outcome, treatment, adjustment, individual=None)
         Prepare (fit the model) for estimating various quantities including
         ATE, CATE, ITE, and CITE.
     estimate(data, outcome, treatment, adjustment, quantity='ATE',
@@ -136,7 +136,7 @@ class InversePorbWeighting(BaseEstLearner):
 
         self.ps_model = PropensityScore(ml_model=ps_model)
 
-    def prepare(self, data, outcome, treatment, adjustment, individual=None):
+    def _prepare(self, data, outcome, treatment, adjustment, individual=None):
         self.ps_model.fit(data, treatment, adjustment)
         ps = self.ps_model.predict_proba(data, adjustment, target=1)
         o = np.ones(len(ps))

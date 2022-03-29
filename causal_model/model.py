@@ -106,6 +106,7 @@ class CausalModel:
         """
         self.data = data
         if estimation is None:
+            # TODO: more flexible estimation, or should put this to estimate()
             estimation = ('LR', 'SLearner')
 
         self.estimator_dic = {

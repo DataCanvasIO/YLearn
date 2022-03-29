@@ -23,7 +23,7 @@ class BaseEstLearner:
 
     Methods
     ----------
-    prepare(data, outcome, treatment, adjustment, individual=None)
+    _prepare(data, outcome, treatment, adjustment, individual=None)
         Prepare (fit the model) for estimating various quantities including
         ATE, CATE, ITE, and CITE.
     estimate(data, outcome, treatment, adjustment, quantity='ATE',
@@ -37,14 +37,47 @@ class BaseEstLearner:
                       condition_set, condition, individual)
     """
 
-    def __init__(self):
+    def __init__(
+        self,
+        random_state=2022,
+    ):
+        self.random_state = random_state
         self.ml_model_dic = {
             'LR': linear_model.LinearRegression(),
             'LogisticR': linear_model.LogisticRegression(),
         }
 
-    def prepare(self, data, outcome, treatment, adjustment,
-                individual=None, **kwargs):
+    def fit(
+        self,
+        data,
+        outcome,
+        treatment,
+        adjustment=None,
+        covariate=None,
+        **kwargs,
+    ):
+        # TODO: I hope every fit function will automatically let
+        # self.treatment = treatment.
+        pass
+
+    def _prepare_(
+        self,
+        data,
+    ):
+        pass
+
+    def _prepare(
+        self,
+        data,
+        outcome,
+        treatment,
+        adjustment,
+        individual=None,
+        **kwargs
+    ):
+        # TODO: We should add a method like check_is_fitted.
+        # This does not need the parameters like treatment. By calling this
+        # function first, we then estimate quantites like ATE easily.
         r"""Prepare (fit the model) for estimating the quantities
             ATE: E[y|do(x_1)] - E[y|do(x_0)] = E_w[E[y|x=x_1,w] - E[y|x=x_0, w]
                                            := E_{adjustment}[
@@ -75,12 +108,26 @@ class BaseEstLearner:
         """
         pass
 
-    def estimate(self, data, outcome, treatment, adjustment,
-                 quantity='ATE',
-                 condition_set=None,
-                 condition=None,
-                 individual=None,
-                 **kwargs):
+    def estimate_(self, data, condition=None, **kwargs):
+        pass
+
+    def estimate(
+        self,
+        data,
+        outcome,
+        treatment,
+        adjustment,
+        quantity='ATE',
+        condition_set=None,
+        condition=None,
+        individual=None,
+        **kwargs
+    ):
+        # This is the basic API for estimating a causal effect.
+
+        # TODO: Note that we require that if parameters like treatment change
+        # then we should recall self.fit()
+        # method.
         """General estimation method for quantities like ATE of
         outcome|do(treatment).
 
@@ -156,7 +203,7 @@ class BaseEstLearner:
         ----------
         float
         """
-        return self.prepare(
+        return self._prepare(
             data, outcome, treatment, adjustment=adjustment, **kwargs
         ).mean()
 
@@ -201,7 +248,7 @@ class BaseEstLearner:
             'Need an explicit individual to perform computation of individual'
         'causal effect.'
 
-        return self.prepare(
+        return self._prepare(
             data, outcome, treatment, adjustment,
             individual=individual, **kwargs
         )
@@ -215,7 +262,7 @@ class BaseEstLearner:
             'Need an explicit condition set to perform the analysis.'
 
         new_data = data.loc[condition].drop(list(condition_set), axis=1)
-        cite = self.prepare(
+        cite = self._prepare(
             new_data, outcome, treatment, adjustment, individual, **kwargs
         )
         return cite
@@ -246,13 +293,16 @@ class MLModel:
             # define this for other types of fit functions
             pass
 
-    def _fit_nn_torch(self, X, y,
-                      device='cuda',
-                      lr=0.01,
-                      epoch=1000,
-                      optimizer='SGD',
-                      batch_size=64,
-                      **optim_config):
+    def _fit_nn_torch(
+        self,
+        X, y,
+        device='cuda',
+        lr=0.01,
+        epoch=1000,
+        optimizer='SGD',
+        batch_size=64,
+        **optim_config
+    ):
         """Train the nn model with data (X, y).
 
         Parameters
@@ -302,14 +352,18 @@ class MLModel:
 
     def fit_predict(self, X, y, X_test=None, **kwargs):
         self.fit(X, y, **kwargs)
+
         if X_test is None:
             X_test = X
+
         return self.predict(X_test)
 
 
 # Modify this if you want to use networks with other structures.
 class MultiClassNet(nn.Module):
-    def __init__(self, in_d, out_d,
+    def __init__(self,
+                 in_d,
+                 out_d,
                  hidden_d1=100,
                  hidden_d2=128,
                  hidden_d3=64):

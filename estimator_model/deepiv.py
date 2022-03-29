@@ -344,11 +344,16 @@ class DeepIV(BaseEstLearner):
         x_ = torch.cat((c_, x_), dim=1)
         self.outcome_net.fit(x_, y, nn_torch=True, loss=nn.MSELoss())
 
-    def prepare(self, data, outcome, treatment,
-                adjustment=None,
-                individual=None,
-                instrument=None,
-                discrete_treatment=True):
+    def _prepare(
+        self,
+        data,
+        outcome,
+        treatment,
+        adjustment=None,
+        individual=None,
+        instrument=None,
+        discrete_treatment=True
+    ):
 
         def convert_to_tensor(x):
             return torch.tensor(x.values)

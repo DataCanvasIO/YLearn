@@ -1,6 +1,47 @@
 import numpy as np
 import pandas as pd
 
+from itertools import product
+
+from sklearn.model_selection import train_test_split
+
+
+def single_continuous_treatment(num=2000,
+                                confounder_n=30,
+                                covariate_n=1,
+                                random_seed=2022,
+                                data_frame=True):
+    np.random.seed(random_seed)
+    support_size = 5
+    support_y = np.random.choice(
+        np.arange(confounder_n), size=support_size, replace=False
+    )
+    coefs_y = np.random.uniform(0, 1, size=support_size)
+    def epsilon_sample(n): return np.random.uniform(-1, 1, size=n)
+    support_t = support_y
+    coefs_t = np.random.uniform(0, 1, size=support_size)
+    def eta_sample(n): return np.random.uniform(-1, 1, size=n)
+    w = np.random.normal(0, 1, size=(num, confounder_n))
+    c = np.random.uniform(0, 1, size=(num, covariate_n))
+    def exp_te(x): return np.exp(2*x[0])
+    TE = np.array([exp_te(ci) for ci in c])
+    x = np.dot(w[:, support_t], coefs_t) + eta_sample(num)
+    y = TE * x + np.dot(w[:, support_y], coefs_y)\
+        + epsilon_sample(num)
+
+    x_test = np.array(list(product(np.arange(0, 1, 0.01), repeat=covariate_n)))
+    if data_frame:
+        data_dict = {}
+        for i in range(confounder_n):
+            data_dict[f'w_{i}'] = w[:, i]
+        for i in range(covariate_n):
+            data_dict[f'c_{i}'] = c[:, i]
+        data_dict['outcome'] = y
+        data_dict['treatment'] = x
+        data = pd.DataFrame(data_dict)
+        train, val = train_test_split(data)
+        return train, val, TE
+
 
 def meaningless_discrete_dataset_(num, treatment_effct,
                                   confounder_n=2,

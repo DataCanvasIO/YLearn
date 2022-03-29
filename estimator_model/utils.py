@@ -9,6 +9,23 @@ from torch.distributions import Categorical, Independent, MixtureSameFamily, \
 from torch.utils.data import Dataset
 
 
+def convert2array(*S):
+    data = S[0]
+    S = list(S[1:])
+
+    for i, s in enumerate(S):
+        S[i] = data[s].values if s is not None else None
+
+    return S
+
+def convert_str(*S):
+    S = list(S)
+    for i, s in enumerate(S):
+        if isinstance(s, str):
+            S[i] = tuple(s)
+    return S
+
+
 def convert_to_tensor():
     pass
 

@@ -29,7 +29,7 @@ class SLearner(BaseEstLearner):
 
     Methods
     ----------
-    prepare(data, outcome, treatment, adjustment, individual=None)
+    _prepare(data, outcome, treatment, adjustment, individual=None)
         Prepare (fit the model) for estimating various quantities including
         ATE, CATE, ITE, and CITE.
     estimate(data, outcome, treatment, adjustment, quantity='ATE',
@@ -59,7 +59,7 @@ class SLearner(BaseEstLearner):
         except Exception:
             self.ml_model = kwargs['ml_model']
 
-    def prepare(self, data, outcome, treatment, adjustment, individual=None):
+    def _prepare(self, data, outcome, treatment, adjustment, individual=None):
         """Prepare (fit the model) for estimating the quantities
             ATE: E[y|do(x_1)] - E[y|do(x_0)] = E_w[E[y|x=x_1,w] - E[y|x=x_0, w]
                                            := E_{adjustment}[
@@ -131,7 +131,7 @@ class TLearner(BaseEstLearner):
 
     Methods
     ----------
-    prepare(data, outcome, treatment, adjustment, individual=None)
+    _prepare(data, outcome, treatment, adjustment, individual=None)
         Prepare (fit the model) for estimating various quantities including
         ATE, CATE, ITE, and CITE.
     estimate(data, outcome, treatment, adjustment, quantity='ATE',
@@ -163,7 +163,7 @@ class TLearner(BaseEstLearner):
         self.x1_model = model
         self.x0_model = deepcopy(model)
 
-    def prepare(self, data, outcome, treatment, adjustment, individual=None):
+    def _prepare(self, data, outcome, treatment, adjustment, individual=None):
         r"""Prepare (fit the model) for estimating the quantities
             ATE: E[y|do(x_1)] - E[y|do(x_0)] = E_w[E[y|x=x_1,w] - E[y|x=x_0, w]
                                            := E_{adjustment}[
@@ -242,7 +242,7 @@ class XLearner(BaseEstLearner):
 
     Methods
     ----------
-    prepare(data, outcome, treatment, adjustment, individual=None)
+    _prepare(data, outcome, treatment, adjustment, individual=None)
         Prepare (fit the model) for estimating various quantities including
         ATE, CATE, ITE, and CITE.
     estimate(data, outcome, treatment, adjustment, quantity='ATE',
@@ -276,7 +276,7 @@ class XLearner(BaseEstLearner):
         self.k1 = deepcopy(model)
         self.k0 = deepcopy(model)
 
-    def prepare(self, data, outcome, treatment, adjustment, individual=None):
+    def _prepare(self, data, outcome, treatment, adjustment, individual=None):
         r"""Prepare (fit the model) for estimating the quantities
             ATE: E[y|do(x_1)] - E[y|do(x_0)] = E_w[E[y|x=x_1,w] - E[y|x=x_0, w]
                                            := E_{adjustment}[
