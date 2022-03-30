@@ -295,7 +295,7 @@ class OutcomeNet(nn.module):
 class OutcomeNetWrapper(MLModel):
     def __init__(self, outcome_net):
         super().__init__()
-        self.outcome_net = outcome_net
+        self.model = outcome_net
 
 # We are now ready to build the complete model with above wrapped outcome and
 # treatment nets.

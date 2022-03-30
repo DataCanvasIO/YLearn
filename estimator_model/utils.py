@@ -1,3 +1,4 @@
+import enum
 import torch
 import math
 
@@ -8,6 +9,20 @@ from torch.distributions import Categorical, Independent, MixtureSameFamily, \
     Normal
 from torch.utils.data import Dataset
 
+def nd_kron(x, y):
+    dim = x.shape[0]
+    assert dim == y.shape[0]
+    
+    for i, vec in enumerate(x):
+        if i == 0:
+            kron_prod = np.kron(vec, y[0])
+            
+        kron_prod = np.concatenate(
+            (kron_prod, np.kron(vec, y[i])), axis=0
+        )
+        
+    return kron_prod
+    
 
 def convert2array(*S):
     data = S[0]
