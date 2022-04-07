@@ -9,20 +9,20 @@ from torch.distributions import Categorical, Independent, MixtureSameFamily, \
     Normal
 from torch.utils.data import Dataset
 
+
 def nd_kron(x, y):
     dim = x.shape[0]
     assert dim == y.shape[0]
-    
-    for i, vec in enumerate(x):
-        if i == 0:
-            kron_prod = np.kron(vec, y[0])
-            
-        kron_prod = np.concatenate(
-            (kron_prod, np.kron(vec, y[i])), axis=0
-        )
-        
+    kron_prod = np.kron(x[0], y[0]).reshape(1, -1)
+
+    if dim > 1:
+        for i, vec in enumerate(x[1:], 1):
+            kron_prod = np.concatenate(
+                (kron_prod, np.kron(vec, y[i]).reshape(1, -1)), axis=0
+            )
+
     return kron_prod
-    
+
 
 def convert2array(*S):
     data = S[0]
@@ -32,6 +32,7 @@ def convert2array(*S):
         S[i] = data[s].values if s is not None else None
 
     return S
+
 
 def convert_str(*S):
     S = list(S)

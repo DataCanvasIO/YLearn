@@ -40,8 +40,10 @@ class BaseEstLearner:
     def __init__(
         self,
         random_state=2022,
+        is_discrete_treatment=False
     ):
         self.random_state = random_state
+        self.is_discrete_treatment = is_discrete_treatment
         self.ml_model_dic = {
             'LR': linear_model.LinearRegression(),
             'LogisticR': linear_model.LogisticRegression(),
