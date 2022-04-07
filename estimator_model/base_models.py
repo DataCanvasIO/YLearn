@@ -40,8 +40,10 @@ class BaseEstLearner:
     def __init__(
         self,
         random_state=2022,
-        is_discrete_treatment=False
+        is_discrete_treatment=False,
+        categories='auto'
     ):
+        self.categories = categories
         self.random_state = random_state
         self.is_discrete_treatment = is_discrete_treatment
         self.ml_model_dic = {

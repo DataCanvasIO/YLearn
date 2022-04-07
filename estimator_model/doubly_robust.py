@@ -40,7 +40,7 @@ class DoublyRobust(BaseEstLearner):
 
     Methods
     ----------
-    _prepare(data, outcome, treatment, adjustment, individual=None)
+    _prepare4est(data, outcome, treatment, adjustment, individual=None)
         Prepare (fit the model) for estimating various quantities including
         ATE, CATE, ITE, and CITE.
     estimate(data, outcome, treatment, adjustment, quantity='ATE',
@@ -78,7 +78,7 @@ class DoublyRobust(BaseEstLearner):
         self.xt_model = est_model
         self.x0_model = deepcopy(est_model)
 
-    def _prepare(self, data, outcome, treatment, adjustment,
+    def _prepare4est(self, data, outcome, treatment, adjustment,
                  individual=None, treatment_value=None):
         # TODO: categorical treatment. Currently I hope to convert categorical
         # treatments to integers such that treatment={1, 2,...,n} where n is

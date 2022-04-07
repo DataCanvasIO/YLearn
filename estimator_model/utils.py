@@ -24,17 +24,28 @@ def nd_kron(x, y):
     return kron_prod
 
 
+def convert4onehot(x):
+    return x.dot(np.arange(1, x.shape[1] + 1).T)
+
+
 def convert2array(*S):
     data = S[0]
     S = list(S[1:])
 
     for i, s in enumerate(S):
-        S[i] = data[s].values if s is not None else None
+        if s is not None:
+            si = data[s].values
+            if len(si.shape) == 1:
+                si = np.expand_dims(si, axis=1)
+        else:
+            si = None
+
+        S[i] = si
 
     return S
 
 
-def convert_str(*S):
+def convert2str(*S):
     S = list(S)
     for i, s in enumerate(S):
         if isinstance(s, str):

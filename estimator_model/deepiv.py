@@ -344,7 +344,7 @@ class DeepIV(BaseEstLearner):
         x_ = torch.cat((c_, x_), dim=1)
         self.outcome_net.fit(x_, y, nn_torch=True, loss=nn.MSELoss())
 
-    def _prepare(
+    def _prepare4est(
         self,
         data,
         outcome,

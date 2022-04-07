@@ -38,6 +38,7 @@ def single_continuous_treatment(num=2000,
             data_dict[f'c_{i}'] = c[:, i]
         data_dict['outcome'] = y
         data_dict['treatment'] = x
+        data_dict['t_effect'] = TE
         data = pd.DataFrame(data_dict)
         train, val = train_test_split(data)
         return train, val, TE
