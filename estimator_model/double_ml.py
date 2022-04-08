@@ -78,6 +78,7 @@ class DoubleML(BaseEstLearner):
 class DML4CATE(BaseEstLearner):
     r"""Double machine learning for estimating CATE.
     # TODO: convert the einstein notations in this section to the usual ones.
+    # TODO: expand fij to higher orders of v.
 
     (- Skip this if you are only interested in the implementation.)
     A typical double machine learning for CATE solves the following treatment
@@ -202,9 +203,11 @@ class DML4CATE(BaseEstLearner):
             else:
                 categories = list(self.categories)
 
+            # convert discrete treatment features to onehot vectors
+            # TODO: modify this for multiple treatments
             self.transformer = OneHotEncoder(categories=categories)
             self.transformer.fit(x)
-            x = self.transformer.transform(x)
+            x = self.transformer.transform(x).toarray()
         else:
             self.transformer = None
 
@@ -222,7 +225,7 @@ class DML4CATE(BaseEstLearner):
         if cfold > 1:
             cfold = int(cfold)
             folds = [
-                KFold(n_splits=cfold).split(y), KFold(n_splits=cfold).split(x)
+                KFold(n_splits=cfold).split(x), KFold(n_splits=cfold).split(y)
             ]
         else:
             folds = None
@@ -249,7 +252,7 @@ class DML4CATE(BaseEstLearner):
             self.y_hat_dict['is_fitted'][0], 'x_model and y_model should be'
         'trained before estimation.'
 
-        x_d, y_d = self.y_d, self.x_d
+        x_d, y_d = self.x_d, self.y_d
         v = self.v if data is None else convert2array(data, self.covariate)[0]
         n, v_d = v.shape[0], v.shape[1]
 
@@ -264,17 +267,21 @@ class DML4CATE(BaseEstLearner):
         # fij will be the desired treatment effect for treatment i on outcome j
         fij = np.full((n, y_d, x_d), np.NaN)
 
-        def cal_fij(coef_matrix, v, v_d):
-            coef_matrix.reshape(-1, v_d)
+        def cal_fij(coef_vec, v):
+            coef_matrix = coef_vec.reshape(-1, v_d)
             return coef_matrix.dot(v.reshape(-1, 1)).reshape(1, -1)
 
+        # TODO: rewrite the following code with einsum for efficiency
         if y_d > 1:
             for j in range(y_d):
                 for n, vn in enumerate(v):
-                    fij[n, j, :] = cal_fij(coef[j], vn, v_d)
+                    fij[n, j, :] = cal_fij(coef[j], vn)
         else:
+            coef_matrix = coef.reshape(-1, v_d)
             for n, vn in enumerate(v):
-                fij[n, 0, :] = cal_fij(coef, vn, v_d)
+                fij[n, 0, :] = coef_matrix.dot(
+                    vn.reshape(-1, 1)
+                ).reshape(1, -1)
 
         return fij
 
@@ -286,20 +293,35 @@ class DML4CATE(BaseEstLearner):
         quantity='CATE',
     ):
         fij = self._prepare4est(data=data)
+        treat = 1 if treat is None else treat
+        control = 0 if control is None else control
+
+        if self.is_discrete_treatment:
+            effect = fij[:, :, treat] - fij[:, :, control]
+        else:
+            effect = fij * (treat - control)
 
         if quantity == 'CATE':
-            return fij
+            return effect
         if quantity == 'ATE':
-            return fij.mean(axis=0)
+            return effect.mean(axis=0)
 
     def _cross_fit(self, model, *args, **kwargs):
         folds = kwargs.pop('folds')
         is_ymodel = kwargs.pop('is_ymodel')
+        target = kwargs.pop('target')
         fitted_result = defaultdict(list)
+
+        if not is_ymodel and self.is_discrete_treatment:
+            # convert back to a vector with each dimension being a value
+            # indicating the corresponding discrete value
+            target_converted = convert4onehot(target)
+        else:
+            target_converted = target
 
         if folds is None:
             wv = args[0]
-            model.fit(wv, kwargs['target'])
+            model.fit(wv, target_converted)
 
             if not is_ymodel and self.is_discrete_treatment:
                 p_hat = model.predict_proba(wv)
@@ -311,16 +333,14 @@ class DML4CATE(BaseEstLearner):
             idx = np.arange(start=0, stop=wv.shape[0])
             fitted_result['train_test_id'].append((idx, idx))
         else:
-            fitted_result['paras'].append(
-                np.ones_like(kwargs['target']) * np.nan
-            )
+            fitted_result['paras'].append(np.ones_like(target) * np.nan)
+
             for i, (train_id, test_id) in enumerate(folds):
                 model_ = clone(model)
-                # new_args = tuple(arg[train_id] for arg in args)
                 temp_wv = args[0][train_id]
                 temp_wv_test = args[0][test_id]
-                target = kwargs['target'][train_id]
-                model_.fit(temp_wv, target)
+                target_train = target_converted[train_id]
+                model_.fit(temp_wv, target_train)
 
                 if not is_ymodel and self.is_discrete_treatment:
                     target_predict = model_.predict_proba(temp_wv_test)
@@ -343,11 +363,9 @@ class DML4CATE(BaseEstLearner):
         x_model,
         y_model,
         y, x, wv,
-        folds=None
+        folds=None,
+        **kwargs
     ):
-        if self.is_discrete_treatment:
-            x = convert4onehot(x)
-
         if self.x_d == 1:
             x = np.ravel(x)
         if self.y_d == 1:
@@ -355,12 +373,14 @@ class DML4CATE(BaseEstLearner):
 
         if folds is not None:
             x_folds, y_folds = folds
+        else:
+            x_folds, y_folds = None, None
 
         x_hat_dict = self._cross_fit(
-            x_model, wv, target=x, folds=x_folds, is_ymodel=False
+            x_model, wv, target=x, folds=x_folds, is_ymodel=False, **kwargs
         )
         y_hat_dict = self._cross_fit(
-            y_model, wv, target=y, folds=y_folds, is_ymodel=True
+            y_model, wv, target=y, folds=y_folds, is_ymodel=True, **kwargs
         )
         return (x_hat_dict, y_hat_dict)
 

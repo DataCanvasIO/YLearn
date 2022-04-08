@@ -25,7 +25,7 @@ def nd_kron(x, y):
 
 
 def convert4onehot(x):
-    return x.dot(np.arange(1, x.shape[1] + 1).T)
+    return np.dot(x, np.arange(0, x.shape[1]).T)
 
 
 def convert2array(*S):

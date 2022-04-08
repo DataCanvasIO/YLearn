@@ -1,9 +1,137 @@
+from cmath import exp
 import numpy as np
 import pandas as pd
 
 from itertools import product
 
 from sklearn.model_selection import train_test_split
+
+
+def eta_sample(n):
+    return np.random.uniform(-1, 1, size=n)
+
+
+def epsilon_sample(n):
+    return np.random.uniform(-1, 1, size=n)
+
+
+def exp_te(x):
+    return np.exp(2*x[0])
+
+
+def ln_te(x):
+    return np.log(1+x[0])
+
+
+def build_data_frame(
+    confounder_n,
+    covariate_n,
+    w, v, y, x, **kwargs,
+):
+    data_dict = {}
+    for i in range(confounder_n):
+        data_dict[f'w_{i}'] = w[:, i]
+
+    for i in range(covariate_n):
+        data_dict[f'c_{i}'] = v[:, i]
+
+    def multi_var(x, name):
+        if len(x.shape) == 1 or x.shape[1] == 1:
+            data_dict[name] = x
+        else:
+            for i in range(x.shape[1]):
+                data_dict[f'{name}_{i}'] = x[:, i]
+
+    multi_var(x, 'treatment')
+    multi_var(y, 'outcome')
+
+    for k, v in kwargs.items():
+        data_dict[k] = v
+
+    data = pd.DataFrame(data_dict)
+    train, val = train_test_split(data)
+    
+    return train, val
+
+
+def multi_continuous_treatment(
+    n=6000,
+    n_w=30,
+    n_v=5,
+    random_seed=2022,
+):
+    np.random.seed(random_seed)
+
+    support_size = 5
+    support_Y = np.random.choice(
+        np.arange(n_w), size=support_size, replace=False
+    )
+
+    coefs_Y = np.random.uniform(0, 1, size=support_size)
+    support_T = support_Y
+    coefs_T = np.random.uniform(0, 1, size=support_size)
+
+    W = np.random.normal(0, 1, size=(n, n_w))
+    X = np.random.uniform(0, 1, size=(n, n_v))
+
+    TE1 = np.array([exp_te(x_i) for x_i in X])
+    TE2 = np.array([ln_te(x_i) for x_i in X]).flatten()
+    T = np.dot(W[:, support_T], coefs_T) + eta_sample(n)
+    Y = TE1 * T + TE2 * T**2 + \
+        np.dot(W[:, support_Y], coefs_Y) + epsilon_sample(n)
+    T = T.reshape(-1, 1)
+    x = np.concatenate((T, T**2), axis=1)
+
+    train, val = build_data_frame(confounder_n=n_w,
+                                  covariate_n=n_v,
+                                  w=W, v=X, y=Y, x=x, te1=TE1, te2=TE2)
+    # test data
+    X_test = np.random.uniform(0, 1, size=(100, n_v))
+    X_test[:, 0] = np.linspace(0, 1, 100)
+
+    data_test_dic = {}
+    for i in range(n_v):
+        data_test_dic[f'c_{i}'] = X_test[:, i]
+    data_test = pd.DataFrame(data_test_dic)
+
+    expected_te1 = np.array([exp_te(x_i) for x_i in X_test])
+    expected_te2 = np.array([ln_te(x_i) for x_i in X_test]).flatten()
+
+    return train, val, (data_test, expected_te1, expected_te2)
+
+
+def single_binary_treatment(
+    n=1000,
+    confounder_n=30,
+    covariate_n=4,
+    random_seed=2022,
+):
+    np.random.seed(random_seed)
+    support_size = 5
+    # Outcome support
+    support_Y = np.random.choice(
+        range(confounder_n), size=support_size, replace=False)
+    coefs_Y = np.random.uniform(0, 1, size=support_size)
+    # Treatment support
+    support_T = support_Y
+    coefs_T = np.random.uniform(0, 1, size=support_size)
+
+    # Generate controls, covariates, treatments and outcomes
+    W = np.random.normal(0, 1, size=(n, confounder_n))
+    V = np.random.uniform(0, 1, size=(n, covariate_n))
+    # Heterogeneous treatment effects
+    TE = np.array([exp_te(x_i) for x_i in V])
+    # Define treatment
+    log_odds = np.dot(W[:, support_T], coefs_T) + eta_sample(n)
+    T_sigmoid = 1/(1 + np.exp(-log_odds))
+    x = np.array([np.random.binomial(1, p) for p in T_sigmoid])
+    # Define the outcome
+    Y = TE * x + np.dot(W[:, support_Y], coefs_Y) + epsilon_sample(n)
+    train, val = build_data_frame(confounder_n=confounder_n,
+                                  covariate_n=covariate_n,
+                                  w=W, v=V, y=Y, x=x, TE=TE)
+
+    return train, val, TE
 
 
 def single_continuous_treatment(num=2000,
@@ -17,13 +145,10 @@ def single_continuous_treatment(num=2000,
         np.arange(confounder_n), size=support_size, replace=False
     )
     coefs_y = np.random.uniform(0, 1, size=support_size)
-    def epsilon_sample(n): return np.random.uniform(-1, 1, size=n)
     support_t = support_y
     coefs_t = np.random.uniform(0, 1, size=support_size)
-    def eta_sample(n): return np.random.uniform(-1, 1, size=n)
     w = np.random.normal(0, 1, size=(num, confounder_n))
     c = np.random.uniform(0, 1, size=(num, covariate_n))
-    def exp_te(x): return np.exp(2*x[0])
     TE = np.array([exp_te(ci) for ci in c])
     x = np.dot(w[:, support_t], coefs_t) + eta_sample(num)
     y = TE * x + np.dot(w[:, support_y], coefs_y)\
@@ -31,16 +156,9 @@ def single_continuous_treatment(num=2000,
 
     x_test = np.array(list(product(np.arange(0, 1, 0.01), repeat=covariate_n)))
     if data_frame:
-        data_dict = {}
-        for i in range(confounder_n):
-            data_dict[f'w_{i}'] = w[:, i]
-        for i in range(covariate_n):
-            data_dict[f'c_{i}'] = c[:, i]
-        data_dict['outcome'] = y
-        data_dict['treatment'] = x
-        data_dict['t_effect'] = TE
-        data = pd.DataFrame(data_dict)
-        train, val = train_test_split(data)
+        train, val = build_data_frame(confounder_n=confounder_n,
+                                      covariate_n=covariate_n,
+                                      w=w, v=c, y=y, x=x, TE=TE)
         return train, val, TE
 
 
