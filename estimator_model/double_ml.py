@@ -138,6 +138,8 @@ class DML4CATE(BaseEstLearner):
         y_model,
         yx_model=None,
         cf_fold=1,
+        adjustment_transformer=None,
+        covariate_transformer=None,
         random_state=2022,
         is_discrete_treatment=False,
         categories='auto',
@@ -150,6 +152,9 @@ class DML4CATE(BaseEstLearner):
             self.yx_model = LinearRegression()
         else:
             self.yx_model = yx_model
+
+        self.adjustment_transformer = adjustment_transformer
+        self.covariate_transformer = covariate_transformer
 
         self.x_hat_dict = defaultdict(list)
         self.y_hat_dict = defaultdict(list)
@@ -198,6 +203,12 @@ class DML4CATE(BaseEstLearner):
         self.y_d = y.shape[1]
         cfold = self.cf_fold
         n = len(data)
+
+        if self.adjustment_transformer is not None and w is not None:
+            w = self.adjustment_transformer.fit_transform(w)
+
+        if self.covariate_transformer is not None and v is not None:
+            v = self.covariate_transformer.fit_transform(v)
 
         if self.is_discrete_treatment:
             if self.categories == 'auto' or self.categories is None:
@@ -256,6 +267,8 @@ class DML4CATE(BaseEstLearner):
 
         x_d, y_d = self.x_d, self.y_d
         v = self.v if data is None else convert2array(data, self.covariate)[0]
+        if self.covariate_transformer is not None and v is not None:
+            v = self.covariate_transformer.transform(v)
         n, v_d = v.shape[0], v.shape[1]
 
         # may need modification for multi-dim outcomes.
