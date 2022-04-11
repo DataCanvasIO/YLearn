@@ -79,6 +79,7 @@ class DML4CATE(BaseEstLearner):
     r"""Double machine learning for estimating CATE.
     # TODO: convert the einstein notations in this section to the usual ones.
     # TODO: expand fij to higher orders of v.
+    # TODO: add intercept to the final linear regression model
 
     (- Skip this if you are only interested in the implementation.)
     A typical double machine learning for CATE solves the following treatment
@@ -147,6 +148,8 @@ class DML4CATE(BaseEstLearner):
 
         if yx_model is None:
             self.yx_model = LinearRegression()
+        else:
+            self.yx_model = yx_model
 
         self.x_hat_dict = defaultdict(list)
         self.y_hat_dict = defaultdict(list)
@@ -193,7 +196,6 @@ class DML4CATE(BaseEstLearner):
         )
         self.v = v
         self.y_d = y.shape[1]
-        # random_state = self.random_state
         cfold = self.cf_fold
         n = len(data)
 
@@ -234,8 +236,8 @@ class DML4CATE(BaseEstLearner):
         self.x_hat_dict, self.y_hat_dict = self._fit_1st_stage(
             self.x_model, self.y_model, y, x, wv, folds=folds
         )
-        x_hat = self.x_hat_dict['paras'][0].reshape((n, self.x_d))
-        y_hat = self.y_hat_dict['paras'][0].reshape((n, self.y_d))
+        x_hat = self.x_hat_dict['paras'][0].reshape((x.shape))
+        y_hat = self.y_hat_dict['paras'][0].reshape((y.shape))
 
         # step 3: calculate the differences
         x_diff = x - x_hat
