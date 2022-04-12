@@ -41,11 +41,15 @@ class BaseEstLearner:
         self,
         random_state=2022,
         is_discrete_treatment=False,
+        is_discrete_outcome=False,
+        is_discrete_instrument=False,
         categories='auto'
     ):
         self.categories = categories
         self.random_state = random_state
         self.is_discrete_treatment = is_discrete_treatment
+        self.is_discrete_outcome = is_discrete_outcome
+        self.is_discrete_instrument = is_discrete_instrument
         self.ml_model_dic = {
             'LR': linear_model.LinearRegression(),
             'LogisticR': linear_model.LogisticRegression(),

@@ -323,7 +323,7 @@ class DML4CATE(BaseEstLearner):
 
         if folds is None:
             wv = args[0]
-            model.fit(wv, target_converted)
+            model.fit(wv, target_converted, **kwargs)
 
             if not is_ymodel and self.is_discrete_treatment:
                 p_hat = model.predict_proba(wv)
@@ -342,7 +342,7 @@ class DML4CATE(BaseEstLearner):
                 temp_wv = args[0][train_id]
                 temp_wv_test = args[0][test_id]
                 target_train = target_converted[train_id]
-                model_.fit(temp_wv, target_train)
+                model_.fit(temp_wv, target_train, **kwargs)
 
                 if not is_ymodel and self.is_discrete_treatment:
                     target_predict = model_.predict_proba(temp_wv_test)

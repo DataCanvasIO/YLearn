@@ -1,4 +1,5 @@
-import enum
+from tkinter import ON
+from tkinter.messagebox import NO
 import torch
 import math
 
@@ -9,6 +10,7 @@ from torch.distributions import Categorical, Independent, MixtureSameFamily, \
     Normal
 from torch.utils.data import Dataset
 
+from sklearn.preprocessing import OneHotEncoder
 
 def nd_kron(x, y):
     dim = x.shape[0]
@@ -24,11 +26,19 @@ def nd_kron(x, y):
     return kron_prod
 
 
+def convert2tensor(*arrays):
+    for i, array in enumerate(arrays):
+        if array is not None:
+            arrays[i] = torch.tensor(array)
+    
+    return arrays
+
+
 def convert4onehot(x):
     return np.dot(x, np.arange(0, x.shape[1]).T)
 
 
-def convert2array(*S):
+def convert2array(*S, tensor=False):
     data = S[0]
     S = list(S[1:])
 
@@ -42,6 +52,10 @@ def convert2array(*S):
 
         S[i] = si
 
+    if tensor:
+        for si in S:
+            S[i] = torch.tensor(si)
+
     return S
 
 
@@ -53,9 +67,19 @@ def convert2str(*S):
     return S
 
 
-def convert_to_tensor():
-    pass
+def one_hot_transformer(*S):
+    transformer_list = []
 
+    for s in S:
+        if s[0]:
+            temp_transormer = OneHotEncoder()
+            temp_transormer.fit(s[1])
+        else:
+            temp_transormer = None
+
+        transformer_list.append(temp_transormer)
+
+    return transformer_list
 
 class BatchData(Dataset):
     def __init__(self, X=None, y=None, X_test=None, y_test=None, train=True):

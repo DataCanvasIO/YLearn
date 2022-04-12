@@ -6,17 +6,25 @@ To use self-defined mixture density network and outcome network, one only
 needs to define new MixtureDensityNetwork and OutcomeNet and wrap them with
 MDNWrapper and OutcomeNetWrapper, respectively.
 """
+from ast import arg
+from operator import index
+from ossaudiodev import control_labels
+from re import L, S, X
+import re
+from tkinter import ON
+from turtle import onclick
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 
 from copy import deepcopy
+from sklearn.preprocessing import OneHotEncoder
 from torch.utils.data import DataLoader
 from torch.distributions import Categorical, Normal, MixtureSameFamily,\
     Independent
 
-from .utils import GaussianProb, BatchData
+from .utils import GaussianProb, BatchData, convert2array, convert2tensor
 from .base_models import BaseEstLearner, MLModel
 
 # We first build the mixture density network.
@@ -28,7 +36,7 @@ class MixtureDensityNetwork(nn.Module):
     reference.
     """
 
-    def __init__(self, in_d, out_d, hidden_d, num_gaussian):
+    def __init__(self, in_d, out_d, hidden_d=512, num_gaussian=5):
         """
         Parameters
         ----------
@@ -222,7 +230,8 @@ class MDNWrapper(MLModel):
         p = gaussian_prob.mixture_density(pi, y)
         return p
 
-    def sample(self, X, sample_num):
+    def _sample(self, X, sample_num):
+        # TODO: remeber to call detach to depart from the calculatin graph
         """Generate a batch of sample according to the probability density returned by
             the MDN model.
 
@@ -269,14 +278,14 @@ class MDNWrapper(MLModel):
 # Then we build the outcome network.
 
 
-class OutcomeNet(nn.module):
-    def __init__(self, in_d, out_d, hidden_d1, hidden_d2, hidden_d3, discrete=False):
+class Net(nn.module):
+    # TODO: add embedding layer
+    def __init__(self, in_d, out_d, hidden_d1, hidden_d2=256, hidden_d3=256):
         super().__init__()
         self.fc1 = nn.Linear(in_d, hidden_d1)
         self.fc2 = nn.Linear(hidden_d1, hidden_d2)
         self.fc3 = nn.Linear(hidden_d2, hidden_d3)
         self.fc4 = nn.Linear(hidden_d3, out_d)
-        self.discrete = discrete
 
     def forward(self, x):
         x = torch.flatten(x, 1)
@@ -292,30 +301,110 @@ class OutcomeNet(nn.module):
 # Similarly, we wrap the above outcome network with a warpper.
 
 
-class OutcomeNetWrapper(MLModel):
-    def __init__(self, outcome_net):
+class NetWrapper(MLModel):
+    def __init__(self, y_net):
         super().__init__()
-        self.model = outcome_net
+        self.model = y_net
 
+    def fit(self, X, y, nn_torch=True, **kwargs):
+        return super().fit(X, y, nn_torch, **kwargs)
+
+    def predict(self, X):
+        return super().predict(X)
+
+    def _sample(self, sample_num):
+        pass
 # We are now ready to build the complete model with above wrapped outcome and
 # treatment nets.
 
 
 class DeepIV(BaseEstLearner):
-    def __init__(self, treatment_net, outcome_net):
-        """
+    def __init__(
+        self,
+        x_net=None,
+        y_net=None,
+        z_d=None,
+        x_d=None,
+        y_d=None,
+        w_d=None,
+        x_hidden_d=None,
+        y_hidden_d=None,
+        num_gaussian=5,
+        is_discrete_treatment=False,
+        is_discrete_outcome=False,
+        is_discrete_instrument=False,
+        categories=None,
+        random_state=2022,
+    ):
+        r"""Training of a DeepIV model g(x, w) is composed of 2 stages:
+            1. In the first stage, we train a neural network to estimate the
+            distribution of the treatment x given the instrument z and
+            adjustment (probably also covariate) w;
+            2. In the second stage, we train another neural network to estiamte
+            the outcome y givn treatment x and adjustment (probably also
+            covariate) w.
+        The trained model is used to estimate the causal effect
+            g(x_1, w) - g(x_0, w)
+        or
+            \partial_x g(x, w).
+
         Parameters
         ----------
-        treatment_net : MDNWrapper, optional
-            Representation of the mixture density network.
-        outcome_net : OutcomeNetWrapper
+        x_net : MDNWrapper or NetWrapper
+            Representation of the mixture density network for continuous
+            treatment or an usual classification net for discrete treatment.
+        y_net :  NetWrapper
             Representation of the outcome network.
         """
-        super().__init__()
-        self.treatment_net = treatment_net
-        self.outcome_net = outcome_net
+        self.x_d = x_d
+        self.w_d = w_d
+        self.z_d = z_d
+        self.y_d = y_d
+        
+        x_net_kwargs = {}
+        if x_hidden_d is not None:
+            x_net_kwargs['hidden_d'] = x_hidden_d
+        if num_gaussian is not None:
+            x_net_kwargs['num_gaussian'] = num_gaussian
 
-    def fit(self, z, x, y, c=None, sample_n=None, discrete_treatment=False):
+        y_net_kwargs = {}
+        if y_hidden_d is not None:
+            y_net_kwargs['hidden_d'] = y_hidden_d
+
+        self.x_net = self._gen_x_model(
+            x_net,
+            int(z_d+w_d),
+            x_d,
+            **x_net_kwargs
+        )
+        self.y_net = self._gen_y_model(
+            y_net,
+            int(x_d+w_d),
+            y_d,
+            **y_net_kwargs
+        )
+
+        super.__init__(
+            random_state=random_state,
+            is_discrete_treatment=is_discrete_treatment,
+            is_discrete_outcome=is_discrete_outcome,
+            is_discrete_instrument=is_discrete_instrument,
+            categories=categories,
+        )
+
+    def fit(
+        self,
+        data,
+        outcome,
+        treatment,
+        instrument,
+        adjustment=None,
+        approx_grad=True,
+        sample_n=10,
+        x_net_config=None,
+        y_net_config=None,
+        **kwargs
+    ):
         """Train the DeepIV model.
 
         Parameters
@@ -327,61 +416,170 @@ class DeepIV(BaseEstLearner):
             Treatments. Shape (b, x_d).
         y : tensor
             Outcomes. Shape (b, y_d)
-        c : tensor, defaults to None.
-            Observed adjustments. Shape (b, c_d)
+        w : tensor, defaults to None.
+            Observed adjustments. Shape (b, w_d)
         sample_n : tuple of int
             Eg., (5, ) means generating (5*b) samples according to the
-            probability density modeled by the treatment_net.
+            probability density modeled by the x_net.
         discrete_treatment : bool
-            If True, the treatment_net is chosen as the MixtureDensityNetwork.
+            If True, the x_net is chosen as the MixtureDensityNetwork.
         """
-        # TODO: can we use str type z, c, x, y to be consistent with other api?
-        tnet_in = torch.cat((z, c), dim=1) if c is not None else z
-        # tnet_in has shape (b, z_d+c_d).
-        self.treatment_net.fit(tnet_in, x)
-        x_ = self.treatment_net.sample(tnet_in, sample_n)
-        c_ = c.repeat(sample_n[0], 1)
-        x_ = torch.cat((c_, x_), dim=1)
-        self.outcome_net.fit(x_, y, nn_torch=True, loss=nn.MSELoss())
+        self.outcome = outcome
+        self.treatment = treatment
+        self.adjustment = adjustment
+        self.instrument = instrument
+
+        if x_net_config is None and y_net_config is None:
+            x_net_config = kwargs
+            y_net_config = kwargs
+
+        y, x, z, w = convert2array(
+            data, outcome, treatment, instrument, adjustment
+        )
+
+        if self.is_discrete_treatment:
+            if self.categories == 'auto' or self.categories is None:
+                categories = 'auto'
+            else:
+                categories = list(self.categories)
+
+            self.x_transformer = OneHotEncoder(categories=categories)
+            self.x_transformer.fit(x)
+            x = torch.tensor(
+                self.x_transformer.transform(x).toarray()
+            )
+
+        if self.is_discrete_instrument:
+            self._z_transformer = OneHotEncoder()
+            self._z_transformer.fit(z)
+            z = self._z_transformer.transform(z).toarray()
+
+        if self.is_discrete_outcome:
+            self.y_transformer = OneHotEncoder()
+            self.y_transformer.fit(y)
+            y = self.y_transformer.transform(y).toarray()
+
+        y, x, w, z = convert2tensor(y, x, w, z)
+        self.w = w
+        # xnet_in has shape (n, z_d+w_d).
+        x_net_in = torch.cat((z, w), dim=1) if w is not None else z
+
+        # Step 1: train the model for estimating the treatment given the
+        # instrument and adjustment
+        self.x_net.fit(x_net_in, x, **x_net_config)
+
+        # Step 2: generate new samples if calculating grad approximately
+        if approx_grad:
+            x_sampled = self.x_net._sample(x_net_in, sample_n)
+        else:
+            # TODO: the loss funcn should be modified if not approx_grad
+            x_sampled = x
+
+        if not self.is_discrete_treatment:
+            w_sampled = w.repeat(sample_n[0], 1)
+        else:
+            w_sampled = w
+
+        # build the samples for training of the second stage
+        x_ = torch.cat((w_sampled, x_sampled), dim=1)
+
+        # Step 3: fit the final counterfactual prediction model
+        self.y_net.fit(x_, y, **y_net_config)
 
     def _prepare4est(
         self,
-        data,
-        outcome,
-        treatment,
-        adjustment=None,
-        individual=None,
-        instrument=None,
-        discrete_treatment=True
+        data=None,
+        treat=None,
+        control=None,
+        marginal_effect=False,
+        *args,
+        **kwargs
     ):
+        treat = 1 if treat is None else treat
+        control = 0 if control is None else control
 
-        def convert_to_tensor(x):
-            return torch.tensor(x.values)
-
-        # Make all vars as tensors
-        c = convert_to_tensor(data[adjustment]) if adjustment is not None \
-            else None
-        x = convert_to_tensor(data[treatment])
-        y = convert_to_tensor(data[outcome])
-        z = convert_to_tensor(data[instrument])
-        self.fit(z, x, y, c)
-
-        if individual:
-            x = convert_to_tensor(individual[treatment])
-            c = convert_to_tensor(individual[adjustment])
-
-        # TODO: binary treatment
-        if discrete_treatment:
-            x1, x0 = deepcopy(x), deepcopy(x)
-            x1[:] = 1
-            x0[:] = 0
-            x1 = torch.cat((c, x1), dim=1)
-            x0 = torch.cat((c, x0), dim=1)
-            r = self.outcome_net.predict(x1) - self.outcome_net.predict(x0)
+        if data is None:
+            w = self.w
         else:
-            x_ = torch.cat((c, x), dim=1)
-            x_.requires_grad = True
-            y = self.outcome_net.predict(x_)
-            r = x_.grad.detach()[:, -self.treatment_net.out_d:]
+            w = convert2tensor(
+                convert2array(data, self.adjustment)[0]
+            )[0]
+        n = w.shape[0]
+        ones = torch.eye(n, self.x_d)
 
-        return r
+        if self.discrete_treatment:
+            # build the one_hot vector for treatment vector
+            treat_id = (torch.ones(n, ) * treat).int()
+
+            # build treatment vector xt and control vector x0
+            xt = ones.index_select(dim=0, index=treat_id)
+            x0 = ones.index_select(dim=0, index=torch.zeros(n, ).int())
+            xt = torch.cat((w, xt), dim=1)
+            x0 = torch.cat((w, x0), dim=1)
+
+            return (self.y_net.predict(xt), self.y_net.predict(x0))
+        else:
+            xt = ones * treat
+            x0 = ones * control
+            xt = torch.cat((w, xt), dim=1)
+            xt.requires_grad = True
+            yt = self.y_net.predict(xt)
+
+            if marginal_effect:
+                return (xt.grad.detach(), )
+            else:
+                x0 = torch.cat((w, x0), dim=1)
+                y0 = self.y_net.predict(x0)
+                return (yt, y0)
+
+    def estimate(
+        self,
+        data=None,
+        treat=None,
+        control=None,
+        quantity='CATE',
+        marginal_effect=False,
+        *args,
+        **kwargs,
+    ):
+        y_preds = self._prepare4est(
+            data=data,
+            treat=treat,
+            control=control,
+            marginal_effect=marginal_effect,
+            *args,
+            **kwargs
+        )
+
+        if not marginal_effect:
+            yt, y0 = y_preds
+        else:
+            yt, y0 = y_preds[0], None
+
+        if quantity == 'CATE' or quantity == 'ATE':
+            return (yt - y0).mean(dim=0) if y0 is not None else yt.mean(dim=0)
+        elif quantity == 'Counterfactual prediction':
+            return yt
+
+    def _gen_x_model(self, x_model, *args, **kwargs):
+        if self.is_discrete_treatment:
+            if x_model is None:
+                assert any(args), 'Need parameters to define treatment net.'
+                x_model = Net(*args, **kwargs)
+
+            x_net = NetWrapper(x_model, **kwargs)
+        else:
+            if x_model is None:
+                assert any(args), 'Need parameters to define treatment net.'
+                x_model = MixtureDensityNetwork(*args)
+
+            x_net = MDNWrapper(x_model)
+
+        return x_net
+
+    def _gen_y_model(self, y_model, *args):
+        if y_model is None:
+            assert any(args), 'Need parameters to define outcome net.'
+            y_net = Net(*args)
+
+        return NetWrapper(y_net)
