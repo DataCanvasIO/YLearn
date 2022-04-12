@@ -6,13 +6,10 @@ To use self-defined mixture density network and outcome network, one only
 needs to define new MixtureDensityNetwork and OutcomeNet and wrap them with
 MDNWrapper and OutcomeNetWrapper, respectively.
 """
-from ast import arg
-from operator import index
-from ossaudiodev import control_labels
-from re import L, S, X
-import re
-from tkinter import ON
-from turtle import onclick
+from ctypes.wintypes import tagRECT
+from errno import ESTALE
+from re import S
+from tkinter import Y
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -279,16 +276,38 @@ class MDNWrapper(MLModel):
 
 
 class Net(nn.module):
-    # TODO: add embedding layer
-    def __init__(self, in_d, out_d, hidden_d1, hidden_d2=256, hidden_d3=256):
+    def __init__(self, x_d, in_d, out_d,
+                 hidden_d1=128,
+                 hidden_d2=256,
+                 hidden_d3=256,
+                 discrete_input=False,
+                 embedding_dim=None):
         super().__init__()
-        self.fc1 = nn.Linear(in_d, hidden_d1)
+
+        assert x_d is not None, 'Please specify the dimension of the'
+        'treatment vector.'
+        self.x_d = x_d
+        self.out_d = out_d
+
+        if discrete_input:
+            if embedding_dim is None:
+                embedding_dim = x_d
+            self.embed = nn.Embedding(x_d, embedding_dim)
+            self.fc1 = nn.Linear(embedding_dim, hidden_d1)
+        else:
+            self.embed = nn.Identity()
+            self.fc1 = nn.Linear(in_d, hidden_d1)
+
         self.fc2 = nn.Linear(hidden_d1, hidden_d2)
         self.fc3 = nn.Linear(hidden_d2, hidden_d3)
         self.fc4 = nn.Linear(hidden_d3, out_d)
 
-    def forward(self, x):
-        x = torch.flatten(x, 1)
+    def forward(self, x, w):
+        # this definition should be simplified
+        # For discrete treatment, x should be a vector of labels not one-hot
+        # tensors
+        x = self.embed(x)
+        x = torch.cat((x, w), dim=1)
         x = self.fc1(x)
         x = F.relu(x)
         x = self.fc2(x)
@@ -301,19 +320,62 @@ class Net(nn.module):
 # Similarly, we wrap the above outcome network with a warpper.
 
 
-class NetWrapper(MLModel):
-    def __init__(self, y_net):
-        super().__init__()
-        self.model = y_net
+class NetWrapper:
+    def __init__(self, net, is_y_net=False):
+        self.model = net
+        self.discrete_input = net.discrete_input
+        self.is_y_net = is_y_net
 
-    def fit(self, X, y, nn_torch=True, **kwargs):
-        return super().fit(X, y, nn_torch, **kwargs)
+    def fit(
+        self, x, w,
+        target,
+        device='cuda',
+        lr=0.01,
+        epoch=500,
+        optimizer='SGD',
+        batch_size=64,
+        **optim_config
+    ):
+        self.model = self.model.to(device)
+        op_dict = {
+            'SGD': optim.SGD(self.model.parameters(), lr=lr),
+            'Adam': optim.Adam(self.model.parameters(), lr=lr, **optim_config)
+        }
+        if self.discrete_input:
+            x = torch.argmax(x, dim=0).reshape(-1, 1)
 
-    def predict(self, X):
-        return super().predict(X)
+        if self.is_y_net:
+            loss_fn = optim_config.get('loss', nn.MSELoss())
+        else:
+            pass
+
+        optimizer = op_dict[optimizer]
+        X = torch.cat((x, w), dim=1) if w is not None else x
+        data = BatchData(X=X, y=target)
+        train_loader = DataLoader(data, batch_size=batch_size)
+
+        for e in range(epoch):
+            for i, (X, y) in enumerate(train_loader):
+                self.model.train()
+                X, y = X.to(device), y.to(device)
+                y_predict = self.predict(X)
+                loss = loss_fn(y_predict, y)
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+            print(f'End of epoch {e} | current loss {loss.data}')
+
+    def predict_proba(self, x, w):
+        pred = self.model(x, w)
+        return nn.Softmax(dim=0)(pred)
+
+    def predict(self, x, w):
+        pass
 
     def _sample(self, sample_num):
         pass
+
+
 # We are now ready to build the complete model with above wrapped outcome and
 # treatment nets.
 
@@ -360,7 +422,7 @@ class DeepIV(BaseEstLearner):
         self.w_d = w_d
         self.z_d = z_d
         self.y_d = y_d
-        
+
         x_net_kwargs = {}
         if x_hidden_d is not None:
             x_net_kwargs['hidden_d'] = x_hidden_d
@@ -445,9 +507,7 @@ class DeepIV(BaseEstLearner):
 
             self.x_transformer = OneHotEncoder(categories=categories)
             self.x_transformer.fit(x)
-            x = torch.tensor(
-                self.x_transformer.transform(x).toarray()
-            )
+            x = self.x_transformer.transform(x).toarray()
 
         if self.is_discrete_instrument:
             self._z_transformer = OneHotEncoder()
@@ -461,30 +521,25 @@ class DeepIV(BaseEstLearner):
 
         y, x, w, z = convert2tensor(y, x, w, z)
         self.w = w
-        # xnet_in has shape (n, z_d+w_d).
-        x_net_in = torch.cat((z, w), dim=1) if w is not None else z
 
         # Step 1: train the model for estimating the treatment given the
         # instrument and adjustment
-        self.x_net.fit(x_net_in, x, **x_net_config)
+        self.x_net.fit(w, z, target=x, **x_net_config)
 
         # Step 2: generate new samples if calculating grad approximately
         if approx_grad:
-            x_sampled = self.x_net._sample(x_net_in, sample_n)
+            x_sampled = self.x_net._sample(w, z, sample_n)
         else:
             # TODO: the loss funcn should be modified if not approx_grad
             x_sampled = x
 
+        # Step 3: fit the final counterfactual prediction model
         if not self.is_discrete_treatment:
-            w_sampled = w.repeat(sample_n[0], 1)
+            w_sampled = w.repeat(sample_n[0], 1) if w is not None else None
         else:
             w_sampled = w
 
-        # build the samples for training of the second stage
-        x_ = torch.cat((w_sampled, x_sampled), dim=1)
-
-        # Step 3: fit the final counterfactual prediction model
-        self.y_net.fit(x_, y, **y_net_config)
+        self.y_net.fit(w_sampled, x_sampled, target=y, **y_net_config)
 
     def _prepare4est(
         self,
