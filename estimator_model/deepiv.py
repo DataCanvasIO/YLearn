@@ -6,10 +6,7 @@ To use self-defined mixture density network and outcome network, one only
 needs to define new MixtureDensityNetwork and OutcomeNet and wrap them with
 MDNWrapper and OutcomeNetWrapper, respectively.
 """
-from ctypes.wintypes import tagRECT
-from errno import ESTALE
-from re import S
-from tkinter import Y
+import re
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -21,7 +18,8 @@ from torch.utils.data import DataLoader
 from torch.distributions import Categorical, Normal, MixtureSameFamily,\
     Independent
 
-from .utils import GaussianProb, BatchData, convert2array, convert2tensor
+from .utils import GaussianProb, BatchData, convert2array, convert2tensor,\
+    shapes, DiscreteOBatchData, DiscreteIOBatchData, DiscreteIBatchData
 from .base_models import BaseEstLearner, MLModel
 
 # We first build the mixture density network.
@@ -48,7 +46,7 @@ class MixtureDensityNetwork(nn.Module):
         """
         super().__init__()
         self.in_d = in_d
-        self.out_d = out_d
+        self._out_d = out_d
         self.hidden_d = hidden_d
         self.num_gaussian = num_gaussian
         self.hidden_layer = nn.Sequential(
@@ -81,10 +79,10 @@ class MixtureDensityNetwork(nn.Module):
         h = self.hidden_layer(x)
         pi = nn.Softmax(h)
         mu = self.mu(h).view(
-            -1, self.num_gaussian, self.out_d
+            -1, self.num_gaussian, self._out_d
         )
         sigma = torch.exp(self.sigma(h)).view(
-            -1, self.num_gaussian, self.out_d
+            -1, self.num_gaussian, self._out_d
         )
         return pi, mu, sigma
 
@@ -124,7 +122,7 @@ class MDNWrapper(MLModel):
         super().__init__()
         self.model = mdn
         self.in_d = mdn.in_d
-        self.out_d = mdn.out_d
+        self._out_d = mdn.out_d
         self.num_gaussian = mdn.num_gaussian
 
     def loss_fn(self, pi, mu, sigma, y):
@@ -248,56 +246,38 @@ class MDNWrapper(MLModel):
         mix = Categorical(pi)
         comp = Independent(Normal(mu, sigma))
         density = MixtureSameFamily(mix, comp)
-        return density.sample(sample_num).view(-1, self.out_d)
-
-    # def prob_one_hot(self, X):
-    #     # TODO: possible implementation for one_hot vector.
-    #     pi, mu, sigma = self.model(X)
-    #     n = X.shape[0]
-
-    #     # construct the conditional probability when y is a one-hot vector.
-    #     id_matrix = torch.eye(self.out_d)
-    #     pi_ = pi.repeat(self.out_d, 1)
-    #     # x_ = X.repeat(self.out_d, 1)
-    #     mu_ = mu.repeat(self.out_d, 1, 1)
-    #     sigma_ = sigma.repeat(self.out_d, 1, 1)
-    #     y = id_matrix[0].repeat(n, 1)
-    #     # build a large y with size (n * out_d, out_d) where out_d is the
-    #     # dimension of the one-hot vector y
-    #     for i in range(1, self.out_d):
-    #         y = torch.cat(
-    #             (y, id_matrix[i].repeat(n, 1)), dim=0
-    #         )
-    #     gaussian_prob = GaussianProb(mu_, sigma_)
-    #     # p = torch.sum(pi_ * gaussian_prob.prod_prob(y), dim=1)
-    #     pass
-
-# Then we build the outcome network.
+        return density.sample(sample_num).view(-1, self._out_d)
 
 
-class Net(nn.module):
-    def __init__(self, x_d, in_d, out_d,
-                 hidden_d1=128,
-                 hidden_d2=256,
-                 hidden_d3=256,
-                 discrete_input=False,
+class Net(nn.Module):
+    # This neural network is for x_net with discrete x (treatment) and all
+    # y_net. If x is continuous, use MixtureDensityNetwork.
+    def __init__(self, x_d, w_d, out_d,
+                 hidden_d1=64,
+                 hidden_d2=128,
+                 hidden_d3=64,
+                 is_discrete_input=False,
+                 is_discrete_output=False,
                  embedding_dim=None):
         super().__init__()
 
-        assert x_d is not None, 'Please specify the dimension of the'
-        'treatment vector.'
-        self.x_d = x_d
-        self.out_d = out_d
+        self._x_d = x_d
+        self._out_d = out_d
+        self.is_discrete_input = is_discrete_input
+        self.is_discrete_output = is_discrete_output
 
-        if discrete_input:
-            if embedding_dim is None:
-                embedding_dim = x_d
+        if is_discrete_input:
+            assert x_d is not None, 'Please specify the dimension of the'
+            'treatment vector.'
+
+            embedding_dim = x_d if embedding_dim is None else embedding_dim
             self.embed = nn.Embedding(x_d, embedding_dim)
-            self.fc1 = nn.Linear(embedding_dim, hidden_d1)
+            in_d = int(embedding_dim + w_d)
         else:
             self.embed = nn.Identity()
-            self.fc1 = nn.Linear(in_d, hidden_d1)
+            in_d = int(x_d + w_d)
 
+        self.fc1 = nn.Linear(in_d, hidden_d1)
         self.fc2 = nn.Linear(hidden_d1, hidden_d2)
         self.fc3 = nn.Linear(hidden_d2, hidden_d3)
         self.fc4 = nn.Linear(hidden_d3, out_d)
@@ -317,14 +297,17 @@ class Net(nn.module):
         output = self.fc4(x)
         return output
 
-# Similarly, we wrap the above outcome network with a warpper.
-
 
 class NetWrapper:
+    # This wrapper is for x_net with discrete x (treatment) and all y_net
+    # If x is continuous, use MDNWrapper.
     def __init__(self, net, is_y_net=False):
-        self.model = net
-        self.discrete_input = net.discrete_input
+        self.model = deepcopy(net)
         self.is_y_net = is_y_net
+        self.is_discrete_input = net.is_discrete_input
+        self.is_discrete_output = net.is_discrete_output
+        self._x_d = net._x_d
+        self._out_d = net._out_d
 
     def fit(
         self, x, w,
@@ -336,29 +319,58 @@ class NetWrapper:
         batch_size=64,
         **optim_config
     ):
+        # TODO:tqdm
+        """if is_discrete_input: transform x
+        if is_discrete_output: default loss should be nn.NLLLoss
+
+
+        Args:
+            x (_type_): _description_
+            w (_type_): _description_
+            target (_type_): _description_
+            device (str, optional): _description_. Defaults to 'cuda'.
+            lr (float, optional): _description_. Defaults to 0.01.
+            epoch (int, optional): _description_. Defaults to 500.
+            optimizer (str, optional): _description_. Defaults to 'SGD'.
+            batch_size (int, optional): _description_. Defaults to 64.
+        """
+        # move model to device
         self.model = self.model.to(device)
+
+        # convert w to tensor([]) with shape (x.shape[0], 0) if w is None
+        if w is None:
+            w = x[:, -1:-1]
+
+        # use different data set for efficiency
+        if self.is_discrete_output:
+            if self.is_discrete_input:
+                data = DiscreteIOBatchData(X=x, W=w, y=target)
+            else:
+                data = DiscreteOBatchData(X=x, W=w, y=target)
+                
+            loss_fn = optim_config.pop('loss', nn.CrossEntropyLoss())
+        else:
+            if self.is_discrete_input:
+                data = DiscreteIBatchData(X=x, W=w, y=target)
+            else:
+                data = BatchData(X=x, W=w, y=target)
+                
+            loss_fn = optim_config.pop('loss', nn.MSELoss())
+
         op_dict = {
             'SGD': optim.SGD(self.model.parameters(), lr=lr),
             'Adam': optim.Adam(self.model.parameters(), lr=lr, **optim_config)
         }
-        if self.discrete_input:
-            x = torch.argmax(x, dim=0).reshape(-1, 1)
-
-        if self.is_y_net:
-            loss_fn = optim_config.get('loss', nn.MSELoss())
-        else:
-            pass
-
+        # prepare for training
         optimizer = op_dict[optimizer]
-        X = torch.cat((x, w), dim=1) if w is not None else x
-        data = BatchData(X=X, y=target)
+        # make batched data
         train_loader = DataLoader(data, batch_size=batch_size)
 
         for e in range(epoch):
-            for i, (X, y) in enumerate(train_loader):
+            for i, (X, W, y) in enumerate(train_loader):
                 self.model.train()
-                X, y = X.to(device), y.to(device)
-                y_predict = self.predict(X)
+                X, W, y = X.to(device), W.to(device), y.to(device)
+                y_predict = self.model(X, W)
                 loss = loss_fn(y_predict, y)
                 optimizer.zero_grad()
                 loss.backward()
@@ -366,11 +378,23 @@ class NetWrapper:
             print(f'End of epoch {e} | current loss {loss.data}')
 
     def predict_proba(self, x, w):
+        assert self.is_discrete_output, 'Please use predict(x, w) for'
+        'continous output.'
+        if self.is_discrete_input:
+            x = torch.argmax(x, dim=1)
+
         pred = self.model(x, w)
-        return nn.Softmax(dim=0)(pred)
+        return nn.Softmax(dim=1)(pred)
 
     def predict(self, x, w):
-        pass
+        if self.is_discrete_input:
+            x = torch.argmax(x, dim=1)
+
+        if self.is_discrete_output:
+            pred = nn.Softmax(dim=1)(self.model(x, w))
+            return torch.argmax(pred, dim=1)
+        else:
+            return self.model(x, w)
 
     def _sample(self, sample_num):
         pass
@@ -385,10 +409,6 @@ class DeepIV(BaseEstLearner):
         self,
         x_net=None,
         y_net=None,
-        z_d=None,
-        x_d=None,
-        y_d=None,
-        w_d=None,
         x_hidden_d=None,
         y_hidden_d=None,
         num_gaussian=5,
@@ -418,33 +438,18 @@ class DeepIV(BaseEstLearner):
         y_net :  NetWrapper
             Representation of the outcome network.
         """
-        self.x_d = x_d
-        self.w_d = w_d
-        self.z_d = z_d
-        self.y_d = y_d
-
-        x_net_kwargs = {}
+        self.x_net_kwargs = {}
         if x_hidden_d is not None:
-            x_net_kwargs['hidden_d'] = x_hidden_d
+            self.x_net_kwargs['hidden_d'] = x_hidden_d
         if num_gaussian is not None:
-            x_net_kwargs['num_gaussian'] = num_gaussian
+            self.x_net_kwargs['num_gaussian'] = num_gaussian
 
-        y_net_kwargs = {}
+        self.y_net_kwargs = {}
         if y_hidden_d is not None:
-            y_net_kwargs['hidden_d'] = y_hidden_d
+            self.y_net_kwargs['hidden_d'] = y_hidden_d
 
-        self.x_net = self._gen_x_model(
-            x_net,
-            int(z_d+w_d),
-            x_d,
-            **x_net_kwargs
-        )
-        self.y_net = self._gen_y_model(
-            y_net,
-            int(x_d+w_d),
-            y_d,
-            **y_net_kwargs
-        )
+        self._x_net_init = x_net
+        self._y_net_init = y_net
 
         super.__init__(
             random_state=random_state,
@@ -462,7 +467,7 @@ class DeepIV(BaseEstLearner):
         instrument,
         adjustment=None,
         approx_grad=True,
-        sample_n=10,
+        sample_n=None,
         x_net_config=None,
         y_net_config=None,
         **kwargs
@@ -499,6 +504,7 @@ class DeepIV(BaseEstLearner):
             data, outcome, treatment, instrument, adjustment
         )
 
+        # transformers for building one hot vectors
         if self.is_discrete_treatment:
             if self.categories == 'auto' or self.categories is None:
                 categories = 'auto'
@@ -521,6 +527,27 @@ class DeepIV(BaseEstLearner):
 
         y, x, w, z = convert2tensor(y, x, w, z)
         self.w = w
+        self._y_d, self._x_d, self._w_d, self._z_d = shapes(y, x, w, z)
+
+        # build networks
+        self.x_net = self._gen_x_model(
+            self._x_net_init,
+            self._z_d,
+            self._w_d,
+            self._x_d,
+            is_discrete_input=self.is_discrete_instrument,
+            is_discrete_output=self.is_discrete_treatment,
+            **self.x_net_kwargs
+        )
+        self.y_net = self._gen_y_model(
+            self._y_net_init,
+            self._x_d,
+            self._w_d,
+            self._y_d,
+            is_discrete_input=self.is_discrete_treatment,
+            is_discrete_output=self.is_discrete_outcome,
+            **self.y_net_kwargs
+        )
 
         # Step 1: train the model for estimating the treatment given the
         # instrument and adjustment
@@ -550,6 +577,9 @@ class DeepIV(BaseEstLearner):
         *args,
         **kwargs
     ):
+        if not hasattr(self, 'x_net') or hasattr(self, 'y_net'):
+            raise Exception('The estimator has not been fitted yet.')
+
         treat = 1 if treat is None else treat
         control = 0 if control is None else control
 
@@ -560,7 +590,7 @@ class DeepIV(BaseEstLearner):
                 convert2array(data, self.adjustment)[0]
             )[0]
         n = w.shape[0]
-        ones = torch.eye(n, self.x_d)
+        ones = torch.eye(n, self._x_d)
 
         if self.discrete_treatment:
             # build the one_hot vector for treatment vector
@@ -617,24 +647,32 @@ class DeepIV(BaseEstLearner):
             return yt
 
     def _gen_x_model(self, x_model, *args, **kwargs):
+        hidden_d_list = kwargs.pop('hidden_d', [128, 256, 256])
+        for i, hidden_d in enumerate(hidden_d_list):
+            kwargs[f'hidden_d{i}'] = hidden_d
+
         if self.is_discrete_treatment:
             if x_model is None:
                 assert any(args), 'Need parameters to define treatment net.'
                 x_model = Net(*args, **kwargs)
 
-            x_net = NetWrapper(x_model, **kwargs)
+            x_net = NetWrapper(x_model, is_y_net=False)
         else:
             if x_model is None:
                 assert any(args), 'Need parameters to define treatment net.'
-                x_model = MixtureDensityNetwork(*args)
+                x_model = MixtureDensityNetwork(*args, **kwargs)
 
             x_net = MDNWrapper(x_model)
 
         return x_net
 
-    def _gen_y_model(self, y_model, *args):
+    def _gen_y_model(self, y_model, *args, **kwargs):
+        hidden_d_list = kwargs.pop('hidden_d', [128, 256, 256])
+        for i, hidden_d in enumerate(hidden_d_list):
+            kwargs[f'hidden_d{i}'] = hidden_d
+
         if y_model is None:
             assert any(args), 'Need parameters to define outcome net.'
-            y_net = Net(*args)
+            y_net = Net(*args, **kwargs)
 
-        return NetWrapper(y_net)
+        return NetWrapper(y_net, is_y_net=True)

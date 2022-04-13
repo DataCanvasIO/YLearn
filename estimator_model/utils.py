@@ -1,5 +1,3 @@
-from tkinter import ON
-from tkinter.messagebox import NO
 import torch
 import math
 
@@ -11,6 +9,21 @@ from torch.distributions import Categorical, Independent, MixtureSameFamily, \
 from torch.utils.data import Dataset
 
 from sklearn.preprocessing import OneHotEncoder
+
+
+def shapes(*tensors, all_dim=False):
+    shapes = [None for i in range(len(tensors))]
+    if all_dim:
+        for i, tensor in enumerate(tensors):
+            if tensor is not None:
+                shapes[i] = tensor.shape
+    else:
+        for i, tensor in enumerate(tensors):
+            if tensor is not None:
+                shapes[i] = tensor.shape[1]
+
+    return shapes
+
 
 def nd_kron(x, y):
     dim = x.shape[0]
@@ -30,7 +43,7 @@ def convert2tensor(*arrays):
     for i, array in enumerate(arrays):
         if array is not None:
             arrays[i] = torch.tensor(array)
-    
+
     return arrays
 
 
@@ -81,20 +94,107 @@ def one_hot_transformer(*S):
 
     return transformer_list
 
-class BatchData(Dataset):
-    def __init__(self, X=None, y=None, X_test=None, y_test=None, train=True):
+
+class DiscreteIOBatchData(Dataset):
+    def __init__(
+        self,
+        X=None,
+        W=None,
+        y=None,
+        X_test=None,
+        y_test=None,
+        train=True,
+    ):
         if train:
-            self.data = X
-            self.target = y
+            self.w = W
+            self.data = torch.argmax(X, dim=1)
+            self.target = torch.argmax(y, dim=1)
         else:
+            self.w = W
             self.data = X_test
             self.target = y_test
 
     def __len__(self):
-        return self.target.shape[1]
+        return self.target.shape[0]
 
     def __getitem__(self, index):
-        return self.data[:, index], self.target[:, index]
+        return self.data[index], self.w[index, :], self.target[index]
+
+class DiscreteIBatchData(Dataset):
+    def __init__(
+        self,
+        X=None,
+        W=None,
+        y=None,
+        X_test=None,
+        y_test=None,
+        train=True,
+    ):
+        if train:
+            self.w = W
+            self.data = torch.argmax(X, dim=1)
+            self.target = y
+        else:
+            self.w = W
+            self.data = X_test
+            self.target = y_test
+
+    def __len__(self):
+        return self.target.shape[0]
+
+    def __getitem__(self, index):
+        return self.data[index], self.w[index, :], self.target[index, :]
+
+class DiscreteOBatchData(Dataset):
+    def __init__(
+        self,
+        X=None,
+        W=None,
+        y=None,
+        X_test=None,
+        y_test=None,
+        train=True,
+    ):
+        if train:
+            self.w = W
+            self.data = X
+            self.target = torch.argmax(y, dim=1)
+        else:
+            self.w = W
+            self.data = X_test
+            self.target = y_test
+
+    def __len__(self):
+        return self.target.shape[0]
+
+    def __getitem__(self, index):
+        return self.data[index, :], self.w[index, :], self.target[index]
+
+
+class BatchData(Dataset):
+    def __init__(
+        self,
+        X=None,
+        W=None,
+        y=None,
+        X_test=None,
+        y_test=None,
+        train=True,
+    ):
+        if train:
+            self.w = W
+            self.data = X
+            self.target = y
+        else:
+            self.w = W
+            self.data = X_test
+            self.target = y_test
+
+    def __len__(self):
+        return self.target.shape[0]
+
+    def __getitem__(self, index):
+        return self.data[index, :], self.w[index, :], self.target[index, :]
 
 
 class GaussianProb:
