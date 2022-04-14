@@ -1,3 +1,4 @@
+import re
 import torch
 import math
 
@@ -40,6 +41,7 @@ def nd_kron(x, y):
 
 
 def convert2tensor(*arrays):
+    arrays = list(arrays)
     for i, array in enumerate(arrays):
         if array is not None:
             arrays[i] = torch.tensor(array)
@@ -120,6 +122,7 @@ class DiscreteIOBatchData(Dataset):
     def __getitem__(self, index):
         return self.data[index], self.w[index, :], self.target[index]
 
+
 class DiscreteIBatchData(Dataset):
     def __init__(
         self,
@@ -144,6 +147,7 @@ class DiscreteIBatchData(Dataset):
 
     def __getitem__(self, index):
         return self.data[index], self.w[index, :], self.target[index, :]
+
 
 class DiscreteOBatchData(Dataset):
     def __init__(

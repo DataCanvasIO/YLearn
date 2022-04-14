@@ -6,7 +6,6 @@ To use self-defined mixture density network and outcome network, one only
 needs to define new MixtureDensityNetwork and OutcomeNet and wrap them with
 MDNWrapper and OutcomeNetWrapper, respectively.
 """
-import re
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -18,7 +17,7 @@ from torch.utils.data import DataLoader
 from torch.distributions import Categorical, Normal, MixtureSameFamily,\
     Independent
 
-from .utils import GaussianProb, BatchData, convert2array, convert2tensor,\
+from .utils import BatchData, convert2array, convert2tensor,\
     shapes, DiscreteOBatchData, DiscreteIOBatchData, DiscreteIBatchData
 from .base_models import BaseEstLearner, MLModel
 
@@ -31,7 +30,17 @@ class MixtureDensityNetwork(nn.Module):
     reference.
     """
 
-    def __init__(self, in_d, out_d, hidden_d=512, num_gaussian=5):
+    def __init__(
+        self, z_d, w_d, out_d,
+        hidden_d1=128,
+        hidden_d2=64,
+        hidden_d3=32,
+        num_gaussian=5,
+        is_discrete_input=False,
+        is_discrete_output=False,
+        embedding_dim=None,
+        stab_bound=200
+    ):
         """
         Parameters
         ----------
@@ -45,19 +54,37 @@ class MixtureDensityNetwork(nn.Module):
             Number of gaussian distributions to be mixed.
         """
         super().__init__()
-        self.in_d = in_d
-        self._out_d = out_d
-        self.hidden_d = hidden_d
-        self.num_gaussian = num_gaussian
-        self.hidden_layer = nn.Sequential(
-            nn.Linear(in_d, hidden_d),
-            nn.Tanh()
-        )
-        self.pi = nn.Linear(hidden_d, num_gaussian)
-        self.sigma = nn.Linear(hidden_d, num_gaussian * out_d)
-        self.mu = nn.Linear(hidden_d, num_gaussian * out_d)
 
-    def foward(self, x):
+        self.stab_bound = stab_bound
+        self._z_d = z_d
+        self._w_d = w_d
+        self._out_d = out_d
+        self.num_gaussian = num_gaussian
+        self.is_discrete_input = is_discrete_input
+
+        if is_discrete_input:
+            assert z_d is not None, 'Please specify the dimension of the'
+            'treatment vector.'
+
+            embedding_dim = z_d if embedding_dim is None else embedding_dim
+            self.embed = nn.Embedding(z_d, embedding_dim)
+            in_d = int(embedding_dim + w_d)
+        else:
+            self.embed = nn.Identity()
+            in_d = int(z_d + w_d)
+
+        self.hidden_layer = nn.Sequential(
+            nn.Linear(in_d, hidden_d1),
+            nn.ELU(),
+            nn.Linear(hidden_d1, hidden_d2),
+            nn.ELU(),
+        )
+
+        self.pi = nn.Linear(hidden_d2, num_gaussian)
+        self.sigma = nn.Linear(hidden_d2, num_gaussian * out_d)
+        self.mu = nn.Linear(hidden_d2, num_gaussian * out_d)
+
+    def forward(self, x, w):
         """
         Parameters
         ----------
@@ -76,14 +103,22 @@ class MixtureDensityNetwork(nn.Module):
             Variance with the shape (b, num_gaussian, out_d) and each
             component of sigma is large than 0.
         """
+        x = self.embed(x)
+        x = torch.cat((x, w), dim=1).to(torch.float32)
+        print(f'x{x}')
         h = self.hidden_layer(x)
-        pi = nn.Softmax(h)
-        mu = self.mu(h).view(
+        h += 1 + 1e-15
+        print(f'h{h}')
+        pi = self.pi(h)
+        pi = pi - pi.max(dim=1).values.reshape(-1, 1)
+        print(f'pi{pi}')
+        pi = nn.Softmax(dim=1)(pi)
+        print(f'prob {pi}')
+        mu = self.mu(h).reshape(
             -1, self.num_gaussian, self._out_d
         )
-        sigma = torch.exp(self.sigma(h)).view(
-            -1, self.num_gaussian, self._out_d
-        )
+        sigma = torch.clamp(self.sigma(h), -self.stab_bound, self.stab_bound)
+        sigma = torch.exp(sigma).reshape(-1, self.num_gaussian, self._out_d)
         return pi, mu, sigma
 
 # To make the above MDN consistant to the standard machine learning models, we
@@ -91,7 +126,7 @@ class MixtureDensityNetwork(nn.Module):
 # be applied.
 
 
-class MDNWrapper(MLModel):
+class MDNWrapper:
     """
     Wrapped class for MixtureDensityNetwork.
 
@@ -120,10 +155,21 @@ class MDNWrapper(MLModel):
         model : MixtureDensityNetwork
         """
         super().__init__()
-        self.model = mdn
-        self.in_d = mdn.in_d
-        self._out_d = mdn.out_d
+
+        self.model = deepcopy(mdn)
+        self._z_d = mdn._z_d
+        self._w_d = mdn._w_d
+        self._out_d = mdn._out_d
         self.num_gaussian = mdn.num_gaussian
+        self.is_discrete_input = mdn.is_discrete_input
+
+    def mg(self, pi, mu, sigma):
+        mix = Categorical(pi)
+        comp = Independent(
+            Normal(mu, sigma), 1
+        )
+        mg = MixtureSameFamily(mix, comp)
+        return mg
 
     def loss_fn(self, pi, mu, sigma, y):
         """Calculate the loss used for training the mdn.
@@ -149,20 +195,20 @@ class MDNWrapper(MLModel):
             The probability of taking value y in the probability distribution
             modeled by the mdn. Has the same shape as y.
         """
-        gaussian_prob = GaussianProb(mu, sigma)
-        p = gaussian_prob.mixture_density(pi, y)
-        loss = torch.mean(
-            -torch.log(p)
-        )
-        return loss
+        mg = self.mg(pi, mu, sigma)
+        loss = mg.log_prob(y)
+        return -torch.logsumexp(loss, dim=0)
 
-    def fit(self, X, y,
-            device='cuda',
-            lr=0.01,
-            epoch=1000,
-            optimizer='SGD',
-            batch_size=128,
-            **optim_config):
+    def fit(
+        self, z, w,
+        target,
+        device='cuda',
+        lr=0.01,
+        epoch=100,
+        optimizer='SGD',
+        batch_size=64,
+        **optim_config
+    ):
         """Train the mdn model with data (X, y).
 
         Parameters
@@ -184,27 +230,35 @@ class MDNWrapper(MLModel):
         optim_config : other parameters for various optimizers.
         """
         self.model = self.model.to(device)
-        op = {
+
+        if w is None:
+            w = z[:, -1:-1]
+
+        if self.is_discrete_input:
+            data = DiscreteIBatchData(X=z, W=w, y=target)
+        else:
+            data = BatchData(X=z, W=w, y=target)
+        train_loader = DataLoader(data, batch_size=batch_size)
+
+        op_dict = {
             'SGD': optim.SGD(self.model.parameters(), lr=lr),
             'Adam': optim.Adam(self.model.parameters(), lr=lr, **optim_config)
         }
-        opt = op[optimizer]
-        data = BatchData(X=X, y=y)
-        train_loader = DataLoader(data, batch_size=batch_size)
+        optimizer = op_dict[optimizer]
 
         for e in range(epoch):
-            for i, (X, y) in enumerate(train_loader):
+            for i, (z, w, y) in enumerate(train_loader):
                 self.model.train()
-                X, y = X.to(device), y.to(device)
-                pi, mu, sigma = self.model(X)
+                z, w, y = z.to(device), w.to(device), y.to(device)
+                pi, mu, sigma = self.model(z, w)
                 loss = self.loss_fn(pi, mu, sigma, y)
-                opt.zero_grad()
+                optimizer.zero_grad()
                 loss.backward()
-                opt.step()
-            print(f'End of epoch {e} | current loss {loss.data}')
+                optimizer.step()
+            print(f'Finished {e+1}/{epoch} epochs | current loss {loss.data}')
 
-    def predict(self, X, y):
-        """Calculate the probability P(y|X) with the trained mixture density
+    def predict_log_prob(self, z, w, target):
+        """Calculate the probability density P(y|X) with the trained mixture density
             network.
 
         Parameters
@@ -220,12 +274,18 @@ class MDNWrapper(MLModel):
         tensor
             The probability density p(y|X) evaluated with the trained mdn.
         """
-        pi, mu, sigma = self.model(X)
-        gaussian_prob = GaussianProb(mu, sigma)
-        p = gaussian_prob.mixture_density(pi, y)
-        return p
+        pi, mu, sigma = self.model(z, w)
+        log_prob = self.mg(pi, mu, sigma).log_prob(target)
+        return log_prob
 
-    def _sample(self, X, sample_num):
+    def predict_prob(self, z, w, target):
+        return torch.exp(self.predict_log_prob(z, w, target))
+
+    def predict_cdf(self, z, w, target):
+        pi, mu, sigma = self.model(z, w)
+        return self.mg(pi, mu, sigma).cdf(target)
+
+    def _sample(self, z, w, sample_num):
         # TODO: remeber to call detach to depart from the calculatin graph
         """Generate a batch of sample according to the probability density returned by
             the MDN model.
@@ -242,11 +302,9 @@ class MDNWrapper(MLModel):
         tensor
             Shape (b*sample_num, out_d).
         """
-        pi, mu, sigma = self.model(X)
-        mix = Categorical(pi)
-        comp = Independent(Normal(mu, sigma))
-        density = MixtureSameFamily(mix, comp)
-        return density.sample(sample_num).view(-1, self._out_d)
+        pi, mu, sigma = self.model(z, w)
+        mg = self.mg(pi, mu, sigma)
+        return mg.sample((sample_num, )).reshape(-1, self._out_d)
 
 
 class Net(nn.Module):
@@ -343,19 +401,22 @@ class NetWrapper:
 
         # use different data set for efficiency
         if self.is_discrete_output:
-            if self.is_discrete_input:
+            if self.is_discrete_input and not self.is_y_net:
                 data = DiscreteIOBatchData(X=x, W=w, y=target)
             else:
                 data = DiscreteOBatchData(X=x, W=w, y=target)
-                
+
             loss_fn = optim_config.pop('loss', nn.CrossEntropyLoss())
         else:
-            if self.is_discrete_input:
+            if self.is_discrete_input and not self.is_y_net:
                 data = DiscreteIBatchData(X=x, W=w, y=target)
             else:
                 data = BatchData(X=x, W=w, y=target)
-                
+
             loss_fn = optim_config.pop('loss', nn.MSELoss())
+
+        # make batched data
+        train_loader = DataLoader(data, batch_size=batch_size)
 
         op_dict = {
             'SGD': optim.SGD(self.model.parameters(), lr=lr),
@@ -363,19 +424,44 @@ class NetWrapper:
         }
         # prepare for training
         optimizer = op_dict[optimizer]
-        # make batched data
-        train_loader = DataLoader(data, batch_size=batch_size)
 
-        for e in range(epoch):
-            for i, (X, W, y) in enumerate(train_loader):
-                self.model.train()
-                X, W, y = X.to(device), W.to(device), y.to(device)
-                y_predict = self.model(X, W)
-                loss = loss_fn(y_predict, y)
-                optimizer.zero_grad()
-                loss.backward()
-                optimizer.step()
-            print(f'End of epoch {e} | current loss {loss.data}')
+        if self.is_discrete_input and self.is_y_net:
+            for e in range(epoch):
+                for i, (X, W, y) in enumerate(train_loader):
+                    self.model.train()
+                    X, W, y = X.to(device), W.to(device), y.to(device)
+                    x_label = torch.arange(self._x_d).reshape(-1, 1)
+                    batch_num = y.shape[0]
+                    # after sampled, both batches of w_sample and x_sample
+                    # will have (batch_num*x_d) samples
+                    w_sample = w.repeat_interleave(self._x_d, dim=0)
+                    x_sample = x_label.repeat(batch_num, 1)
+                    # y_pred_vec has shape (batch_num*x_d, out_d)
+                    y_pred_vec = self.model(x_sample, w_sample)
+                    y_pred_tensor = y_pred_vec.reshape(
+                        batch_num, self._x_d, self._out_d
+                    )
+                    y_pred = torch.einsum('bkj,bk->bj', [y_pred_tensor, X])
+                    loss = loss_fn(y_pred, y)
+                    optimizer.zero_grad()
+                    loss.backward()
+                    optimizer.step()
+                print(
+                    f'Finished {e}/{epoch} epochs | current loss {loss.data}'
+                )
+        else:
+            for e in range(epoch):
+                for i, (X, W, y) in enumerate(train_loader):
+                    self.model.train()
+                    X, W, y = X.to(device), W.to(device), y.to(device)
+                    y_pred = self.model(X, W)
+                    loss = loss_fn(y_pred, y)
+                    optimizer.zero_grad()
+                    loss.backward()
+                    optimizer.step()
+                print(
+                    f'Finished {e}/{epoch} epochs | current loss {loss.data}'
+                )
 
     def predict_proba(self, x, w):
         assert self.is_discrete_output, 'Please use predict(x, w) for'
@@ -396,8 +482,8 @@ class NetWrapper:
         else:
             return self.model(x, w)
 
-    def _sample(self, sample_num):
-        pass
+    def _sample(self, x, w):
+        return self.predict_proba(x, w)
 
 
 # We are now ready to build the complete model with above wrapped outcome and
@@ -451,7 +537,7 @@ class DeepIV(BaseEstLearner):
         self._x_net_init = x_net
         self._y_net_init = y_net
 
-        super.__init__(
+        super().__init__(
             random_state=random_state,
             is_discrete_treatment=is_discrete_treatment,
             is_discrete_outcome=is_discrete_outcome,
@@ -527,7 +613,9 @@ class DeepIV(BaseEstLearner):
 
         y, x, w, z = convert2tensor(y, x, w, z)
         self.w = w
-        self._y_d, self._x_d, self._w_d, self._z_d = shapes(y, x, w, z)
+        self._y_d, self._x_d, self._w_d, self._z_d = shapes(
+            y, x, w, z, all_dim=False
+        )
 
         # build networks
         self.x_net = self._gen_x_model(
@@ -551,22 +639,23 @@ class DeepIV(BaseEstLearner):
 
         # Step 1: train the model for estimating the treatment given the
         # instrument and adjustment
-        self.x_net.fit(w, z, target=x, **x_net_config)
+        self.x_net.fit(z, w, target=x, **x_net_config)
 
         # Step 2: generate new samples if calculating grad approximately
         if approx_grad:
-            x_sampled = self.x_net._sample(w, z, sample_n)
+            x_sampled = self.x_net._sample(z, w, sample_n)
         else:
             # TODO: the loss funcn should be modified if not approx_grad
             x_sampled = x
 
         # Step 3: fit the final counterfactual prediction model
-        if not self.is_discrete_treatment:
-            w_sampled = w.repeat(sample_n[0], 1) if w is not None else None
-        else:
+        if self.is_discrete_treatment:
             w_sampled = w
+        else:
+            w_sampled = w.repeat(sample_n[0], 1) if w is not None else None
 
-        self.y_net.fit(w_sampled, x_sampled, target=y, **y_net_config)
+        # TODO: be careful here
+        self.y_net.fit(x_sampled, w_sampled, target=y, **y_net_config)
 
     def _prepare4est(
         self,
@@ -647,19 +736,19 @@ class DeepIV(BaseEstLearner):
             return yt
 
     def _gen_x_model(self, x_model, *args, **kwargs):
-        hidden_d_list = kwargs.pop('hidden_d', [128, 256, 256])
-        for i, hidden_d in enumerate(hidden_d_list):
+        hidden_d_list = kwargs.pop('hidden_d', [64, 128, 64])
+        for i, hidden_d in enumerate(hidden_d_list, 1):
             kwargs[f'hidden_d{i}'] = hidden_d
 
         if self.is_discrete_treatment:
             if x_model is None:
-                assert any(args), 'Need parameters to define treatment net.'
+                assert any(args), 'Need parameters to define a treatment net.'
                 x_model = Net(*args, **kwargs)
 
             x_net = NetWrapper(x_model, is_y_net=False)
         else:
             if x_model is None:
-                assert any(args), 'Need parameters to define treatment net.'
+                assert any(args), 'Need parameters to define a treatment net.'
                 x_model = MixtureDensityNetwork(*args, **kwargs)
 
             x_net = MDNWrapper(x_model)
@@ -667,12 +756,12 @@ class DeepIV(BaseEstLearner):
         return x_net
 
     def _gen_y_model(self, y_model, *args, **kwargs):
-        hidden_d_list = kwargs.pop('hidden_d', [128, 256, 256])
-        for i, hidden_d in enumerate(hidden_d_list):
+        hidden_d_list = kwargs.pop('hidden_d', [64, 128, 64])
+        for i, hidden_d in enumerate(hidden_d_list, 1):
             kwargs[f'hidden_d{i}'] = hidden_d
 
         if y_model is None:
-            assert any(args), 'Need parameters to define outcome net.'
+            assert any(args), 'Need parameters to define an outcome net.'
             y_net = Net(*args, **kwargs)
 
         return NetWrapper(y_net, is_y_net=True)
