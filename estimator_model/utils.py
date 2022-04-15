@@ -1,4 +1,3 @@
-import re
 import torch
 import math
 
@@ -10,6 +9,16 @@ from torch.distributions import Categorical, Independent, MixtureSameFamily, \
 from torch.utils.data import Dataset
 
 from sklearn.preprocessing import OneHotEncoder
+
+
+def get_group_ids(target, a, *arrays):
+    arrays = list(arrays)
+    label = np.all(target == a, axis=1)
+
+    for i, array in enumerate(arrays):
+        arrays[i] = array[np.where(label)].reshape(-1, array.shape[1])
+        
+    return arrays
 
 
 def shapes(*tensors, all_dim=False):

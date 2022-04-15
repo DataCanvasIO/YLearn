@@ -86,7 +86,7 @@ class PropensityScore:
         return self.predict(pre_data, adjustment)
 
 
-class InverseProbWeighting(BaseEstLearner):
+class InversePbWeighting(BaseEstLearner):
     r"""
     Inverse Probability Weighting. The identification equation is defined as
         E[y|do(x)] = E[I(X=x)y / P(x|W)],

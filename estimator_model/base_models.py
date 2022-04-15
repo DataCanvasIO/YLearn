@@ -116,83 +116,84 @@ class BaseEstLearner:
         """
         pass
 
-    def estimate_(self, data, condition=None, **kwargs):
-        pass
+    def estimate(self, data, condition=None, **kwargs):
+        if not hasattr(self, '_is_fitted'):
+            raise Exception('The estimator has not been fitted yet.')
 
-    def estimate(
-        self,
-        data,
-        outcome,
-        treatment,
-        adjustment,
-        quantity='ATE',
-        condition_set=None,
-        condition=None,
-        individual=None,
-        **kwargs
-    ):
-        # This is the basic API for estimating a causal effect.
+    # def estimate(
+    #     self,
+    #     data,
+    #     outcome,
+    #     treatment,
+    #     adjustment,
+    #     quantity='ATE',
+    #     condition_set=None,
+    #     condition=None,
+    #     individual=None,
+    #     **kwargs
+    # ):
+    #     # This is the basic API for estimating a causal effect.
 
-        # TODO: Note that we require that if parameters like treatment change
-        # then we should recall self.fit()
-        # method.
-        """General estimation method for quantities like ATE of
-        outcome|do(treatment).
+    #     # TODO: Note that we require that if parameters like treatment change
+    #     # then we should recall self.fit()
+    #     # method.
+    #     """General estimation method for quantities like ATE of
+    #     outcome|do(treatment).
 
-        Parameter
-        ----------
-        data : DataFrame
-        outcome : str
-            Name of the outcome.
-        treatment : str
-            Name of the treatment.
-        adjustment : set or list
-            The valid adjustment set.
-        quantity: str
-            The type of desired quantity, including ATE, CATE, ITE and
-            CITE. Defaults to 'ATE'.
-        condition_set : set or list. Defaults to None
-        condition : list
-            A list whose length is the size of dataset and elements are
-            boolean such that we only perform the computation of
-            quantities if the corresponding element is True]. Defaults
-            to None.
-        individual : DataFrame. Defaults to None
-        kwargs : dict
+    #     Parameter
+    #     ----------
+    #     data : DataFrame
+    #     outcome : str
+    #         Name of the outcome.
+    #     treatment : str
+    #         Name of the treatment.
+    #     adjustment : set or list
+    #         The valid adjustment set.
+    #     quantity: str
+    #         The type of desired quantity, including ATE, CATE, ITE and
+    #         CITE. Defaults to 'ATE'.
+    #     condition_set : set or list. Defaults to None
+    #     condition : list
+    #         A list whose length is the size of dataset and elements are
+    #         boolean such that we only perform the computation of
+    #         quantities if the corresponding element is True]. Defaults
+    #         to None.
+    #     individual : DataFrame. Defaults to None
+    #     kwargs : dict
 
-        Raises
-        ----------
-        Exception
-            Raise exception if the quantity is not in ATE, CATE, ITE or CITE.
+    #     Raises
+    #     ----------
+    #     Exception
+    #         Raise exception if the quantity is not in ATE, CATE, ITE or CITE.
 
-        Returns
-        ----------
-        float
-            The desired causal effect.
-        """
-        if quantity == 'ATE':
-            return self.estimate_ate(
-                data, outcome, treatment, adjustment, **kwargs
-            )
-        elif quantity == 'CATE':
-            return self.estimate_cate(
-                data, outcome, treatment, adjustment, condition_set,
-                condition, **kwargs
-            )
-        elif quantity == 'ITE':
-            return self.estimate_ite(
-                data, outcome, treatment, adjustment, individual, **kwargs
-            )
-        elif quantity == 'CITE':
-            return self.estimate_cite(
-                data, outcome, treatment, adjustment, condition_set,
-                condition, **kwargs
-            )
-        else:
-            raise Exception(
-                'Do not support estimation of quantities other'
-                'than ATE, CATE, ITE, or CITE'
-            )
+    #     Returns
+    #     ----------
+    #     float
+    #         The desired causal effect.
+    #     """
+    #     if quantity == 'ATE':
+    #         return self.estimate_ate(
+    #             data, outcome, treatment, adjustment, **kwargs
+    #         )
+    #     elif quantity == 'CATE':
+    #         return self.estimate_cate(
+    #             data, outcome, treatment, adjustment, condition_set,
+    #             condition, **kwargs
+    #         )
+    #     elif quantity == 'ITE':
+    #         return self.estimate_ite(
+    #             data, outcome, treatment, adjustment, individual, **kwargs
+    #         )
+    #     elif quantity == 'CITE':
+    #         return self.estimate_cite(
+    #             data, outcome, treatment, adjustment, condition_set,
+    #             condition, **kwargs
+    #         )
+    #     else:
+    #         raise Exception(
+    #             'Do not support estimation of quantities other'
+    #             'than ATE, CATE, ITE, or CITE'
+    #         )
 
     def estimate_ate(self, data, outcome, treatment, adjustment, **kwargs):
         """Estimate E[outcome|do(treatment=x1) - outcome|do(treatment=x0)]
