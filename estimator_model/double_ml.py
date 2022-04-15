@@ -95,7 +95,7 @@ class DML4CATE(BaseEstLearner):
     coefficients of every feature in {1, 2, ..., k*j}. For a simple example, if
     both y and x only have one dimention, then the CATE for an input with
     covariate (c^1, c^2, c^3) will be F_1c^1, F_2c^2, and F_3c^3. #TODO:
-    However, note that letting \rho^k simply be v^k actually implicitly assume
+    However, note that letting \rho^k simply be v^k actually implicitly assumes
     that the value of v^k is small thus is a good approximation of \rho^k.
 
 

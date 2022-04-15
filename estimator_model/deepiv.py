@@ -11,13 +11,14 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 
+from torch.autograd import Variable
 from copy import deepcopy
 from sklearn.preprocessing import OneHotEncoder
 from torch.utils.data import DataLoader
 from torch.distributions import Categorical, Normal, MixtureSameFamily,\
     Independent
 
-from .utils import BatchData, convert2array, convert2tensor,\
+from .utils import BatchData, convert2array, convert2tensor, sample,\
     shapes, DiscreteOBatchData, DiscreteIOBatchData, DiscreteIBatchData
 from .base_models import BaseEstLearner, MLModel
 
@@ -105,15 +106,12 @@ class MixtureDensityNetwork(nn.Module):
         """
         x = self.embed(x)
         x = torch.cat((x, w), dim=1).to(torch.float32)
-        print(f'x{x}')
         h = self.hidden_layer(x)
-        h += 1 + 1e-15
-        print(f'h{h}')
+        # h += 1 + 1e-15
         pi = self.pi(h)
         pi = pi - pi.max(dim=1).values.reshape(-1, 1)
-        print(f'pi{pi}')
         pi = nn.Softmax(dim=1)(pi)
-        print(f'prob {pi}')
+        # pi = F.gumbel_softmax(pi, hard=True, dim=1)
         mu = self.mu(h).reshape(
             -1, self.num_gaussian, self._out_d
         )
@@ -165,9 +163,7 @@ class MDNWrapper:
 
     def mg(self, pi, mu, sigma):
         mix = Categorical(pi)
-        comp = Independent(
-            Normal(mu, sigma), 1
-        )
+        comp = Independent(Normal(mu, sigma), 1)
         mg = MixtureSameFamily(mix, comp)
         return mg
 
@@ -285,7 +281,7 @@ class MDNWrapper:
         pi, mu, sigma = self.model(z, w)
         return self.mg(pi, mu, sigma).cdf(target)
 
-    def _sample(self, z, w, sample_num):
+    def _sample(self, z, w, sample_n):
         # TODO: remeber to call detach to depart from the calculatin graph
         """Generate a batch of sample according to the probability density returned by
             the MDN model.
@@ -304,16 +300,17 @@ class MDNWrapper:
         """
         pi, mu, sigma = self.model(z, w)
         mg = self.mg(pi, mu, sigma)
-        return mg.sample((sample_num, )).reshape(-1, self._out_d)
+        sampled = mg.sample((sample_n, ))
+        return sampled.reshape(-1, self._out_d)
 
 
 class Net(nn.Module):
     # This neural network is for x_net with discrete x (treatment) and all
     # y_net. If x is continuous, use MixtureDensityNetwork.
     def __init__(self, x_d, w_d, out_d,
-                 hidden_d1=64,
-                 hidden_d2=128,
-                 hidden_d3=64,
+                 hidden_d1=256,
+                 hidden_d2=512,
+                 hidden_d3=256,
                  is_discrete_input=False,
                  is_discrete_output=False,
                  embedding_dim=None):
@@ -426,28 +423,33 @@ class NetWrapper:
         optimizer = op_dict[optimizer]
 
         if self.is_discrete_input and self.is_y_net:
+            x_d = self._x_d
+            out_d = self._out_d
+            x_label = torch.arange(x_d)
             for e in range(epoch):
                 for i, (X, W, y) in enumerate(train_loader):
                     self.model.train()
                     X, W, y = X.to(device), W.to(device), y.to(device)
-                    x_label = torch.arange(self._x_d).reshape(-1, 1)
+
+                    x = Variable(X)  # TODO: I dont konw why this works, why???
                     batch_num = y.shape[0]
                     # after sampled, both batches of w_sample and x_sample
                     # will have (batch_num*x_d) samples
-                    w_sample = w.repeat_interleave(self._x_d, dim=0)
-                    x_sample = x_label.repeat(batch_num, 1)
+                    w_sample = W.repeat_interleave(x_d, dim=0)
+                    x_sample = x_label.repeat(batch_num, )
+
                     # y_pred_vec has shape (batch_num*x_d, out_d)
-                    y_pred_vec = self.model(x_sample, w_sample)
-                    y_pred_tensor = y_pred_vec.reshape(
-                        batch_num, self._x_d, self._out_d
-                    )
-                    y_pred = torch.einsum('bkj,bk->bj', [y_pred_tensor, X])
+                    y_pred = self.model(x_sample, w_sample)
+                    y_pred = y_pred.reshape(batch_num, x_d, out_d)
+                    y_pred = torch.einsum('bkj,bk->bj', [y_pred, x])
                     loss = loss_fn(y_pred, y)
+
                     optimizer.zero_grad()
+                    # loss.backward(retain_graph=True)
                     loss.backward()
                     optimizer.step()
                 print(
-                    f'Finished {e}/{epoch} epochs | current loss {loss.data}'
+                    f'Finished {e+1}/{epoch} epochs | current loss {loss.data}'
                 )
         else:
             for e in range(epoch):
@@ -456,11 +458,12 @@ class NetWrapper:
                     X, W, y = X.to(device), W.to(device), y.to(device)
                     y_pred = self.model(X, W)
                     loss = loss_fn(y_pred, y)
+
                     optimizer.zero_grad()
                     loss.backward()
                     optimizer.step()
                 print(
-                    f'Finished {e}/{epoch} epochs | current loss {loss.data}'
+                    f'Finished {e+1}/{epoch} epochs | current loss {loss.data}'
                 )
 
     def predict_proba(self, x, w):
@@ -482,7 +485,7 @@ class NetWrapper:
         else:
             return self.model(x, w)
 
-    def _sample(self, x, w):
+    def _sample(self, x, w, sample_n):
         return self.predict_proba(x, w)
 
 
@@ -527,7 +530,7 @@ class DeepIV(BaseEstLearner):
         self.x_net_kwargs = {}
         if x_hidden_d is not None:
             self.x_net_kwargs['hidden_d'] = x_hidden_d
-        if num_gaussian is not None:
+        if num_gaussian is not None and not is_discrete_treatment:
             self.x_net_kwargs['num_gaussian'] = num_gaussian
 
         self.y_net_kwargs = {}
@@ -652,7 +655,7 @@ class DeepIV(BaseEstLearner):
         if self.is_discrete_treatment:
             w_sampled = w
         else:
-            w_sampled = w.repeat(sample_n[0], 1) if w is not None else None
+            w_sampled = w.repeat(sample_n, 1) if w is not None else None
 
         # TODO: be careful here
         self.y_net.fit(x_sampled, w_sampled, target=y, **y_net_config)
@@ -666,7 +669,7 @@ class DeepIV(BaseEstLearner):
         *args,
         **kwargs
     ):
-        if not hasattr(self, 'x_net') or hasattr(self, 'y_net'):
+        if not hasattr(self, 'x_net') or not hasattr(self, 'y_net'):
             raise Exception('The estimator has not been fitted yet.')
 
         treat = 1 if treat is None else treat
@@ -681,29 +684,26 @@ class DeepIV(BaseEstLearner):
         n = w.shape[0]
         ones = torch.eye(n, self._x_d)
 
-        if self.discrete_treatment:
+        if self.is_discrete_treatment:
             # build the one_hot vector for treatment vector
             treat_id = (torch.ones(n, ) * treat).int()
 
             # build treatment vector xt and control vector x0
             xt = ones.index_select(dim=0, index=treat_id)
             x0 = ones.index_select(dim=0, index=torch.zeros(n, ).int())
-            xt = torch.cat((w, xt), dim=1)
-            x0 = torch.cat((w, x0), dim=1)
 
-            return (self.y_net.predict(xt), self.y_net.predict(x0))
+            return (self.y_net.predict(xt, w), self.y_net.predict(x0, w))
         else:
             xt = ones * treat
             x0 = ones * control
-            xt = torch.cat((w, xt), dim=1)
             xt.requires_grad = True
-            yt = self.y_net.predict(xt)
+
+            yt = self.y_net.predict(xt, w)
 
             if marginal_effect:
                 return (xt.grad.detach(), )
             else:
-                x0 = torch.cat((w, x0), dim=1)
-                y0 = self.y_net.predict(x0)
+                y0 = self.y_net.predict(x0, w)
                 return (yt, y0)
 
     def estimate(
