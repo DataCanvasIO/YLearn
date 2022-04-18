@@ -35,7 +35,7 @@ def shapes(*tensors, all_dim=False):
     return shapes
 
 
-def nd_kron(x, y):
+def nd_kron_original(x, y):
     dim = x.shape[0]
     assert dim == y.shape[0]
     kron_prod = np.kron(x[0], y[0]).reshape(1, -1)
@@ -45,6 +45,13 @@ def nd_kron(x, y):
             kron_prod = np.concatenate(
                 (kron_prod, np.kron(vec, y[i]).reshape(1, -1)), axis=0
             )
+
+    return kron_prod
+
+
+def nd_kron(x, y):
+    fn = np.vectorize(np.kron, signature='(n),(m)->(k)')
+    kron_prod = fn(x, y)
 
     return kron_prod
 
