@@ -85,12 +85,33 @@ def notears_linear(X, lambda1, loss_type, max_iter=100, h_tol=1e-8, rho_max=1e+1
 
 
 def dat_gen(n):
-    x1=np.random.random_sample(n)
-    x2=x1+0.001*np.random.random_sample(n)
-    x3=x2-0.001*np.random.random_sample(n)
-    return np.array([x1,x2,x3]).T
+    x1 = np.random.random_sample(n)
+    x2 = np.exp(-x1)+0.001 * np.random.random_sample(n)
+    x3 = np.exp(-x2)-0.001 * np.random.random_sample(n)
+    return np.array([x1, x2, x3]).T
+
 
 for i in range(20):
     dat = dat_gen(1000)
     W_est = notears_linear(dat, lambda1=0.01, loss_type='l2')
     print(W_est)#跑出来每次都不一样。。。。
+
+# def dat_gen1(n=1000, coef12=1, coef32=2, eps=1e-3, change_order=False):
+#     x2 = np.random.normal(size=(n, ))
+#     x1 = eps * np.random.normal(size=(n, )) + coef12 * x2
+#     x3 = eps * np.random.normal(size=(n, )) + coef32 * x2
+#     if change_order:
+#         return np.array([x1, x2, x3]).T
+#     else:
+#         return np.array([x2, x1, x3]).T
+
+
+# for i in range(5):    
+#     dat = dat_gen(1000)
+#     print(f'chain result {notears_linear(dat, lambda1=0.01, loss_type="l2")}')
+
+#     dat = dat_gen1()
+#     print(f'folk result {notears_linear(dat,lambda1=0.01, loss_type="l2")}')
+
+#     dat = dat_gen1(change_order=True)
+#     print(f'folk new order {notears_linear(dat, lambda1=0.01, loss_type="l2")}')

@@ -73,5 +73,21 @@ def dat_gen():
     return np.array([x2, x1, x3])
 
 
+# def dat_gen1(n, coef12=1, coef32=2, eps=1e-3, change_order=False):
+#     x2 = np.random.normal(size=(n, ))
+#     x1 = eps * np.random.normal(size=(n, )) + coef12 * x2
+#     x3 = eps * np.random.normal(size=(n, )) + coef32 * x2
+#     if change_order:
+#         return np.array([x1, x2, x3])
+#     else:
+#         return np.array([x2, x1, x3])
+
+
 dat = dat_gen()
-print(func(dat))
+print(f'chain result {func(dat)}')
+
+# dat = dat_gen1()
+# print(f'folk result {func(dat)}')
+
+# dat = dat_gen1()
+# print(f'folk new order {func(dat)}')
