@@ -13,7 +13,7 @@ from sklearn.preprocessing import OneHotEncoder
 
 def get_group_ids(target, a, *arrays):
     arrays = list(arrays)
-    label = np.all(target == a, axis=1)
+    label = np.all(a == target, axis=1)
 
     for i, array in enumerate(arrays):
         arrays[i] = array[np.where(label)].reshape(-1, array.shape[1])

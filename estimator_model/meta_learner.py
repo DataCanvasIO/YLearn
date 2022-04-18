@@ -1,14 +1,11 @@
-import pandas as pd
+
 import numpy as np
 
-from copy import deepcopy
-from collections import defaultdict
-
-from sklearn.preprocessing import OneHotEncoder, OrdinalEncoder
+from sklearn import clone
+from sklearn.preprocessing import OrdinalEncoder
 
 from .base_models import BaseEstLearner
 from estimator_model.utils import convert2array, get_group_ids
-np.random.seed(2022)
 
 
 class SLearner(BaseEstLearner):
@@ -64,6 +61,7 @@ class SLearner(BaseEstLearner):
             machine learning model wrapped by the class MLModels.
         """
         self.model = model
+        self._is_fitted = False
 
         super().__init__(
             random_state=random_state,
@@ -81,11 +79,11 @@ class SLearner(BaseEstLearner):
         covariate=None,
         treat=None,
         control=None,
+        *args,
+        **kwargs
     ):
         assert adjustment is not None or covariate is not None, \
             'Need adjustment set or covariates to perform estimation.'
-
-        self._is_fitted = True
 
         n = len(data)
         self.outcome = outcome
@@ -144,12 +142,14 @@ class SLearner(BaseEstLearner):
 
         self._wv = wv
         x = np.concatenate((wv, x), axis=1)
-        self.model.fit(x, y)
+        self.model.fit(x, y, *args, **kwargs)
+
+        self._is_fitted = True
 
         return self
 
     def _prepare4est(self, data=None, *args, **kwargs):
-        if not hasattr(self, 'is_fitted'):
+        if not self._is_fitted:
             raise Exception('The estimator has not been fitted yet.')
 
         if data is None:
@@ -227,8 +227,16 @@ class TLearner(BaseEstLearner):
                       condition_set, condition, individual)
     """
 
-    def __init__(self, **kwargs):
+    def __init__(
+        self,
+        model,
+        random_state=2022,
+        categories='auto',
+        *args,
+        **kwargs
+    ):
         """
+
         Parameters
         ----------
         ml_model : str, optional
@@ -236,59 +244,125 @@ class TLearner(BaseEstLearner):
             for our TLearner. If not str, then ml_model should be some valid
             machine learning model wrapped by the class MLModels.
         """
-        super().__init__()
-        model = kwargs['ml_model']
+        self.xt_model = clone(model)
+        self.x0_model = clone(model)
+        self._is_fitted = False
 
-        if type(model) is str:
-            model = self.ml_model_dic[model]
-
-        self.x1_model = model
-        self.x0_model = deepcopy(model)
-
-    def _prepare4est(self, data, outcome, treatment, adjustment, individual=None):
-        r"""Prepare (fit the model) for estimating the quantities
-            ATE: E[y|do(x_1)] - E[y|do(x_0)] = E_w[E[y|x=x_1,w] - E[y|x=x_0, w]
-                                           := E_{adjustment}[
-                                               Delta E[outcome|treatment,
-                                                                adjustment]]
-            CATE: E[y|do(x_1), z] - E[y|do(x_0), z] = E_w[E[y|x=x_1, w, z] -
-                                                        E[y|x=x_0, w, z]]
-            ITE: y_i(do(x_1)) - y_i(do(x_0))
-            CITE: y_i(do(x_1))|z_i - y_i(do(x_0))|z_i
-
-        Parameters
-        ----------
-        data : DataFrame
-        outcome : string
-            Name of the outcome.
-        treatment : string
-            Name of the treatment.
-        adjustment : set or list
-            The adjutment set for the causal effect,
-            i.e., P(outcome|do(treatment)) =
-                \sum_{adjustment} P(outcome|treatment, adjustment)P(adjustment)
-        individual : DataFrame, default to None
-            The individual data for computing its causal effect.
-
-        Returns
-        ----------
-        np.array
-        """
-        data_without_treatment = data.drop([treatment], axis=1)
-        x1_data = data_without_treatment.loc[data[treatment] > 0]
-        x0_data = data_without_treatment.loc[data[treatment] <= 0]
-        self.x1_model.fit(x1_data[adjustment], x1_data[outcome])
-        self.x0_model.fit(x0_data[adjustment], x0_data[outcome])
-
-        if individual:
-            data_ = individual[adjustment]
-        else:
-            data_ = data[adjustment]
-
-        result = (
-            self.x1_model.predict(data_) - self.x0_model.predict(data_)
+        super().__init__(
+            random_state=random_state,
+            categories=categories,
+            *args,
+            **kwargs
         )
-        return result
+
+    def fit(
+        self,
+        data,
+        outcome,
+        treatment,
+        adjustment=None,
+        covariate=None,
+        treat=None,
+        control=None,
+        *args,
+        **kwargs
+    ):
+        assert adjustment is not None or covariate is not None, \
+            'Need adjustment set or covariates to perform estimation.'
+
+        n = len(data)
+        self.outcome = outcome
+        self.treatment = treatment
+        self.adjustment = adjustment
+        self.covariate = covariate
+
+        y, x, w, v = convert2array(
+            data, outcome, treatment, adjustment, covariate
+        )
+
+        if self.categories == 'auto' or self.categories is None:
+            categories = 'auto'
+        else:
+            categories = list(self.categories)
+
+        self.transformer = OrdinalEncoder(categories=categories)
+        self.transformer.fit(x)
+        x = self.transformer.transform(x).toarray()
+
+        group_categories = self.transformer.categories_
+        num_treatments = len(group_categories)
+
+        if treat is not None:
+            if not isinstance(treat, int):
+                assert len(treat) == num_treatments
+            treat = np.repeat(
+                np.array(list(treat)).reshape(1, -1), n, axis=0
+            )
+        else:
+            treat = np.ones((n, num_treatments))
+
+        if control is not None:
+            if not isinstance(control, int):
+                assert len(control) == num_treatments
+            control = np.repeat(
+                np.array(list(control)).reshape(1, -1), n, axis=0
+            )
+        else:
+            control = np.zeros((n, num_treatments))
+
+        self.treat_index = treat[0]
+        self.control_index = control[0]
+
+        if w is None:
+            wv = v
+        else:
+            if v is not None:
+                wv = np.concatenate((w, v), axis=1)
+            else:
+                wv = w
+
+        self._wv = wv
+        wv_treat, y_treat = get_group_ids(treat, x, wv, y)
+        wv_control, y_control = get_group_ids(control, x, wv, y)
+        self.xt_model.fit(wv_treat, y_treat, *args, **kwargs)
+        self.x0_model.fit(wv_control, y_control, *args, **kwargs)
+
+        self._is_fitted = True
+
+        return self
+
+    def _prepare4est(self, data=None, *args, **kwargs):
+        if not self._is_fitted:
+            raise Exception('The estimator has not been fitted yet.')
+
+        if data is None:
+            wv = self._wv
+        else:
+            w, v = convert2array(
+                data, self.adjustment, self.covariate
+            )
+            if w is None:
+                wv = v
+            else:
+                if v is not None:
+                    wv = np.concatenate((w, v), axis=1)
+                else:
+                    wv = w
+
+        yt = self.xt_model.predict(wv)
+        y0 = self.x0_model.predict(wv)
+
+        return yt, y0
+
+    def estimate(
+        self,
+        data=None,
+        quantity='CATE',
+        *args,
+        **kwargs
+    ):
+        yt, y0 = self._prepare4est(data, *args, **kwargs)
+        return np.mean(yt-y0, axis=0)
 
 
 class XLearner(BaseEstLearner):
@@ -338,7 +412,14 @@ class XLearner(BaseEstLearner):
                       condition_set, condition, individual)
     """
 
-    def __init__(self, **kwargs):
+    def __init__(
+        self,
+        model,
+        random_state=2022,
+        categories='auto',
+        *args,
+        **kwargs
+    ):
         """
         Parameters
         ----------
@@ -347,76 +428,144 @@ class XLearner(BaseEstLearner):
             for our TLearner. If not str, then ml_model should be some valid
             machine learning model wrapped by the class MLModels.
         """
-        super().__init__()
-        model = kwargs['ml_model']
+        self.ft_model = clone(model)
+        self.f0_model = clone(model)
+        self.kt_model = clone(model)
+        self.k0_model = clone(model)
+        self._is_fitted = False
 
-        if type(model) is str:
-            model = self.ml_model_dic[model]
+        super().__init__(
+            random_state=random_state,
+            categories=categories,
+            *args,
+            **kwargs
+        )
 
-        self.f1 = model
-        self.f0 = deepcopy(model)
-        self.k1 = deepcopy(model)
-        self.k0 = deepcopy(model)
+    def fit(
+        self,
+        data,
+        outcome,
+        treatment,
+        adjustment=None,
+        covariate=None,
+        treat=None,
+        control=None,
+        *args,
+        **kwargs,
+    ):
+        assert adjustment is not None or covariate is not None, \
+            'Need adjustment set or covariates to perform estimation.'
 
-    def _prepare4est(self, data, outcome, treatment, adjustment, individual=None):
-        r"""Prepare (fit the model) for estimating the quantities
-            ATE: E[y|do(x_1)] - E[y|do(x_0)] = E_w[E[y|x=x_1,w] - E[y|x=x_0, w]
-                                           := E_{adjustment}[
-                                               Delta E[outcome|treatment,
-                                                                adjustment]]
-            CATE: E[y|do(x_1), z] - E[y|do(x_0), z] = E_w[E[y|x=x_1, w, z] -
-                                                        E[y|x=x_0, w, z]]
-            ITE: y_i(do(x_1)) - y_i(do(x_0))
-            CITE: y_i(do(x_1))|z_i - y_i(do(x_0))|z_i
+        self.n = len(data)
+        self.outcome = outcome
+        self.treatment = treatment
+        self.adjustment = adjustment
+        self.covariate = covariate
 
-        Parameters
-        ----------
-        data : DataFrame
-        outcome : string
-            Name of the outcome.
-        treatment : string
-            Name of the treatment.
-        adjustment : set or list
-            The adjutment set for the causal effect,
-            i.e., P(outcome|do(treatment)) =
-                \sum_{adjustment} P(outcome|treatment, adjustment)P(adjustment)
-        individual : DataFrame, default to None
-            The individual data for computing its causal effect.
-        """
-        # step 1
-        data_without_treatment = data.drop([treatment], axis=1)
-        x1_data = data_without_treatment.loc[data[treatment] > 0]
-        x0_data = data_without_treatment.loc[data[treatment] <= 0]
-        self.f1.fit(x1_data[adjustment], x1_data[outcome])
-        self.f0.fit(x0_data[adjustment], x0_data[outcome])
+        y, x, w, v = convert2array(
+            data, outcome, treatment, adjustment, covariate
+        )
 
-        # setp 2
-        h1_data = x1_data.drop(outcome, axis=1)
-        h0_data = x0_data.drop(outcome, axis=1)
-        h1 = x1_data[outcome] - self.f0.predict(h1_data[adjustment])
-        h0 = self.f1.predict(h0_data[adjustment]) - x0_data[outcome]
-        self.k1.fit(h1_data[adjustment], h1)
-        self.k0.fit(h0_data[adjustment], h0)
-
-        # step 3
-        if individual:
-            data_ = individual[adjustment]
+        if self.categories == 'auto' or self.categories is None:
+            categories = 'auto'
         else:
-            data_ = data[adjustment]
-        # TODO: more choices of rho
-        rho = 0.5
-        result = rho * self.k1.predict(data_) + \
-            (1 - rho) * self.k0.predict(data_)
-        return result
+            categories = list(self.categories)
 
+        self.transformer = OrdinalEncoder(categories=categories)
+        self.transformer.fit(x)
+        x = self.transformer.transform(x).toarray()
 
-# class DragonNet(MetaLearner):
-#     """
-#     See Shi., et al., (https://arxiv.org/pdf/1906.02120.pdf) for reference.
+        group_categories = self.transformer.categories_
+        num_treatments = len(group_categories)
 
-#     Args:
-#         MetaLearner ([type]): [description]
-#     """
+        if treat is not None:
+            if not isinstance(treat, int):
+                assert len(treat) == num_treatments
+            treat = np.repeat(
+                np.array(list(treat)).reshape(1, -1), n, axis=0
+            )
+        else:
+            treat = np.ones((n, num_treatments))
 
-#     def __init__(self) -> None:
-#         super().__init__()
+        if control is not None:
+            if not isinstance(control, int):
+                assert len(control) == num_treatments
+            control = np.repeat(
+                np.array(list(control)).reshape(1, -1), n, axis=0
+            )
+        else:
+            control = np.zeros((n, num_treatments))
+
+        self.treat_index = treat[0]
+        self.control_index = control[0]
+
+        if w is None:
+            wv = v
+        else:
+            if v is not None:
+                wv = np.concatenate((w, v), axis=1)
+            else:
+                wv = w
+
+        # Step 1
+        # TODO: modify the generation of group ids for efficiency
+        wv_treat, y_treat = get_group_ids(treat, x, wv, y)
+        wv_control, y_control = get_group_ids(control, x, wv, y)
+        self.ft_model.fit(wv_treat, y_treat, *args, **kwargs)
+        self.f0_model.fit(wv_control, y_control, *args, **kwargs)
+
+        # Step 2
+        h_treat_target = y_treat - self.f0_model.predict(wv_treat)
+        h_control_target = self.ft_model.predict(wv_control) - y_control
+        self.kt_model.fit(wv_treat, h_treat_target)
+        self.k0_model.fit(wv_control, h_control_target)
+
+        # Step 3
+        # See _prepare4est
+        self._wv_treat = wv_treat
+        self._wv_control = wv_control
+
+        self._is_fitted = True
+
+    def _prepare4est(self, data=None, *args, **kwargs):
+        if not self._is_fitted:
+            raise Exception('The estimator has not been fitted yet.')
+
+        if data is None:
+            wv_treat = self._wv_treat
+            wv_control = self._wv_control
+        else:
+            n = self.n
+            x, w, v = convert2array(
+                data, self.treatment, self.adjustment, self.covariate
+            )
+
+            if w is None:
+                wv = v
+            else:
+                if v is not None:
+                    wv = np.concatenate((w, v), axis=1)
+                else:
+                    wv = w
+
+            treat = np.repeat(self.treat_index, n, axis=0)
+            control = np.repeat(self.control_index, n, axis=0)
+            wv_treat = get_group_ids(treat, x, wv)
+            wv_control = get_group_ids(control, x, wv)
+
+        kt_pred = self.kt_model.predict(wv_treat)
+        k0_pred = self.x0_model.predict(wv_control)
+
+        return kt_pred, k0_pred
+
+    def estimate(
+        self,
+        data=None,
+        rho=0.5,
+        quantity='CATE',
+        *args,
+        **kwargs
+    ):
+        kt_pred, k0_pred = self._prepare4est(data, *args, **kwargs)
+        pred = rho * kt_pred + (1 - rho) * k0_pred
+        return np.mean(pred, axis=0)
