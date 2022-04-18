@@ -10,6 +10,9 @@ from sklearn.model_selection import KFold
 
 from .base_models import BaseEstLearner
 from .utils import convert2array, convert4onehot, nd_kron
+from ylearn.utils import logging
+
+logger = logging.get_logger(__name__)
 
 
 class DoubleML(BaseEstLearner):
@@ -253,6 +256,7 @@ class DML4CATE(BaseEstLearner):
         # step 3: calculate the differences
         x_diff = x - x_hat
         y_prime = y - y_hat
+        v = np.hstack([np.ones((v.shape[0], 1)), v])
         x_prime = nd_kron(x_diff, v)
 
         # step 4: fit the regression problem
@@ -269,6 +273,7 @@ class DML4CATE(BaseEstLearner):
         v = self.v if data is None else convert2array(data, self.covariate)[0]
         if self.covariate_transformer is not None and v is not None:
             v = self.covariate_transformer.transform(v)
+        v = np.hstack([np.ones((v.shape[0], 1)), v])
         n, v_d = v.shape[0], v.shape[1]
 
         # may need modification for multi-dim outcomes.
@@ -391,9 +396,12 @@ class DML4CATE(BaseEstLearner):
         else:
             x_folds, y_folds = None, None
 
+        logger.info(f'_fit_1st_stage: fitting x_model {type(x_model).__name__}')
         x_hat_dict = self._cross_fit(
             x_model, wv, target=x, folds=x_folds, is_ymodel=False, **kwargs
         )
+
+        logger.info(f'_fit_1st_stage: fitting y_model {type(y_model).__name__}')
         y_hat_dict = self._cross_fit(
             y_model, wv, target=y, folds=y_folds, is_ymodel=True, **kwargs
         )
@@ -405,4 +413,5 @@ class DML4CATE(BaseEstLearner):
         x_prime,
         y_prime,
     ):
+        logger.info(f'_fit_2nd_stage: fitting yx_model {type(self.yx_model).__name__}')
         yx_model.fit(x_prime, y_prime)
