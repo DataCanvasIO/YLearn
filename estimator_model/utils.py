@@ -11,13 +11,29 @@ from torch.utils.data import Dataset
 from sklearn.preprocessing import OneHotEncoder
 
 
+def get_treat_control(treat_ctrl, n, num_treatments, treat=False):
+    if treat_ctrl is not None:
+        if not isinstance(treat_ctrl, int):
+            assert len(treat_ctrl) == num_treatments
+        treat_ctrl = np.repeat(
+            np.array(list(treat_ctrl)).reshape(1, -1), n, axis=0
+        )
+    else:
+        if treat:
+            treat_ctrl = np.ones((n, num_treatments)).astype(int)
+        else:
+            treat_ctrl = np.zeros((n, num_treatments)).astype(int)
+
+    return treat_ctrl
+
+
 def get_group_ids(target, a, *arrays):
     arrays = list(arrays)
     label = np.all(a == target, axis=1)
 
     for i, array in enumerate(arrays):
         arrays[i] = array[np.where(label)].reshape(-1, array.shape[1])
-        
+
     return arrays
 
 

@@ -61,8 +61,8 @@ class CausalTree:
             Best nodes are defined as relative reduction in impurity.
             If None then unlimited number of leaf nodes.
         min_impurity_decrease : float, default to 0.0
-            A node will be split if this split induces a decrease of the impurity
-            greater than or equal to this value.
+            A node will be split if this split induces a decrease of the
+            impurity greater than or equal to this value.
         ccp_alpha : non-negative float, default to 0.0
             Value for pruning the tree. #TODO: not implemented yet.
 
