@@ -253,6 +253,7 @@ class DML4CATE(BaseEstLearner):
         # step 3: calculate the differences
         x_diff = x - x_hat
         y_prime = y - y_hat
+        v = np.hstack([np.ones((v.shape[0], 1)), v])
         x_prime = nd_kron(x_diff, v)
 
         # step 4: fit the regression problem
@@ -269,6 +270,7 @@ class DML4CATE(BaseEstLearner):
         v = self.v if data is None else convert2array(data, self.covariate)[0]
         if self.covariate_transformer is not None and v is not None:
             v = self.covariate_transformer.transform(v)
+        v = np.hstack([np.ones((v.shape[0], 1)), v])
         n, v_d = v.shape[0], v.shape[1]
 
         # may need modification for multi-dim outcomes.
