@@ -1,15 +1,12 @@
-
-from ast import arg
-from re import S
-import re
 import numpy as np
 
 from sklearn import clone
 from sklearn.preprocessing import OrdinalEncoder
+from collections import defaultdict
 
 from .base_models import BaseEstLearner
-from estimator_model.utils import (convert2array, get_group_ids,
-                                   get_treat_control)
+from estimator_model.utils import (convert2array, get_groups,
+                                   get_treat_control, get_wv, cartesian)
 
 
 class SLearner(BaseEstLearner):
@@ -90,7 +87,6 @@ class SLearner(BaseEstLearner):
         assert adjustment is not None or covariate is not None, \
             'Need adjustment set or covariates to perform estimation.'
 
-        n = len(data)
         self.outcome = outcome
         self.treatment = treatment
         self.adjustment = adjustment
@@ -117,19 +113,12 @@ class SLearner(BaseEstLearner):
         group_categories = self.transformer.categories_
         num_treatments = len(group_categories)
 
-        treat = get_treat_control(treat, n, num_treatments, True)
-        control = get_treat_control(control, n, num_treatments, False)
-        self.treat_index = treat[0]
-        self.control_index = control[0]
+        treat = get_treat_control(treat, num_treatments, True)
+        control = get_treat_control(control, num_treatments, False)
+        self.treat = treat
+        self.control = control
 
-        if w is None:
-            wv = v
-        else:
-            if v is not None:
-                wv = np.concatenate((w, v), axis=1)
-            else:
-                wv = w
-
+        wv = get_wv(w, v)
         self._wv = wv
         x = np.concatenate((wv, x), axis=1)
 
@@ -152,17 +141,11 @@ class SLearner(BaseEstLearner):
             w, v = convert2array(
                 data, self.adjustment, self.covariate
             )
-            if w is None:
-                wv = v
-            else:
-                if v is not None:
-                    wv = np.concatenate((w, v), axis=1)
-                else:
-                    wv = w
+            wv = get_wv(w, v)
 
         n = wv.shape[0]
-        xt = np.repeat(self.treat_index, n, axis=0)
-        x0 = np.repeat(self.control_index, n, axis=0)
+        xt = np.repeat(self.treat, n, axis=0)
+        x0 = np.repeat(self.control, n, axis=0)
         if len(xt.shape) == 1:
             xt = xt.reshape(-1, 1)
             x0 = x0.reshape(-1, 1)
@@ -271,7 +254,6 @@ class TLearner(BaseEstLearner):
         assert adjustment is not None or covariate is not None, \
             'Need adjustment set or covariates to perform estimation.'
 
-        self._n = len(data)
         self.outcome = outcome
         self.treatment = treatment
         self.adjustment = adjustment
@@ -281,6 +263,7 @@ class TLearner(BaseEstLearner):
         y, x, w, v = convert2array(
             data, outcome, treatment, adjustment, covariate
         )
+        self._y_d = y.shape[1]
 
         if self.categories == 'auto' or self.categories is None:
             categories = 'auto'
@@ -292,23 +275,17 @@ class TLearner(BaseEstLearner):
         x = self.transformer.transform(x)
 
         group_categories = self.transformer.categories_
-        num_treatments = len(group_categories)
+        wv = get_wv(w, v)
 
-        if w is None:
-            wv = v
-        else:
-            if v is not None:
-                wv = np.concatenate((w, v), axis=1)
-            else:
-                wv = w
-
-        self._wv = wv
         if combined_treatment:
+            num_treatments = len(group_categories)
             return self._fit_combined_treat(
                 x, wv, y, treat, control, num_treatments, *args, **kwargs
             )
         else:
-            return self._fit_separate_treat()
+            return self._fit_separate_treat(
+                x, wv, y, group_categories, *args, **kwargs
+            )
 
     def estimate(
         self,
@@ -317,58 +294,45 @@ class TLearner(BaseEstLearner):
         *args,
         **kwargs
     ):
-        yt, y0 = self._prepare4est(data, *args, **kwargs)
+        effect = self._prepare4est(data, *args, **kwargs)
         if quantity == 'CATE' or quantity == 'ATE':
-            return np.mean(yt-y0, axis=0)
+            return np.mean(effect, axis=0)
         else:
-            return yt - y0
+            return effect
 
-    def _prepare4est(self, data=None, *args, **kwargs):
+    def _prepare4est(self, data=None):
         if not self._is_fitted:
             raise Exception('The estimator has not been fitted yet.')
 
         if data is None:
             wv = self._wv
         else:
-            w, v = convert2array(
-                data, self.adjustment, self.covariate
-            )
-            if w is None:
-                wv = v
-            else:
-                if v is not None:
-                    wv = np.concatenate((w, v), axis=1)
-                else:
-                    wv = w
+            w, v = convert2array(data, self.adjustment, self.covariate)
+            wv = get_wv(w, v)
 
-        if wv.shape[1] == 1:
-            wv = wv.ravel()
-
-        yt = self.xt_model.predict(wv)
-        y0 = self.x0_model.predict(wv)
-
-        return yt, y0
+        if self.combined_treat:
+            return self._prepare_combined_treat(wv)
+        else:
+            return self._prepare_separate_treat(wv)
 
     def _fit_combined_treat(
         self,
-        x, wv, y, n,
+        x, wv, y,
         treat,
         control,
         num_treatments,
         *args,
         **kwargs
     ):
-        treat = get_treat_control(treat, n, num_treatments, True)
-        control = get_treat_control(control, n, num_treatments, False)
-        self.treat_index = treat[0]
-        self.control_index = control[0]
+        treat = get_treat_control(treat, num_treatments, True)
+        control = get_treat_control(control, num_treatments, False)
+        self.treat = treat
+        self.control = control
+        self._wv = wv
 
-        wv_treat, y_treat = get_group_ids(treat, x, wv, y)
-        wv_control, y_control = get_group_ids(control, x, wv, y)
+        wv_treat, y_treat = get_groups(treat, x, wv, y)
+        wv_control, y_control = get_groups(control, x, wv, y)
 
-        if wv_treat.shape[1] == 1:
-            wv_treat = wv_treat.ravel()
-            wv_control = wv_control.ravel()
         if y_treat.shape[1] == 1:
             y_treat = y_treat.ravel()
             y_control = y_control.ravel()
@@ -380,14 +344,48 @@ class TLearner(BaseEstLearner):
 
         return self
 
-    def _fit_separate_treat(self):
-        pass
+    def _fit_separate_treat(
+        self,
+        x, wv, y,
+        group_categories,
+        *args,
+        **kwargs
+    ):
+        # TODO: the current implementation is astoundingly stupid
+        self._fitted_dict_separa = defaultdict(list)
+        waited_treat = (np.arange(len(i)) for i in group_categories)
+        treat_arrays = cartesian(waited_treat)
 
-    def _prepare_combined_treat(self):
-        pass
+        for treat in treat_arrays:
+            model = clone(self.xt_model)
+            _wv, _y = get_groups(treat, x, wv, y)
 
-    def _prepare_combined_control(self):
-        pass
+            if _y.shape[1] == 1:
+                _y = _y.ravel()
+
+            model.fit(_wv, _y, *args, **kwargs)
+            self._fitted_dict_separa['treatment'].append(treat)
+            self._fitted_dict_separa['models'].append(model)
+
+        self._is_fitted = True
+
+        return self
+
+    def _prepare_combined_treat(self, wv):
+        yt = self.xt_model.predict(wv)
+        y0 = self.x0_model.predict(wv)
+        return yt - y0
+
+    def _prepare_separate_treat(self, wv):
+        num_treatments = len(self._fitted_dict_separa['treatment'])
+        n = wv.shape[0]
+        f_nji = np.full((n, self._y_d, num_treatments - 1), np.NaN)
+        f_nj0 = self._fitted_dict_separa['models'][0].predict(wv)
+
+        for i, model in enumerate(self._fitted_dict_separa['models'][1:]):
+            f_nji[:, :, i] = model.predict(wv) - f_nj0
+
+        return f_nji
 
 
 class XLearner(BaseEstLearner):
@@ -482,7 +480,6 @@ class XLearner(BaseEstLearner):
         assert adjustment is not None or covariate is not None, \
             'Need adjustment set or covariates to perform estimation.'
 
-        self._n = len(data)
         self.outcome = outcome
         self.treatment = treatment
         self.adjustment = adjustment
@@ -504,37 +501,32 @@ class XLearner(BaseEstLearner):
 
         group_categories = self.transformer.categories_
         num_treatments = len(group_categories)
-
-        if w is None:
-            wv = v
-        else:
-            if v is not None:
-                wv = np.concatenate((w, v), axis=1)
-            else:
-                wv = w
+        wv = get_wv(w, v)
+        self._wv = wv
 
         if combined_treatment:
-            n = self._n
             return self._fit_combined_treat(
-                x, wv, y, n, treat, control, num_treatments, *args, **kwargs
+                x, wv, y, treat, control, num_treatments, *args, **kwargs
             )
         else:
             return self._fit_separate_treat()
 
-    def _prepare4est(self, data=None, *args, **kwargs):
+    def _prepare4est(self, data=None, rho=0.5, *args, **kwargs):
         if not self._is_fitted:
             raise Exception('The estimator has not been fitted yet.')
 
-        if self.combined_treat:
-            kt_pred, k0_pred = self._prepare_combined_treat(
-                data, *args, **kwargs
-            )
+        if data is None:
+            wv = self._wv
         else:
-            kt_pred, k0_pred = self._prepare_separate_treat(
-                data, *args, **kwargs
-            )
+            w, v = convert2array(data, self.adjustment, self.covariate)
+            wv = get_wv(w, v)
 
-        return kt_pred, k0_pred
+        if self.combined_treat:
+            effect = self._prepare_combined_treat(wv, rho)
+        else:
+            effect = self._prepare_separate_treat(wv, rho)
+
+        return effect
 
     def estimate(
         self,
@@ -544,35 +536,33 @@ class XLearner(BaseEstLearner):
         *args,
         **kwargs
     ):
-        kt_pred, k0_pred = self._prepare4est(data, *args, **kwargs)
-        pred = rho * kt_pred + (1 - rho) * k0_pred
+        # TODO: add support for other types of rho
+        effect = self._prepare4est(data, rho, *args, **kwargs)
+
         if quantity == 'CATE' or quantity == 'ATE':
-            return np.mean(pred, axis=0)
+            return np.mean(effect, axis=0)
         else:
-            return pred
+            return effect
 
     def _fit_combined_treat(
         self,
-        x, wv, y, n,
+        x, wv, y,
         treat,
         control,
         num_treatments,
         *args,
         **kwargs
     ):
-        treat = get_treat_control(treat, n, num_treatments, True)
-        control = get_treat_control(control, n, num_treatments, False)
-        self.treat_index = treat[0]
-        self.control_index = control[0]
+        treat = get_treat_control(treat, num_treatments, True)
+        control = get_treat_control(control, num_treatments, False)
+        self.treat = treat
+        self.control = control
 
         # Step 1
         # TODO: modify the generation of group ids for efficiency
-        wv_treat, y_treat = get_group_ids(treat, x, wv, y)
-        wv_control, y_control = get_group_ids(control, x, wv, y)
+        wv_treat, y_treat = get_groups(treat, x, wv, y)
+        wv_control, y_control = get_groups(control, x, wv, y)
 
-        if wv_treat.shape[1] == 1:
-            wv_treat = wv_treat.ravel()
-            wv_control = wv_control.ravel()
         if y_treat.shape[1] == 1:
             y_treat = y_treat.ravel()
             y_control = y_control.ravel()
@@ -587,47 +577,70 @@ class XLearner(BaseEstLearner):
         self.k0_model.fit(wv_control, h_control_target)
 
         # Step 3
-        # See _prepare4est
-        self._wv_treat = wv_treat
-        self._wv_control = wv_control
+        # This is the task of predict. See _prepare4est
 
         self._is_fitted = True
 
         return self
 
-    def _fit_separate_treat(self):
-        pass
+    def _fit_separate_treat(
+        self,
+        x, wv, y,
+        group_categories,
+        *args,
+        **kwargs
+    ):
+        self._fitted_dict_separa = defaultdict(list)
+        waited_treat = (np.arange(len(i)) for i in group_categories)
+        treat_arrays = cartesian(waited_treat)
 
-    def _prepare_combined_treat(self, data, *args, **kwargs):
-        if data is None:
-            wv_treat = self._wv_treat
-            wv_control = self._wv_control
-        else:
-            n = self.n
-            x, w, v = convert2array(
-                data, self.treatment, self.adjustment, self.covariate
-            )
+        f0_model = clone(self.f0_model)
+        _wv_control, _y_control = get_groups(treat_arrays[0], x, wv, y)
+        if _y_control.shape[1] == 1:
+            _y_control = _y_control.ravel()
+        f0_model.fit(_wv_control, _y_control)
 
-            if w is None:
-                wv = v
-            else:
-                if v is not None:
-                    wv = np.concatenate((w, v), axis=1)
-                else:
-                    wv = w
+        for treat in treat_arrays[1:]:
+            ft_model = clone(self.ft_model)
+            _wv, _y = get_groups(treat, x, wv, y)
 
-            treat = np.repeat(self.treat_index, n, axis=0)
-            control = np.repeat(self.control_index, n, axis=0)
-            wv_treat = get_group_ids(treat, x, wv)
-            wv_control = get_group_ids(control, x, wv)
-            if wv_treat.shape[1] == 1:
-                wv_treat = wv_treat.ravel()
-                wv_control = wv_control.ravel()
+            if _y.shape[1] == 1:
+                _y = _y.ravel()
 
-        kt_pred = self.kt_model.predict(wv_treat)
-        k0_pred = self.k0_model.predict(wv_control)
+            # Step 1
+            ft_model.fit(_wv, _y, *args, **kwargs)
+
+            # Step 2
+            h_treat_target = _y - f0_model.predict(_wv)
+            h_control_target = ft_model.predict(_wv_control) - _y_control
+            kt_model = clone(self.kt_model)
+            k0_model = clone(self.k0_model)
+            kt_model.fit(_wv, h_treat_target)
+            k0_model.fit(_wv_control, h_control_target)
+
+            # Step 3
+            self._fitted_dict_separa['models'].append((kt_model, k0_model))
+            self._fitted_dict_separa['treatment'].append(treat)
+
+        self._is_fitted = True
+
+        return self
+
+    def _prepare_combined_treat(self, wv, rho):
+        kt_pred = self.kt_model.predict(wv)
+        k0_pred = self.k0_model.predict(wv)
 
         return kt_pred, k0_pred
 
-    def _prepare_separate_treat(self, data, *args, **kwargs):
-        pass
+    def _prepare_separate_treat(self, wv, rho):
+        model_list = self._fitted_dict_separa['models']
+        num_treatments = len(self._fitted_dict_separa['treatment'])
+        n = wv.shape[0]
+        f_nji = np.full((n, self._y_d, num_treatments - 1), np.NaN)
+
+        for i, (kt_model, k0_model) in enumerate(model_list):
+            pred_t = kt_model.predict(wv)
+            pred_0 = k0_model.predict(wv)
+            f_nji[:, :, i] = rho * pred_t + (1 - rho) * pred_0
+
+        return f_nji

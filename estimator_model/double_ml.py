@@ -396,12 +396,14 @@ class DML4CATE(BaseEstLearner):
         else:
             x_folds, y_folds = None, None
 
-        logger.info(f'_fit_1st_stage: fitting x_model {type(x_model).__name__}')
+        logger.info(
+            f'_fit_1st_stage: fitting x_model {type(x_model).__name__}')
         x_hat_dict = self._cross_fit(
             x_model, wv, target=x, folds=x_folds, is_ymodel=False, **kwargs
         )
 
-        logger.info(f'_fit_1st_stage: fitting y_model {type(y_model).__name__}')
+        logger.info(
+            f'_fit_1st_stage: fitting y_model {type(y_model).__name__}')
         y_hat_dict = self._cross_fit(
             y_model, wv, target=y, folds=y_folds, is_ymodel=True, **kwargs
         )
@@ -413,5 +415,6 @@ class DML4CATE(BaseEstLearner):
         x_prime,
         y_prime,
     ):
-        logger.info(f'_fit_2nd_stage: fitting yx_model {type(self.yx_model).__name__}')
+        logger.info(
+            f'_fit_2nd_stage: fitting yx_model {type(self.yx_model).__name__}')
         yx_model.fit(x_prime, y_prime)

@@ -11,42 +11,58 @@ from torch.utils.data import Dataset
 from sklearn.preprocessing import OneHotEncoder
 
 
-def get_treat_control(treat_ctrl, n, num_treatments, treat=False):
+def cartesian(arrays):
+    n = len(arrays)
+    cart_prod = np.array(np.meshgrid(*arrays)).T.reshape(-1, n)
+    return cart_prod
+
+
+def get_wv(w, v):
+    if w is None:
+        wv = v
+    else:
+        if v is not None:
+            wv = np.concatenate((w, v), axis=1)
+        else:
+            wv = w
+
+    return wv
+
+
+def get_treat_control(treat_ctrl, num_treatments, treat=False):
     if treat_ctrl is not None:
         if not isinstance(treat_ctrl, int):
             assert len(treat_ctrl) == num_treatments
-        treat_ctrl = np.repeat(
-            np.array(list(treat_ctrl)).reshape(1, -1), n, axis=0
-        )
+        treat_ctrl = np.array(list(treat_ctrl))
     else:
         if treat:
-            treat_ctrl = np.ones((n, num_treatments)).astype(int)
+            treat_ctrl = np.ones((num_treatments, )).astype(int)
         else:
-            treat_ctrl = np.zeros((n, num_treatments)).astype(int)
+            treat_ctrl = np.zeros((num_treatments, )).astype(int)
 
     return treat_ctrl
 
 
-def get_group_ids(target, a, *arrays):
+def get_groups(target, a, *arrays):
     arrays = list(arrays)
     label = np.all(a == target, axis=1)
 
     for i, array in enumerate(arrays):
-        arrays[i] = array[np.where(label)].reshape(-1, array.shape[1])
+        arrays[i] = array[label]
 
     return arrays
 
 
 def shapes(*tensors, all_dim=False):
-    shapes = [None for i in range(len(tensors))]
+    shapes = []
     if all_dim:
-        for i, tensor in enumerate(tensors):
+        for tensor in tensors:
             if tensor is not None:
-                shapes[i] = tensor.shape
+                shapes.append(tensor.shape)
     else:
-        for i, tensor in enumerate(tensors):
+        for tensor in tensors:
             if tensor is not None:
-                shapes[i] = tensor.shape[1]
+                shapes.append(tensor.shape[1])
 
     return shapes
 
