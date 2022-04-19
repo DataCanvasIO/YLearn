@@ -1,7 +1,7 @@
 import numpy as np
 
 from sklearn import clone
-from sklearn.preprocessing import OrdinalEncoder
+from sklearn.preprocessing import OrdinalEncoder, OneHotEncoder
 from collections import defaultdict
 
 from .base_models import BaseEstLearner
@@ -97,39 +97,24 @@ class SLearner(BaseEstLearner):
             data, outcome, treatment, adjustment, covariate
         )
 
-        self.y_d = y.shape[1]
-
+        self._y_d = y.shape[1]
         if self.categories == 'auto' or self.categories is None:
             categories = 'auto'
         else:
             categories = list(self.categories)
 
         # self.transformer = OneHotEncoder(categories=categories)
-        self.transformer = OrdinalEncoder(categories=categories)
-        self.transformer.fit(x)
-        x = self.transformer.transform(x)
-
-        # For multiple treatments: divide the data into several groups
-        group_categories = self.transformer.categories_
-        num_treatments = len(group_categories)
-
-        treat = get_treat_control(treat, num_treatments, True)
-        control = get_treat_control(control, num_treatments, False)
-        self.treat = treat
-        self.control = control
-
         wv = get_wv(w, v)
         self._wv = wv
-        x = np.concatenate((wv, x), axis=1)
 
-        if y.shape[1] == 1:
-            y = y.ravel()
-
-        self.model.fit(x, y, *args, **kwargs)
-
-        self._is_fitted = True
-
-        return self
+        if combined_treatment:
+            return self._fit_combined_treat(
+                x, wv, y, treat, control, categories, *args, **kwargs
+            )
+        else:
+            return self._fit_separate_treat(
+                x, wv, y, categories, *args, **kwargs
+            )
 
     def _prepare4est(self, data=None, *args, **kwargs):
         if not self._is_fitted:
@@ -143,6 +128,76 @@ class SLearner(BaseEstLearner):
             )
             wv = get_wv(w, v)
 
+        if self.combined_treat:
+            return self._prepare_combined_treat(wv)
+        else:
+            return self._prepare_separate_treat(wv)
+
+    def estimate(
+        self,
+        data=None,
+        quantity=None,
+        *args,
+        **kwargs
+    ):
+        effect = self._prepare4est(data, *args, **kwargs)
+        if quantity == 'CATE' or quantity == 'ATE':
+            return np.mean(effect, axis=0)
+        else:
+            return effect
+
+    def _fit_combined_treat(
+        self,
+        x, wv, y,
+        treat,
+        control,
+        categories,
+        *args,
+        **kwargs
+    ):
+        self.transformer = OrdinalEncoder(categories=categories)
+        self.transformer.fit(x)
+        x = self.transformer.transform(x)
+
+        # For multiple treatments: divide the data into several groups
+        group_categories = self.transformer.categories_
+        num_treatments = len(group_categories)
+
+        treat = get_treat_control(treat, num_treatments, True)
+        control = get_treat_control(control, num_treatments, False)
+        self.treat = treat
+        self.control = control
+
+        x = np.concatenate((wv, x), axis=1)
+        y = y.squeeze()
+
+        self.model.fit(x, y, *args, **kwargs)
+
+        self._is_fitted = True
+
+        return self
+
+    def _fit_separate_treat(
+        self,
+        x, wv, y,
+        categories,
+        *args,
+        **kwargs
+    ):
+        self.transformer = OneHotEncoder(categories=categories)
+        self.transformer.fit(x)
+        x = self.transformer.transform(x).toarray()
+        self._x_d = x.shape[1]
+        x = np.concatenate((wv, x), axis=1)
+        y = y.squeeze()
+
+        self.model.fit(x, y, *args, **kwargs)
+
+        self._is_fitted = True
+
+        return self
+
+    def _prepare_combined_treat(self, wv):
         n = wv.shape[0]
         xt = np.repeat(self.treat, n, axis=0)
         x0 = np.repeat(self.control, n, axis=0)
@@ -154,21 +209,27 @@ class SLearner(BaseEstLearner):
 
         yt = self.model.predict(xt)
         y0 = self.model.predict(x0)
+        return yt - y0
 
-        return yt, y0
+    def _prepare_separate_treat(self, wv):
+        n = wv.shape[0]
+        x_control = np.zeros((1, self._x_d))
+        x_control[:, 0] = 1
+        x_control = np.repeat(x_control, n, axis=0).astype(int)
+        x_control = np.concatenate((wv, x_control), axis=1)
 
-    def estimate(
-        self,
-        data=None,
-        quantity=None,
-        *args,
-        **kwargs
-    ):
-        yt, y0 = self._prepare4est(data, *args, **kwargs)
-        if quantity == 'CATE' or quantity == 'ATE':
-            return np.mean(yt - y0, axis=0)
-        else:
-            return yt - y0
+        f_nji = np.full((n, self._y_d, self._x_d - 1), np.NaN)
+        f_nj0 = self.model.predict(x_control)
+
+        for i in range(self._x_d - 1):
+            x_treat = np.zeros((1, self._x_d))
+            x_treat[:, i+1] = 1
+            x_treat = np.repeat(x_treat, n, axis=0).astype(int)
+            x_treat = np.concatenate((wv, x_treat), axis=1)
+            fnji = (self.model.predict(x_treat) - f_nj0).reshape(n, self._y_d)
+            f_nji[:, :, i] = fnji
+
+        return f_nji.squeeze()
 
 
 class TLearner(BaseEstLearner):
@@ -333,9 +394,8 @@ class TLearner(BaseEstLearner):
         wv_treat, y_treat = get_groups(treat, x, wv, y)
         wv_control, y_control = get_groups(control, x, wv, y)
 
-        if y_treat.shape[1] == 1:
-            y_treat = y_treat.ravel()
-            y_control = y_control.ravel()
+        y_treat = y_treat.squeeze()
+        y_control = y_control.squeeze()
 
         self.xt_model.fit(wv_treat, y_treat, *args, **kwargs)
         self.x0_model.fit(wv_control, y_control, *args, **kwargs)
@@ -353,15 +413,13 @@ class TLearner(BaseEstLearner):
     ):
         # TODO: the current implementation is astoundingly stupid
         self._fitted_dict_separa = defaultdict(list)
-        waited_treat = (np.arange(len(i)) for i in group_categories)
+        waited_treat = [np.arange(len(i)) for i in group_categories]
         treat_arrays = cartesian(waited_treat)
 
         for treat in treat_arrays:
             model = clone(self.xt_model)
             _wv, _y = get_groups(treat, x, wv, y)
-
-            if _y.shape[1] == 1:
-                _y = _y.ravel()
+            _y = _y.squeeze()
 
             model.fit(_wv, _y, *args, **kwargs)
             self._fitted_dict_separa['treatment'].append(treat)
@@ -383,9 +441,10 @@ class TLearner(BaseEstLearner):
         f_nj0 = self._fitted_dict_separa['models'][0].predict(wv)
 
         for i, model in enumerate(self._fitted_dict_separa['models'][1:]):
-            f_nji[:, :, i] = model.predict(wv) - f_nj0
+            fnji = (model.predict(wv) - f_nj0).reshape(n, self._y_d)
+            f_nji[:, :, i] = fnji
 
-        return f_nji
+        return f_nji.squeeze()
 
 
 class XLearner(BaseEstLearner):
@@ -489,6 +548,7 @@ class XLearner(BaseEstLearner):
         y, x, w, v = convert2array(
             data, outcome, treatment, adjustment, covariate
         )
+        self._y_d = y.shape[1]
 
         if self.categories == 'auto' or self.categories is None:
             categories = 'auto'
@@ -497,7 +557,7 @@ class XLearner(BaseEstLearner):
 
         self.transformer = OrdinalEncoder(categories=categories)
         self.transformer.fit(x)
-        x = self.transformer.transform(x).toarray()
+        x = self.transformer.transform(x)
 
         group_categories = self.transformer.categories_
         num_treatments = len(group_categories)
@@ -509,7 +569,9 @@ class XLearner(BaseEstLearner):
                 x, wv, y, treat, control, num_treatments, *args, **kwargs
             )
         else:
-            return self._fit_separate_treat()
+            return self._fit_separate_treat(
+                x, wv, y, group_categories, *args, **kwargs
+            )
 
     def _prepare4est(self, data=None, rho=0.5, *args, **kwargs):
         if not self._is_fitted:
@@ -563,9 +625,8 @@ class XLearner(BaseEstLearner):
         wv_treat, y_treat = get_groups(treat, x, wv, y)
         wv_control, y_control = get_groups(control, x, wv, y)
 
-        if y_treat.shape[1] == 1:
-            y_treat = y_treat.ravel()
-            y_control = y_control.ravel()
+        y_treat = y_treat.squeeze()
+        y_control = y_control.squeeze()
 
         self.ft_model.fit(wv_treat, y_treat, *args, **kwargs)
         self.f0_model.fit(wv_control, y_control, *args, **kwargs)
@@ -591,21 +652,18 @@ class XLearner(BaseEstLearner):
         **kwargs
     ):
         self._fitted_dict_separa = defaultdict(list)
-        waited_treat = (np.arange(len(i)) for i in group_categories)
+        waited_treat = [np.arange(len(i)) for i in group_categories]
         treat_arrays = cartesian(waited_treat)
 
         f0_model = clone(self.f0_model)
         _wv_control, _y_control = get_groups(treat_arrays[0], x, wv, y)
-        if _y_control.shape[1] == 1:
-            _y_control = _y_control.ravel()
+        _y_control = _y_control.squeeze()
         f0_model.fit(_wv_control, _y_control)
 
         for treat in treat_arrays[1:]:
             ft_model = clone(self.ft_model)
             _wv, _y = get_groups(treat, x, wv, y)
-
-            if _y.shape[1] == 1:
-                _y = _y.ravel()
+            _y = _y.squeeze()
 
             # Step 1
             ft_model.fit(_wv, _y, *args, **kwargs)
@@ -630,17 +688,18 @@ class XLearner(BaseEstLearner):
         kt_pred = self.kt_model.predict(wv)
         k0_pred = self.k0_model.predict(wv)
 
-        return kt_pred, k0_pred
+        return rho * kt_pred + (1 - rho) * k0_pred
 
     def _prepare_separate_treat(self, wv, rho):
         model_list = self._fitted_dict_separa['models']
         num_treatments = len(self._fitted_dict_separa['treatment'])
         n = wv.shape[0]
-        f_nji = np.full((n, self._y_d, num_treatments - 1), np.NaN)
+        f_nji = np.full((n, self._y_d, num_treatments), np.NaN)
 
         for i, (kt_model, k0_model) in enumerate(model_list):
             pred_t = kt_model.predict(wv)
             pred_0 = k0_model.predict(wv)
-            f_nji[:, :, i] = rho * pred_t + (1 - rho) * pred_0
+            fnji = (rho * pred_t + (1 - rho) * pred_0).reshape(n, self._y_d)
+            f_nji[:, :, i] = fnji
 
-        return f_nji
+        return f_nji.squeeze()

@@ -205,7 +205,6 @@ class DML4CATE(BaseEstLearner):
         self.v = v
         self.y_d = y.shape[1]
         cfold = self.cf_fold
-        n = len(data)
 
         if self.adjustment_transformer is not None and w is not None:
             w = self.adjustment_transformer.fit_transform(w)
