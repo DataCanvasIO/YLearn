@@ -72,7 +72,7 @@ class DoublyRobust(BaseEstLearner):
     ):
         self.cf_fold = cf_fold
         self.x_model = clone(x_model)
-        self.y_model = self._gen_y_model(y_model)
+        self.y_model = clone(y_model)
         self.yx_model = clone(yx_model)
 
         self.x_hat_dict = defaultdict(list)
@@ -119,8 +119,8 @@ class DoublyRobust(BaseEstLearner):
         x = self.transformer.transform(x).toarray()
         self._x_d = x.shape[1]
         self._y_d = y.shape[1]
-
         wv = get_wv(w, v)
+        y_model = self._gen_y_model(self.y_model)
 
         # step 1
         if cfold > 1:
@@ -133,18 +133,21 @@ class DoublyRobust(BaseEstLearner):
 
         # step 2: cross fit to give the estimated y and x
         self.x_hat_dict, self.y_hat_dict = self._fit_1st_stage(
-            self.x_model, self.y_model, y, x, wv, folds=folds
+            self.x_model, y_model, y, x, wv, folds=folds
         )
         x_hat = self.x_hat_dict['paras'][0].reshape((x.shape))
         y_hat = self.y_hat_dict['paras'][0]  # y_hat has shape (n, j, i)
 
         # step 3
         # calculate the estimated y
-        y_prime = np.full((n, self._y_d, self._x_d))
+        y_prime = np.full((n, self._y_d, self._x_d), np.NaN)
 
         for i in range(self._x_d):
             y_nji = y_hat[:, :, i]
-            y_nji += (y - y_nji) / x_hat[:, i] * (x[:, i] == 1)
+            x_hat_i = x_hat[:, i].reshape(-1, 1)
+            # print(np.mean(x[:, i] - x_hat[:, i], axis=0))
+            y_nji += ((y - y_nji) * (x[:, i] ==
+                      1).reshape(-1, 1)) / (x_hat_i + 1e-5)
             y_prime[:, :, i] = y_nji
 
         self._final_result = self._fit_2nd_stage(self.yx_model, v, y_prime)
@@ -188,7 +191,7 @@ class DoublyRobust(BaseEstLearner):
 
             for i in range(self._x_d):
                 model = self._final_result['models'][i]
-                y_pred_nji[:, :, i] = model.predict(v)
+                y_pred_nji[:, :, i] = model.predict(v).reshape(n, self._y_d)
 
         return y_pred_nji
 
@@ -256,28 +259,27 @@ class DoublyRobust(BaseEstLearner):
             else:
                 p_hat = model.predict(wv)
 
-            fitted_result['models'].append(clone(model))
+            fitted_result['models'].append(deepcopy(model))
             fitted_result['paras'].append(p_hat)
             idx = np.arange(start=0, stop=wv.shape[0])
             fitted_result['train_test_id'].append((idx, idx))
         else:
             for i, (train_id, test_id) in enumerate(folds):
-                model_ = clone(model)
+                model_ = deepcopy(model)
                 temp_wv = args[0][train_id]
                 temp_wv_test = args[0][test_id]
                 target_train = target[train_id]
                 model_.fit(temp_wv, target_train, **kwargs)
+                n, y_d, x_d = target.shape[0], self._y_d, self._x_d
 
                 if not is_ymodel:
                     target_predict = model_.predict_proba(temp_wv_test)
                     if i == 0:
-                        fitted_result['paras'].append(
-                            np.zeros_like(target) * np.nan
-                        )
+                        target_required = np.full((n, x_d), np.NaN)
+                        fitted_result['paras'].append(target_required)
                 else:
                     target_predict = model_.predict(temp_wv_test)
                     if i == 0:
-                        n, y_d, x_d = target.shape[0], self._y_d, self._x_d
                         target_required = np.full((n, y_d, x_d), np.NaN)
                         fitted_result['paras'].append(target_required)
 
