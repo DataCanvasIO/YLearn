@@ -9,7 +9,7 @@ from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import KFold
 
 from .base_models import BaseEstLearner
-from .utils import convert2array, convert4onehot, nd_kron
+from .utils import convert2array, convert4onehot, nd_kron, get_wv
 from ylearn.utils import logging
 
 logger = logging.get_logger(__name__)
@@ -202,8 +202,8 @@ class DML4CATE(BaseEstLearner):
         y, x, w, v = convert2array(
             data, outcome, treatment, adjustment, covariate
         )
-        self.v = v
-        self.y_d = y.shape[1]
+        self._v = v
+        self._y_d = y.shape[1]
         cfold = self.cf_fold
 
         if self.adjustment_transformer is not None and w is not None:
@@ -226,15 +226,8 @@ class DML4CATE(BaseEstLearner):
         else:
             self.transformer = None
 
-        self.x_d = x.shape[1]
-
-        if w is None:
-            wv = v
-        else:
-            if v is not None:
-                wv = np.concatenate((w, v), axis=1)
-            else:
-                wv = w
+        self._x_d = x.shape[1]
+        wv = get_wv(w, v)
 
         # step 1: split the data
         if cfold > 1:
@@ -268,8 +261,8 @@ class DML4CATE(BaseEstLearner):
             self.y_hat_dict['is_fitted'][0], 'x_model and y_model should be'
         'trained before estimation.'
 
-        x_d, y_d = self.x_d, self.y_d
-        v = self.v if data is None else convert2array(data, self.covariate)[0]
+        x_d, y_d = self._x_d, self._y_d
+        v = self._v if data is None else convert2array(data, self.covariate)[0]
         if self.covariate_transformer is not None and v is not None:
             v = self.covariate_transformer.transform(v)
         v = np.hstack([np.ones((v.shape[0], 1)), v])
@@ -385,9 +378,9 @@ class DML4CATE(BaseEstLearner):
         folds=None,
         **kwargs
     ):
-        if self.x_d == 1:
+        if self._x_d == 1:
             x = np.ravel(x)
-        if self.y_d == 1:
+        if self._y_d == 1:
             y = np.ravel(y)
 
         if folds is not None:

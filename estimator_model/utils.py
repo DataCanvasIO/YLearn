@@ -17,7 +17,7 @@ def cartesian(arrays):
     return cart_prod
 
 
-def get_wv(w, v):
+def _get_wv(w, v):
     if w is None:
         wv = v
     else:
@@ -27,6 +27,10 @@ def get_wv(w, v):
             wv = w
 
     return wv
+
+
+def get_wv(*wv):
+    return np.concatenate([w for w in wv if w is not None], axis=1)
 
 
 def get_treat_control(treat_ctrl, num_treatments, treat=False):
