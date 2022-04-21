@@ -539,12 +539,13 @@ class DeepIV(BaseEstLearner):
 
         self._x_net_init = x_net
         self._y_net_init = y_net
+        self.is_discrete_instrument = is_discrete_instrument
 
         super().__init__(
             random_state=random_state,
             is_discrete_treatment=is_discrete_treatment,
             is_discrete_outcome=is_discrete_outcome,
-            is_discrete_instrument=is_discrete_instrument,
+            # is_discrete_instrument=is_discrete_instrument,
             categories=categories,
         )
 
@@ -553,7 +554,7 @@ class DeepIV(BaseEstLearner):
         data,
         outcome,
         treatment,
-        instrument,
+        instrument=None,
         adjustment=None,
         approx_grad=True,
         sample_n=None,
@@ -561,25 +562,27 @@ class DeepIV(BaseEstLearner):
         y_net_config=None,
         **kwargs
     ):
-        """Train the DeepIV model.
+        # """Train the DeepIV model.
+        #
+        # Parameters
+        # ----------
+        # z : tensor
+        #     Instrument variables. Shape (b, z_d) where b is the batch size and
+        #     z_d is the dimension of a single instrument variable data point.
+        # x : tensor
+        #     Treatments. Shape (b, x_d).
+        # y : tensor
+        #     Outcomes. Shape (b, y_d)
+        # w : tensor, defaults to None.
+        #     Observed adjustments. Shape (b, w_d)
+        # sample_n : tuple of int
+        #     Eg., (5, ) means generating (5*b) samples according to the
+        #     probability density modeled by the x_net.
+        # discrete_treatment : bool
+        #     If True, the x_net is chosen as the MixtureDensityNetwork.
+        # """
+        assert instrument is not None, 'instrument is required.'
 
-        Parameters
-        ----------
-        z : tensor
-            Instrument variables. Shape (b, z_d) where b is the batch size and
-            z_d is the dimension of a single instrument variable data point.
-        x : tensor
-            Treatments. Shape (b, x_d).
-        y : tensor
-            Outcomes. Shape (b, y_d)
-        w : tensor, defaults to None.
-            Observed adjustments. Shape (b, w_d)
-        sample_n : tuple of int
-            Eg., (5, ) means generating (5*b) samples according to the
-            probability density modeled by the x_net.
-        discrete_treatment : bool
-            If True, the x_net is chosen as the MixtureDensityNetwork.
-        """
         self.outcome = outcome
         self.treatment = treatment
         self.adjustment = adjustment

@@ -81,7 +81,6 @@ class SLearner(BaseEstLearner):
         treat=None,
         control=None,
         combined_treatment=True,
-        *args,
         **kwargs
     ):
         assert adjustment is not None or covariate is not None, \
@@ -109,14 +108,14 @@ class SLearner(BaseEstLearner):
 
         if combined_treatment:
             return self._fit_combined_treat(
-                x, wv, y, treat, control, categories, *args, **kwargs
+                x, wv, y, treat, control, categories, **kwargs
             )
         else:
             return self._fit_separate_treat(
-                x, wv, y, categories, *args, **kwargs
+                x, wv, y, categories, **kwargs
             )
 
-    def _prepare4est(self, data=None, *args, **kwargs):
+    def _prepare4est(self, data=None, **kwargs):
         if not self._is_fitted:
             raise Exception('The estimator has not been fitted yet.')
 
@@ -137,10 +136,9 @@ class SLearner(BaseEstLearner):
         self,
         data=None,
         quantity=None,
-        *args,
         **kwargs
     ):
-        effect = self._prepare4est(data, *args, **kwargs)
+        effect = self._prepare4est(data, **kwargs)
         if quantity == 'CATE' or quantity == 'ATE':
             return np.mean(effect, axis=0)
         else:
@@ -152,7 +150,6 @@ class SLearner(BaseEstLearner):
         treat,
         control,
         categories,
-        *args,
         **kwargs
     ):
         self.transformer = OrdinalEncoder(categories=categories)
@@ -171,7 +168,7 @@ class SLearner(BaseEstLearner):
         x = np.concatenate((wv, x), axis=1)
         y = y.squeeze()
 
-        self.model.fit(x, y, *args, **kwargs)
+        self.model.fit(x, y, **kwargs)
 
         self._is_fitted = True
 
@@ -181,7 +178,6 @@ class SLearner(BaseEstLearner):
         self,
         x, wv, y,
         categories,
-        *args,
         **kwargs
     ):
         self.transformer = OneHotEncoder(categories=categories)
@@ -191,7 +187,8 @@ class SLearner(BaseEstLearner):
         x = np.concatenate((wv, x), axis=1)
         y = y.squeeze()
 
-        self.model.fit(x, y, *args, **kwargs)
+        # self.model.fit(x, y, *args, **kwargs)
+        self.model.fit(x, y, **kwargs)
 
         self._is_fitted = True
 
@@ -276,7 +273,6 @@ class TLearner(BaseEstLearner):
         model,
         random_state=2022,
         categories='auto',
-        *args,
         **kwargs
     ):
         """
@@ -295,7 +291,6 @@ class TLearner(BaseEstLearner):
         super().__init__(
             random_state=random_state,
             categories=categories,
-            *args,
             **kwargs
         )
 
@@ -309,7 +304,6 @@ class TLearner(BaseEstLearner):
         treat=None,
         control=None,
         combined_treatment=True,
-        *args,
         **kwargs
     ):
         assert adjustment is not None or covariate is not None, \
@@ -341,21 +335,20 @@ class TLearner(BaseEstLearner):
         if combined_treatment:
             num_treatments = len(group_categories)
             return self._fit_combined_treat(
-                x, wv, y, treat, control, num_treatments, *args, **kwargs
+                x, wv, y, treat, control, num_treatments, **kwargs
             )
         else:
             return self._fit_separate_treat(
-                x, wv, y, group_categories, *args, **kwargs
+                x, wv, y, group_categories, **kwargs
             )
 
     def estimate(
         self,
         data=None,
         quantity=None,
-        *args,
         **kwargs
     ):
-        effect = self._prepare4est(data, *args, **kwargs)
+        effect = self._prepare4est(data)
         if quantity == 'CATE' or quantity == 'ATE':
             return np.mean(effect, axis=0)
         else:
@@ -382,7 +375,6 @@ class TLearner(BaseEstLearner):
         treat,
         control,
         num_treatments,
-        *args,
         **kwargs
     ):
         treat = get_treat_control(treat, num_treatments, True)
@@ -397,8 +389,8 @@ class TLearner(BaseEstLearner):
         y_treat = y_treat.squeeze()
         y_control = y_control.squeeze()
 
-        self.xt_model.fit(wv_treat, y_treat, *args, **kwargs)
-        self.x0_model.fit(wv_control, y_control, *args, **kwargs)
+        self.xt_model.fit(wv_treat, y_treat, **kwargs)
+        self.x0_model.fit(wv_control, y_control, **kwargs)
 
         self._is_fitted = True
 
@@ -408,7 +400,6 @@ class TLearner(BaseEstLearner):
         self,
         x, wv, y,
         group_categories,
-        *args,
         **kwargs
     ):
         # TODO: the current implementation is astoundingly stupid
@@ -421,7 +412,7 @@ class TLearner(BaseEstLearner):
             _wv, _y = get_groups(treat, x, wv, y)
             _y = _y.squeeze()
 
-            model.fit(_wv, _y, *args, **kwargs)
+            model.fit(_wv, _y, **kwargs)
             self._fitted_dict_separa['treatment'].append(treat)
             self._fitted_dict_separa['models'].append(model)
 
@@ -499,7 +490,6 @@ class XLearner(BaseEstLearner):
         model,
         random_state=2022,
         categories='auto',
-        *args,
         **kwargs
     ):
         """
@@ -519,7 +509,6 @@ class XLearner(BaseEstLearner):
         super().__init__(
             random_state=random_state,
             categories=categories,
-            *args,
             **kwargs
         )
 
@@ -533,7 +522,6 @@ class XLearner(BaseEstLearner):
         treat=None,
         control=None,
         combined_treatment=True,
-        *args,
         **kwargs,
     ):
         assert adjustment is not None or covariate is not None, \
@@ -566,11 +554,11 @@ class XLearner(BaseEstLearner):
 
         if combined_treatment:
             return self._fit_combined_treat(
-                x, wv, y, treat, control, num_treatments, *args, **kwargs
+                x, wv, y, treat, control, num_treatments, **kwargs
             )
         else:
             return self._fit_separate_treat(
-                x, wv, y, group_categories, *args, **kwargs
+                x, wv, y, group_categories, **kwargs
             )
 
     def _prepare4est(self, data=None, rho=0.5, *args, **kwargs):
@@ -612,7 +600,6 @@ class XLearner(BaseEstLearner):
         treat,
         control,
         num_treatments,
-        *args,
         **kwargs
     ):
         treat = get_treat_control(treat, num_treatments, True)
@@ -628,8 +615,8 @@ class XLearner(BaseEstLearner):
         y_treat = y_treat.squeeze()
         y_control = y_control.squeeze()
 
-        self.ft_model.fit(wv_treat, y_treat, *args, **kwargs)
-        self.f0_model.fit(wv_control, y_control, *args, **kwargs)
+        self.ft_model.fit(wv_treat, y_treat,  **kwargs)
+        self.f0_model.fit(wv_control, y_control, **kwargs)
 
         # Step 2
         h_treat_target = y_treat - self.f0_model.predict(wv_treat)
