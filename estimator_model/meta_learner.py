@@ -161,10 +161,10 @@ class SLearner(BaseEstLearner):
 
         # For multiple treatments: divide the data into several groups
         group_categories = self.transformer.categories_
-        num_treatments = len(group_categories)
+        n_treatments = len(group_categories)
 
-        treat = get_treat_control(treat, num_treatments, True)
-        control = get_treat_control(control, num_treatments, False)
+        treat = get_treat_control(treat, n_treatments, True)
+        control = get_treat_control(control, n_treatments, False)
         self.treat = treat
         self.control = control
 
@@ -339,9 +339,9 @@ class TLearner(BaseEstLearner):
         wv = get_wv(w, v)
 
         if combined_treatment:
-            num_treatments = len(group_categories)
+            n_treatments = len(group_categories)
             return self._fit_combined_treat(
-                x, wv, y, treat, control, num_treatments, *args, **kwargs
+                x, wv, y, treat, control, n_treatments, *args, **kwargs
             )
         else:
             return self._fit_separate_treat(
@@ -381,12 +381,12 @@ class TLearner(BaseEstLearner):
         x, wv, y,
         treat,
         control,
-        num_treatments,
+        n_treatments,
         *args,
         **kwargs
     ):
-        treat = get_treat_control(treat, num_treatments, True)
-        control = get_treat_control(control, num_treatments, False)
+        treat = get_treat_control(treat, n_treatments, True)
+        control = get_treat_control(control, n_treatments, False)
         self.treat = treat
         self.control = control
         self._wv = wv
@@ -435,9 +435,9 @@ class TLearner(BaseEstLearner):
         return yt - y0
 
     def _prepare_separate_treat(self, wv):
-        num_treatments = len(self._fitted_dict_separa['treatment'])
+        n_treatments = len(self._fitted_dict_separa['treatment'])
         n = wv.shape[0]
-        f_nji = np.full((n, self._y_d, num_treatments - 1), np.NaN)
+        f_nji = np.full((n, self._y_d, n_treatments - 1), np.NaN)
         f_nj0 = self._fitted_dict_separa['models'][0].predict(wv)
 
         for i, model in enumerate(self._fitted_dict_separa['models'][1:]):
@@ -560,13 +560,13 @@ class XLearner(BaseEstLearner):
         x = self.transformer.transform(x)
 
         group_categories = self.transformer.categories_
-        num_treatments = len(group_categories)
+        n_treatments = len(group_categories)
         wv = get_wv(w, v)
         self._wv = wv
 
         if combined_treatment:
             return self._fit_combined_treat(
-                x, wv, y, treat, control, num_treatments, *args, **kwargs
+                x, wv, y, treat, control, n_treatments, *args, **kwargs
             )
         else:
             return self._fit_separate_treat(
@@ -611,12 +611,12 @@ class XLearner(BaseEstLearner):
         x, wv, y,
         treat,
         control,
-        num_treatments,
+        n_treatments,
         *args,
         **kwargs
     ):
-        treat = get_treat_control(treat, num_treatments, True)
-        control = get_treat_control(control, num_treatments, False)
+        treat = get_treat_control(treat, n_treatments, True)
+        control = get_treat_control(control, n_treatments, False)
         self.treat = treat
         self.control = control
 
@@ -692,9 +692,9 @@ class XLearner(BaseEstLearner):
 
     def _prepare_separate_treat(self, wv, rho):
         model_list = self._fitted_dict_separa['models']
-        num_treatments = len(self._fitted_dict_separa['treatment'])
+        n_treatments = len(self._fitted_dict_separa['treatment'])
         n = wv.shape[0]
-        f_nji = np.full((n, self._y_d, num_treatments), np.NaN)
+        f_nji = np.full((n, self._y_d, n_treatments), np.NaN)
 
         for i, (kt_model, k0_model) in enumerate(model_list):
             pred_t = kt_model.predict(wv)
