@@ -1,14 +1,12 @@
-import torch
 import math
 
-import torch.nn as nn
 import numpy as np
-
+import pandas as pd
+import torch
+from sklearn.preprocessing import OneHotEncoder
 from torch.distributions import Categorical, Independent, MixtureSameFamily, \
     Normal
 from torch.utils.data import Dataset
-
-from sklearn.preprocessing import OneHotEncoder
 
 
 def cartesian(arrays):
@@ -71,20 +69,6 @@ def shapes(*tensors, all_dim=False):
     return shapes
 
 
-def _nd_kron_original(x, y):
-    dim = x.shape[0]
-    assert dim == y.shape[0]
-    kron_prod = np.kron(x[0], y[0]).reshape(1, -1)
-
-    if dim > 1:
-        for i, vec in enumerate(x[1:], 1):
-            kron_prod = np.concatenate(
-                (kron_prod, np.kron(vec, y[i]).reshape(1, -1)), axis=0
-            )
-
-    return kron_prod
-
-
 def nd_kron(x, y):
     assert x.shape[0] == y.shape[0]
     fn = np.vectorize(np.kron, signature='(n),(m)->(k)')
@@ -93,38 +77,45 @@ def nd_kron(x, y):
     return kron_prod
 
 
-def convert2tensor(*arrays):
-    arrays = list(arrays)
-    for i, array in enumerate(arrays):
-        if array is not None:
-            arrays[i] = torch.tensor(array)
+def tensor_or_none(x):
+    if x is not None:
+        return torch.tensor(x)
+    else:
+        return None
 
-    return arrays
+
+def convert2tensor(*arrays):
+    # arrays = list(arrays)
+    # for i, array in enumerate(arrays):
+    #     if array is not None:
+    #         arrays[i] = torch.tensor(array)
+    #
+    # return arrays
+    return tuple(map(tensor_or_none, arrays))
 
 
 def convert4onehot(x):
     return np.dot(x, np.arange(0, x.shape[1]).T)
 
 
-def convert2array(*S, tensor=False):
-    data = S[0]
-    S = list(S[1:])
+def convert2array(data, *S, tensor=False):
+    assert isinstance(data, pd.DataFrame)
 
-    for i, s in enumerate(S):
-        if s is not None:
-            si = data[s].values
-            if len(si.shape) == 1:
-                si = np.expand_dims(si, axis=1)
+    def _get_array(cols):
+        if cols is not None:
+            r = data[cols].values
+            if len(r.shape) == 1:
+                r = np.expand_dims(r, axis=1)
         else:
-            si = None
+            r = None
+        return r
 
-        S[i] = si
+    S = map(_get_array, S)
 
     if tensor:
-        for si in S:
-            S[i] = torch.tensor(si)
+        S = map(tensor_or_none, S)
 
-    return S
+    return tuple(S)
 
 
 def convert2str(*S):
@@ -149,94 +140,94 @@ def one_hot_transformer(*S):
 
     return transformer_list
 
-
-class DiscreteIOBatchData(Dataset):
-    def __init__(
-        self,
-        X=None,
-        W=None,
-        y=None,
-        X_test=None,
-        y_test=None,
-        train=True,
-    ):
-        if train:
-            self.w = W
-            self.data = torch.argmax(X, dim=1)
-            self.target = torch.argmax(y, dim=1)
-        else:
-            self.w = W
-            self.data = X_test
-            self.target = y_test
-
-    def __len__(self):
-        return self.target.shape[0]
-
-    def __getitem__(self, index):
-        return self.data[index], self.w[index, :], self.target[index]
-
-
-class DiscreteIBatchData(Dataset):
-    def __init__(
-        self,
-        X=None,
-        W=None,
-        y=None,
-        X_test=None,
-        y_test=None,
-        train=True,
-    ):
-        if train:
-            self.w = W
-            self.data = torch.argmax(X, dim=1)
-            self.target = y
-        else:
-            self.w = W
-            self.data = X_test
-            self.target = y_test
-
-    def __len__(self):
-        return self.target.shape[0]
-
-    def __getitem__(self, index):
-        return self.data[index], self.w[index, :], self.target[index, :]
-
-
-class DiscreteOBatchData(Dataset):
-    def __init__(
-        self,
-        X=None,
-        W=None,
-        y=None,
-        X_test=None,
-        y_test=None,
-        train=True,
-    ):
-        if train:
-            self.w = W
-            self.data = X
-            self.target = torch.argmax(y, dim=1)
-        else:
-            self.w = W
-            self.data = X_test
-            self.target = y_test
-
-    def __len__(self):
-        return self.target.shape[0]
-
-    def __getitem__(self, index):
-        return self.data[index, :], self.w[index, :], self.target[index]
+#
+# class DiscreteIOBatchData(Dataset):
+#     def __init__(
+#         self,
+#         X=None,
+#         W=None,
+#         y=None,
+#         X_test=None,
+#         y_test=None,
+#         train=True,
+#     ):
+#         if train:
+#             self.w = W
+#             self.data = torch.argmax(X, dim=1)
+#             self.target = torch.argmax(y, dim=1)
+#         else:
+#             self.w = W
+#             self.data = X_test
+#             self.target = y_test
+#
+#     def __len__(self):
+#         return self.target.shape[0]
+#
+#     def __getitem__(self, index):
+#         return self.data[index], self.w[index, :], self.target[index]
+#
+#
+# class DiscreteIBatchData(Dataset):
+#     def __init__(
+#         self,
+#         X=None,
+#         W=None,
+#         y=None,
+#         X_test=None,
+#         y_test=None,
+#         train=True,
+#     ):
+#         if train:
+#             self.w = W
+#             self.data = torch.argmax(X, dim=1)
+#             self.target = y
+#         else:
+#             self.w = W
+#             self.data = X_test
+#             self.target = y_test
+#
+#     def __len__(self):
+#         return self.target.shape[0]
+#
+#     def __getitem__(self, index):
+#         return self.data[index], self.w[index, :], self.target[index, :]
+#
+#
+# class DiscreteOBatchData(Dataset):
+#     def __init__(
+#         self,
+#         X=None,
+#         W=None,
+#         y=None,
+#         X_test=None,
+#         y_test=None,
+#         train=True,
+#     ):
+#         if train:
+#             self.w = W
+#             self.data = X
+#             self.target = torch.argmax(y, dim=1)
+#         else:
+#             self.w = W
+#             self.data = X_test
+#             self.target = y_test
+#
+#     def __len__(self):
+#         return self.target.shape[0]
+#
+#     def __getitem__(self, index):
+#         return self.data[index, :], self.w[index, :], self.target[index]
 
 
 class BatchData(Dataset):
     def __init__(
-        self,
-        X=None,
-        W=None,
-        y=None,
-        X_test=None,
-        y_test=None,
-        train=True,
+            self,
+            X=None,
+            W=None,
+            y=None,
+            X_test=None,
+            y_test=None,
+            train=True,
     ):
         if train:
             self.w = W
@@ -251,7 +242,56 @@ class BatchData(Dataset):
         return self.target.shape[0]
 
     def __getitem__(self, index):
-        return self.data[index, :], self.w[index, :], self.target[index, :]
+        return self.data[index], self.w[index], self.target[index]
+
+
+class DiscreteIOBatchData(BatchData):
+    def __init__(
+            self,
+            X=None,
+            W=None,
+            y=None,
+            X_test=None,
+            y_test=None,
+            train=True,
+    ):
+        if train:
+            X = torch.argmax(X, dim=1)
+            y = torch.argmax(y, dim=1)
+
+        super(DiscreteIOBatchData, self).__init__(X=X, W=W, y=y, X_test=X_test, y_test=y_test, train=train)
+
+
+class DiscreteIBatchData(BatchData):
+    def __init__(
+            self,
+            X=None,
+            W=None,
+            y=None,
+            X_test=None,
+            y_test=None,
+            train=True,
+    ):
+        if train:
+            X = torch.argmax(X, dim=1)
+
+        super(DiscreteIBatchData, self).__init__(X=X, W=W, y=y, X_test=X_test, y_test=y_test, train=train)
+
+
+class DiscreteOBatchData(BatchData):
+    def __init__(
+            self,
+            X=None,
+            W=None,
+            y=None,
+            X_test=None,
+            y_test=None,
+            train=True,
+    ):
+        if train:
+            y = torch.argmax(y, dim=1)
+
+        super(DiscreteOBatchData, self).__init__(X=X, W=W, y=y, X_test=X_test, y_test=y_test, train=train)
 
 
 class GaussianProb:
