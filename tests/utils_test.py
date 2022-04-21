@@ -1,6 +1,20 @@
 import numpy as np
 
-from estimator_model.utils import nd_kron, _nd_kron_original
+from estimator_model.utils import nd_kron
+
+
+def _nd_kron_original(x, y):
+    dim = x.shape[0]
+    assert dim == y.shape[0]
+    kron_prod = np.kron(x[0], y[0]).reshape(1, -1)
+
+    if dim > 1:
+        for i, vec in enumerate(x[1:], 1):
+            kron_prod = np.concatenate(
+                (kron_prod, np.kron(vec, y[i]).reshape(1, -1)), axis=0
+            )
+
+    return kron_prod
 
 
 def test_kron():
