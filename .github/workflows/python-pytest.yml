@@ -33,6 +33,10 @@ jobs:
         python -m pip install --upgrade pip
         pip install -q -r requirements.txt  pytest-cov==2.4.0  python-coveralls  codacy-coverage
         pip list
+    - name: set environment variables
+      uses: allenevans/set-env@v2.0.0
+      with:
+        PYTHONPATH: '.'
     - name: Test with pytest
       run: |
-        python -c "import os;print(os.path.abspath('.'))"
+        python -c "import os;print(os.environ)"
