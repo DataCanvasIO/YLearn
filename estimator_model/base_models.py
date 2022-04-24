@@ -1,3 +1,4 @@
+import pandas as pd
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -43,7 +44,7 @@ class BaseEstLearner:
         # is_discrete_instrument=False,
         categories='auto'
     ):
-        self.random_state = random_state
+        self.random_state = random_state if random_state is not None else 2022
         self.is_discrete_treatment = is_discrete_treatment
         self.is_discrete_outcome = is_discrete_outcome
         self.categories = categories
@@ -52,6 +53,10 @@ class BaseEstLearner:
         #     'LR': linear_model.LinearRegression(),
         #     'LogisticR': linear_model.LogisticRegression(),
         # }
+
+        # fitted
+        self.treatment = None
+        self.outcome = None
 
     def fit(
         self,
@@ -62,9 +67,15 @@ class BaseEstLearner:
         # covariate=None,
         **kwargs,
     ):
-        # TODO: I hope every fit function will automatically let
-        # self.treatment = treatment.
-        pass
+        assert data is not None and isinstance(data, pd.DataFrame)
+
+        self.treatment = treatment
+        self.outcome = outcome
+
+        for k, v in kwargs.items():
+            setattr(self, k, v)
+
+        return self
     #
     # def _prepare_(
     #     self,

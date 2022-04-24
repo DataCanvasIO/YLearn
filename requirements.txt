@@ -4,5 +4,6 @@ scikit-learn>=0.22.1
 scipy
 networkx
 ipython
-pytorch
+cython
+torch
 joblib
