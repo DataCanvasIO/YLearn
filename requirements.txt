@@ -5,5 +5,5 @@ scipy
 networkx
 ipython
 cython
-pytorch
+torch
 joblib
