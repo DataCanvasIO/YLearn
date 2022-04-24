@@ -335,11 +335,7 @@ class TLearner(BaseEstLearner):
         if combined_treatment:
             n_treatments = len(group_categories)
             return self._fit_combined_treat(
-<<<<<<< HEAD
-                x, wv, y, treat, control, n_treatments, *args, **kwargs
-=======
-                x, wv, y, treat, control, num_treatments, **kwargs
->>>>>>> 9746a0e64a7b2ced2e52dce5d74c5c4992567ff9
+                x, wv, y, treat, control, n_treatments, **kwargs
             )
         else:
             return self._fit_separate_treat(
@@ -378,12 +374,7 @@ class TLearner(BaseEstLearner):
         x, wv, y,
         treat,
         control,
-<<<<<<< HEAD
         n_treatments,
-        *args,
-=======
-        num_treatments,
->>>>>>> 9746a0e64a7b2ced2e52dce5d74c5c4992567ff9
         **kwargs
     ):
         treat = get_treat_control(treat, n_treatments, True)
@@ -563,11 +554,7 @@ class XLearner(BaseEstLearner):
 
         if combined_treatment:
             return self._fit_combined_treat(
-<<<<<<< HEAD
-                x, wv, y, treat, control, n_treatments, *args, **kwargs
-=======
-                x, wv, y, treat, control, num_treatments, **kwargs
->>>>>>> 9746a0e64a7b2ced2e52dce5d74c5c4992567ff9
+                x, wv, y, treat, control, n_treatments, **kwargs
             )
         else:
             return self._fit_separate_treat(
@@ -612,12 +599,7 @@ class XLearner(BaseEstLearner):
         x, wv, y,
         treat,
         control,
-<<<<<<< HEAD
         n_treatments,
-        *args,
-=======
-        num_treatments,
->>>>>>> 9746a0e64a7b2ced2e52dce5d74c5c4992567ff9
         **kwargs
     ):
         treat = get_treat_control(treat, n_treatments, True)
