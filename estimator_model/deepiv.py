@@ -583,10 +583,10 @@ class DeepIV(BaseEstLearner):
         # """
         assert instrument is not None, 'instrument is required.'
 
-        self.outcome = outcome
-        self.treatment = treatment
-        self.adjustment = adjustment
-        self.instrument = instrument
+        super().fit(data, outcome, treatment,
+                    adjustment=adjustment,
+                    instrument=instrument,
+                    )
 
         if x_net_config is None and y_net_config is None:
             x_net_config = kwargs

@@ -118,12 +118,10 @@ class CausalTree:
         """
         assert adjustment is not None or covariate is not None, \
             'Need adjustment or covariate to perform estimation.'
-
-        self.outcome = outcome
-        self.treatment = treatment
-        self.adjustment = adjustment
-        self.covariate = covariate
-        
+        super().fit(data, outcome, treatment,
+                    adjustment=adjustment,
+                    covariate=covariate,
+                    )
         random_state = check_random_state(self.random_state)
         y, x, w, v = convert2array(
             data, outcome, treatment, adjustment, covariate

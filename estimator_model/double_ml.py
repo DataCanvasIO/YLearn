@@ -192,13 +192,10 @@ class DML4CATE(BaseEstLearner):
         assert adjustment is not None or covariate is not None, \
             'Need adjustment set or covariates to perform estimation.'
 
-        # TODO: the following block of code should be implemented for all fit
-        # functions
-        self.outcome = outcome
-        self.treatment = treatment
-        self.adjustment = adjustment
-        self.covariate = covariate
-
+        super().fit(data, outcome, treatment,
+                    adjustment=adjustment,
+                    covariate=covariate,
+                    )
         y, x, w, v = convert2array(
             data, outcome, treatment, adjustment, covariate
         )

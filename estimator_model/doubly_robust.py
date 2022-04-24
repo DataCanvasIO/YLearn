@@ -95,12 +95,10 @@ class DoublyRobust(BaseEstLearner):
     ):
         assert adjustment is not None or covariate is not None, \
             'Need adjustment or covariate to perform estimation.'
-
-        self.outcome = outcome
-        self.treatment = treatment
-        self.adjustment = adjustment
-        self.covariate = covariate
-
+        super().fit(data, outcome, treatment,
+                    adjustment=adjustment,
+                    covariate=covariate,
+                    )
         n = len(data)
         y, x, w, v = convert2array(
             data, outcome, treatment, adjustment, covariate

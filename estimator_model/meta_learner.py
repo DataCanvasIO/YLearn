@@ -86,11 +86,11 @@ class SLearner(BaseEstLearner):
         assert adjustment is not None or covariate is not None, \
             'Need adjustment set or covariates to perform estimation.'
 
-        self.outcome = outcome
-        self.treatment = treatment
-        self.adjustment = adjustment
-        self.covariate = covariate
-        self.combined_treat = combined_treatment
+        super().fit(data, outcome, treatment,
+                    adjustment=adjustment,
+                    covariate=covariate,
+                    combined_treat=combined_treatment,
+                    )
 
         y, x, w, v = convert2array(
             data, outcome, treatment, adjustment, covariate
@@ -308,12 +308,11 @@ class TLearner(BaseEstLearner):
     ):
         assert adjustment is not None or covariate is not None, \
             'Need adjustment set or covariates to perform estimation.'
-
-        self.outcome = outcome
-        self.treatment = treatment
-        self.adjustment = adjustment
-        self.covariate = covariate
-        self.combined_treat = combined_treatment
+        super().fit(data, outcome, treatment,
+                    adjustment=adjustment,
+                    covariate=covariate,
+                    combined_treat=combined_treatment,
+                    )
 
         y, x, w, v = convert2array(
             data, outcome, treatment, adjustment, covariate
@@ -527,11 +526,11 @@ class XLearner(BaseEstLearner):
         assert adjustment is not None or covariate is not None, \
             'Need adjustment set or covariates to perform estimation.'
 
-        self.outcome = outcome
-        self.treatment = treatment
-        self.adjustment = adjustment
-        self.covariate = covariate
-        self.combined_treat = combined_treatment
+        super().fit(data, outcome, treatment,
+                    adjustment=adjustment,
+                    covariate=covariate,
+                    combined_treat=combined_treatment,
+                    )
 
         y, x, w, v = convert2array(
             data, outcome, treatment, adjustment, covariate
