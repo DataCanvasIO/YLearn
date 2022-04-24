@@ -1,3 +1,6 @@
+from estimator_model.utils import (convert2array, get_wv, get_treat_control)
+from .tree_criterion import CMSE, MSE, CMSE_
+# from sklearn.tree._criterion import MSE
 import numpy as np
 from copy import deepcopy
 
@@ -8,9 +11,6 @@ from sklearn.tree._tree import (DepthFirstTreeBuilder, Tree,
                                 BestFirstTreeBuilder)
 import pyximport
 pyximport.install(setup_args={"script_args": ["--verbose"]})
-
-from .tree_criterion import CMSE
-from estimator_model.utils import (convert2array, get_wv, get_treat_control)
 
 
 class CausalTree:
@@ -53,6 +53,7 @@ class CausalTree:
         max_leaf_nodes=None,
         min_impurity_decrease=0.0,
         ccp_alpha=0.0,
+        eps=1e-6,
         categories='auto'
     ):
         """
@@ -83,6 +84,7 @@ class CausalTree:
         """
         self.categories = categories
         self.random_state = random_state
+        self.eps = eps
 
         self.max_depth = max_depth
         self.min_samples_split = min_samples_split
@@ -123,7 +125,7 @@ class CausalTree:
         self.treatment = treatment
         self.adjustment = adjustment
         self.covariate = covariate
-        
+
         random_state = check_random_state(self.random_state)
         y, x, w, v = convert2array(
             data, outcome, treatment, adjustment, covariate
@@ -150,11 +152,12 @@ class CausalTree:
         label = np.any((_tr, _crtl), axis=0)
         y = y[label]
         wv = wv[label]
-        sample_weight = _tr[label]
+        sample_weight = _tr[label].astype(int)
 
         # Determine output settings
         n_samples, n_features_in = wv.shape  # dimension of the input
         self.n_outputs = y.shape[1]
+        self._wv = wv
 
         # Check parameters and etermine output settings
         # TODO: check self.max_depth
@@ -177,10 +180,12 @@ class CausalTree:
                 f'Number of labels {len(y)} does not match number of samples'
             )
 
-        min_weight_leaf = 2  # maybe this needs more modifications
+        min_weight_leaf = 0  # maybe this needs more modifications
 
         # Build tree step 1. Set up criterion
-        criterion = deepcopy(CMSE(self.n_outputs, n_samples))
+        # criterion = deepcopy(CMSE(self.n_outputs, n_samples))
+        # criterion = deepcopy(MSE(self.n_outputs, n_samples))
+        criterion = deepcopy(CMSE_(self.n_outputs, n_samples))
 
         # Build tree step 2. Define splitter
         splitter = BestSplitter(
@@ -192,7 +197,7 @@ class CausalTree:
         )
 
         # Build tree step 3. Define the tree
-        self.tree_ = Tree(
+        self.tree = Tree(
             n_features_in,
             np.array([1] * self.n_outputs, dtype=np.intp),
             self.n_outputs,
@@ -218,33 +223,34 @@ class CausalTree:
                 max_leaf_nodes,
                 self.min_impurity_decrease,
             )
-
-        builder.build(self.tree_, wv, y, sample_weight)
-
+        
+        eps = self.eps
+        builder.build(self.tree, wv, y, sample_weight + eps)
         self._is_fitted = True
 
         return self
 
-    def predict(self, data, outcome=None, treatment=None):
+    def estimate(self, data=None, quantity=None):
+        effect = self._prepare4est(data)
+
+        if quantity == 'ATE' or quantity == 'CATE':
+            pass
+        else:
+            return effect
+
+    def _prepare4est(self, data=None):
         if not self._is_fitted:
             raise Exception('The model has not been fitted yet')
 
-        if treatment is not None:
-            data = data.drop(treatment, axis=1)
-        if outcome is not None:
-            data = data.drop(outcome, axis=1)
+        if data is None:
+            wv = self._wv
+        else:
+            w, v = convert2array(data, self.adjustment, self.covariate)
+            wv = get_wv(w, v)
+        wv = wv.astype(np.float32)
 
-        proba = self.tree_.predict(data)
-        return proba[:, 0]
-
-    def estimate(self, data, outcome, treatment, treatment_value=1):
-        """Based on my current understanding, the causal tree only solves
-        estimation of heterogeneous causal effects. Thus we may not need
-        estimations for other effects.
-        """
-        self.fit(data, outcome, treatment, treatment_value)
-        result = self.predict(data, outcome, treatment)
-        return result
+        effect = self.tree.predict(wv)
+        return effect
 
     def _prune_tree(self):
         pass
@@ -252,7 +258,7 @@ class CausalTree:
     def apply(self, X):
         """Return the index of the leaf that each sample is predicted as.
         """
-        return self.tree_.apply(X)
+        return self.tree.apply(X)
 
     @property
     def feature_importance(self):
@@ -328,7 +334,7 @@ class _CausalTreeOld:
         self.max_leaf_nodes = max_leaf_nodes
         self.min_impurity_decrease = min_impurity_decrease
         self.ccp_alpha = ccp_alpha
-        self.tree_ = None
+        self.tree = None
 
     def fit(
         self,
@@ -391,7 +397,7 @@ class _CausalTreeOld:
         )
 
         # Build tree step 3. Define the tree
-        self.tree_ = Tree(
+        self.tree = Tree(
             n_features_in,
             np.array([1] * n_outputs, dtype=np.intp),
             n_outputs,
@@ -407,7 +413,7 @@ class _CausalTreeOld:
             self.max_depth,
             self.min_impurity_decrease,
         )
-        builder.build(self.tree_, X, y, sample_weight)
+        builder.build(self.tree, X, y, sample_weight)
 
         return self
 
@@ -418,7 +424,7 @@ class _CausalTreeOld:
             data = data.drop(outcome, axis=1)
 
         check_is_fitted(self)
-        proba = self.tree_.predict(data)
+        proba = self.tree.predict(data)
         return proba[:, 0]
 
     def estimate(self, data, outcome, treatment, treatment_value=1):
@@ -437,7 +443,7 @@ class _CausalTreeOld:
         """Return the index of the leaf that each sample is predicted as.
         """
         check_is_fitted(self)
-        return self.tree_.apply(X)
+        return self.tree.apply(X)
 
     @property
     def feature_importance(self):
