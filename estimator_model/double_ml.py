@@ -179,16 +179,16 @@ class DML4CATE(BaseEstLearner):
         adjustment=None,
         covariate=None,
     ):
-        """Note that we will use the following notation in this method:
-                y: out
+        # """Note that we will use the following notation in this method:
+        #         y: out
 
-        Args:
-            data (_type_): _description_
-            outcome (_type_): _description_
-            treatment (_type_): _description_
-            adjustment (_type_, optional): _description_. Defaults to None.
-            covariate (_type_, optional): _description_. Defaults to None.
-        """
+        # Args:
+        #     data (_type_): _description_
+        #     outcome (_type_): _description_
+        #     treatment (_type_): _description_
+        #     adjustment (_type_, optional): _description_. Defaults to None.
+        #     covariate (_type_, optional): _description_. Defaults to None.
+        # """
         assert adjustment is not None or covariate is not None, \
             'Need adjustment set or covariates to perform estimation.'
 

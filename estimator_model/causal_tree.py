@@ -194,7 +194,6 @@ class CausalTree(BaseEstLearner):
         min_weight_leaf = 0  # maybe this needs more modifications
 
         # Build tree step 1. Set up criterion
-        # criterion = deepcopy(CMSE(self.n_outputs, n_samples))
         # criterion = deepcopy(MSE(self.n_outputs, n_samples))
         criterion = deepcopy(CMSE(self.n_outputs, n_samples))
 

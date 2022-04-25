@@ -673,7 +673,7 @@ class DeepIV(BaseEstLearner):
         **kwargs
     ):
         if not hasattr(self, 'x_net') or not hasattr(self, 'y_net'):
-            raise Exception('The estimator has not been fitted yet.')
+            raise Exception('The estimator is not fitted yet.')
 
         treat = 1 if treat is None else treat
         control = 0 if control is None else control
