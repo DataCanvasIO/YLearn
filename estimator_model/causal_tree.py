@@ -1,4 +1,5 @@
 from estimator_model.utils import (convert2array, get_wv, get_treat_control)
+from .base_models import BaseEstLearner
 from .tree_criterion import CMSE, MSE, CMSE_
 # from sklearn.tree._criterion import MSE
 import numpy as np
@@ -13,7 +14,7 @@ import pyximport
 pyximport.install(setup_args={"script_args": ["--verbose"]})
 
 
-class CausalTree:
+class CausalTree(BaseEstLearner):
     """
     A class for estimating causal effect with decision tree.
 
@@ -82,8 +83,8 @@ class CausalTree:
         --------
         BaseDecisionTree : The default implementation of decision tree.
         """
-        self.categories = categories
-        self.random_state = random_state
+        # self.categories = categories
+        # self.random_state = random_state
         self.eps = eps
 
         self.max_depth = max_depth
@@ -92,6 +93,11 @@ class CausalTree:
         self.max_leaf_nodes = max_leaf_nodes
         self.min_impurity_decrease = min_impurity_decrease
         self.ccp_alpha = ccp_alpha
+
+        super().__init__(
+            random_state=random_state,
+            categories=categories,
+        )
 
     def fit(
         self,
