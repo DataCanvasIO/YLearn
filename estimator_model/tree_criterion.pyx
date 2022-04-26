@@ -10,6 +10,9 @@ cimport numpy as np
 
 np.import_array()
 
+from sklearn.tree._tree cimport DOUBLE_t
+from sklearn.tree._tree cimport SIZE_t
+
 from sklearn.tree._criterion cimport RegressionCriterion
 from libc.stdio cimport printf
 #-------------------------------------start of a new implementation
@@ -64,19 +67,19 @@ cdef class CMSE(RegressionCriterion):
         self.y0_sq_sum_total = 0.0
 
         #
-        self.sum_total = np.zeros(n_outputs, dtype=np.float64)
+        ## self.sum_total = np.zeros(n_outputs, dtype=np.float64)
         #
         self.yt_sum_total = np.zeros(n_outputs, dtype=np.float64)
         self.y0_sum_total = np.zeros(n_outputs, dtype=np.float64)
 
         #
-        self.sum_left = np.zeros(n_outputs, dtype=np.float64)
+        ## self.sum_left = np.zeros(n_outputs, dtype=np.float64)
         #
         self.yt_sum_left = np.zeros(n_outputs, dtype=np.float64)
         self.y0_sum_left = np.zeros(n_outputs, dtype=np.float64)
 
         #
-        self.sum_right = np.zeros(n_outputs, dtype=np.float64)
+        ## self.sum_right = np.zeros(n_outputs, dtype=np.float64)
         #
         self.yt_sum_right = np.zeros(n_outputs, dtype=np.float64)
         self.y0_sum_right = np.zeros(n_outputs, dtype=np.float64)
@@ -286,7 +289,7 @@ cdef class CMSE(RegressionCriterion):
         self.n0_right = (self.n0_total - self.n0_left)
 
         #
-        self.sum_right[0] = self.sum_total - self.sum_left[0]
+        ##  self.sum_right[0] = self.sum_total - self.sum_left[0]
         #
         self.yt_sum_right[0] = self.yt_sum_total[0] - self.yt_sum_left[0]
         self.y0_sum_right[0] = self.y0_sum_total[0] - self.y0_sum_left[0]
@@ -296,9 +299,11 @@ cdef class CMSE(RegressionCriterion):
 
     cdef double node_impurity(self) nogil:
         cdef double impurity
-        impurity = (self.yt_sq_sum_total / (self.nt_total + eps) - (self.yt_sum_total / (self.nt_total + eps))**2.0) / (self.nt_total + eps)
-        impurity += (self.y0_sq_sum_total / (self.n0_total + eps) - (self.y0_sum_total / (self.n0_total + eps))**2.0) / (self.n0_total + eps)
-        impurity -= (self.yt_sum_total / (self.nt_total + eps) - self.y0_sum_total / (self.n0_total + eps))**2.0
+        #### FIXME
+        ## impurity = (self.yt_sq_sum_total / (self.nt_total + eps) - (self.yt_sum_total / (self.nt_total + eps))**2.0) / (self.nt_total + eps)
+        ## impurity += (self.y0_sq_sum_total / (self.n0_total + eps) - (self.y0_sum_total / (self.n0_total + eps))**2.0) / (self.n0_total + eps)
+        ## impurity -= (self.yt_sum_total / (self.nt_total + eps) - self.y0_sum_total / (self.n0_total + eps))**2.0
+        impurity = 0.0
         return impurity
 
     cdef void children_impurity(self, double* impurity_left,
@@ -365,7 +370,9 @@ cdef class CMSE(RegressionCriterion):
     
     cdef void node_value(self, double* dest) nogil:
         """Compute the node value of samples[start:end] into dest."""
-        dest[0] = self.yt_sum_total / (self.nt_total + eps) - self.y0_sum_total /  (self.n0_total + eps)
+        #### FIXME
+        ### dest[0] = self.yt_sum_total / (self.nt_total + eps) - self.y0_sum_total /  (self.n0_total + eps)
+        dest[0] = 0.0
 
 
     cdef double proxy_impurity_improvement(self) nogil:
