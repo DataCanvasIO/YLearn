@@ -1,41 +1,39 @@
-from ast import Or
-from msilib.schema import SelfReg
-from re import X
-from xml.etree.ElementTree import tostring
+from copy import deepcopy
+
 import numpy as np
 
-from sklearn import clone
 from sklearn.linear_model import LinearRegression
-from sklearn.preprocessing import OneHotEncoder, OrdinalEncoder
+from sklearn.preprocessing import (OneHotEncoder, OrdinalEncoder,
+                                   PolynomialFeatures)
 
 from estimator_model.base_models import BaseEstLearner
-from estimator_model.utils import (convert2array, nd_kron)
+from estimator_model.utils import (convert2array, nd_kron, get_wv)
 
 
-class TwoSLS(BaseEstLearner):
-    # TODO: simply import the 2SLS from StatsModel can finish this
-    def __init__(
-        self,
-        random_state=2022,
-        is_discrete_treatment=False,
-        is_discrete_outcome=False,
-        categories='auto'
-    ):
-        super().__init__(
-            random_state,
-            is_discrete_treatment,
-            is_discrete_outcome,
-            categories
-        )
+# class TwoSLS(BaseEstLearner):
+#     # TODO: simply import the 2SLS from StatsModel can finish this
+#     def __init__(
+#         self,
+#         random_state=2022,
+#         is_discrete_treatment=False,
+#         is_discrete_outcome=False,
+#         categories='auto'
+#     ):
+#         super().__init__(
+#             random_state,
+#             is_discrete_treatment,
+#             is_discrete_outcome,
+#             categories
+#         )
 
-    def fit(self, data, outcome, treatment, **kwargs):
-        return super().fit(data, outcome, treatment, **kwargs)
+#     def fit(self, data, outcome, treatment, **kwargs):
+#         return super().fit(data, outcome, treatment, **kwargs)
 
-    def estimate(self, data=None, **kwargs):
-        return super().estimate(data, **kwargs)
+#     def estimate(self, data=None, **kwargs):
+#         return super().estimate(data, **kwargs)
 
-    def _prepare4est(self):
-        pass
+#     def _prepare4est(self):
+#         pass
 
 
 class NP2SLS(BaseEstLearner):
@@ -84,17 +82,21 @@ class NP2SLS(BaseEstLearner):
         treatment,
         instrument,
         is_discrete_instrument=False,
-        treatment_basis=None,
-        instrument_basis=None,
-        covar_basis=None,
+        treatment_basis=('Poly', 2),
+        instrument_basis=('Poly', 2),
+        covar_basis=('Poly', 2),
         adjustment=None,
         covariate=None,
+        **kwargs
     ):
+        """Note that when both treatment_basis and instrument_basis have degree
+        1 we are actually doing 2SLS.
+        """
         assert instrument is not None, 'Instrument is required.'
 
         if all(
-            treatment_basis is None, instrument_basis is None,
-            covar_basis is None,
+            (treatment_basis is None, instrument_basis is None,
+             covar_basis is None,)
         ):
             raise ValueError(
                 'Please specifiy the non-linear transformers for variables, '
@@ -108,6 +110,8 @@ class NP2SLS(BaseEstLearner):
             instrument=instrument,
             is_discrete_instrument=is_discrete_instrument
         )
+
+        self._n = len(data)
 
         # data preprocessing
         y, x, z, w, v = convert2array(
@@ -127,48 +131,62 @@ class NP2SLS(BaseEstLearner):
         if isinstance(treatment_basis, list) \
            or isinstance(treatment_basis, tuple):
             method, degree = treatment_basis[0], treatment_basis[1]
-            self._x_basis_func = self.get_basis_func(degree, method, x)
+            self._x_basis_func = self.get_basis_func(
+                degree, method, x, **kwargs
+            )
         else:
-            self._x_basis_func = clone(treatment_basis)
+            self._x_basis_func = deepcopy(treatment_basis)
 
         if isinstance(instrument_basis, list) \
            or isinstance(instrument_basis, tuple):
             method, degree = instrument_basis[0], instrument_basis[1]
-            self._z_basis_func = self.get_basis_func(degree, method, z)
+            self._z_basis_func = self.get_basis_func(
+                degree, method, z, **kwargs
+            )
         else:
-            self._z_basis_func = clone(instrument_basis)
+            self._z_basis_func = deepcopy(instrument_basis)
 
         if isinstance(covar_basis, str) or isinstance(covar_basis, tuple):
             method, degree = covar_basis[0], covar_basis[1]
-            self._v_basis_func = self.get_basis_func(degree, method, v)
+            self._v_basis_func = self.get_basis_func(
+                degree, method, v, **kwargs
+            )
         else:
-            self._v_basis_func = clone(covar_basis)
+            self._v_basis_func = deepcopy(covar_basis)
 
         # get expansion basis functions for parameters
-        x_transformed = self._x_basis_func(x)
-        z_transformed = self._z_basis_func(x)
-        v_tranformerd = self._v_basis_func(x)
-        
-        self._v_transformed = v_tranformerd
+        x_transformed = self._x_basis_func.fit_transform(x)
+        z_transformed = self._z_basis_func.fit_transform(z)
+        v_transformed = self._v_basis_func.fit_transform(v)
+
+        self._v_transformed = v_transformed
         self._w = w
 
-        zvw = np.concatenate(
-            [nd_kron(z_transformed, v_tranformerd), w, np.ones(x.shape[0], 1)],
-            axis=1
-        )
+        if v_transformed is not None:
+            zv = nd_kron(z_transformed, v_transformed)
+        else:
+            zv = z_transformed
+
+        zvw = get_wv(zv, w, np.ones((zv.shape[0], 1)))
 
         # stage 1: fit the x_model on z and w, v
         self.x_model.fit(zvw, x_transformed)
 
         # stage 2: fit the y_model on x, and w, v
         x_hat = self.x_model.predict(zvw)
-        xvw = np.concatenate(
-            [nd_kron(x_hat, v_tranformerd), w, np.ones(x.shape[0], 1)], axis=1
-        )
+
+        if v_transformed is not None:
+            xv = nd_kron(x_hat, v_transformed)
+        else:
+            xv = x_hat
+
+        xvw = get_wv(xv, w, np.ones((xv.shape[0], 1)))
         self.y_model.fit(xvw, y)
 
         # set _is_fitted as True
         self._is_fitted = True
+
+        return self
 
     def estimate(
         self,
@@ -193,54 +211,76 @@ class NP2SLS(BaseEstLearner):
             return (yt - y0).mean(dim=0)
         if quantity == 'ATE':
             return (yt - y0).mean(dim=0)
-        else:
+        elif quantity == 'ITE':
             return (yt - y0)
+        else:
+            return yt
 
     def _prepare4est(
         self,
         data,
         treat,
         control,
+        marginal_effect,
     ):
         if data is None:
             v = self._v_transformed
             w = self._w
+            x = None
+            n = self._n
         else:
-            w, v = convert2array(
-                data, self.adjustment, self.covariate
+            x, w, v = convert2array(
+                data, self.treatment, self.adjustment, self.covariate
             )
-            v = self._v_basis_func(v)
+            v = self._v_basis_func.fit_transform(v) if v is not None else None
 
-        n = w.shape[0]
+            n = len(data)
 
-        treat = 1 if treat is None \
-            else self.treatment_transformer.transform(treat)
-        control = 0 if control is None else \
-            self.treatment_transformer.transform(control)
+        if x is None:
+            if self.is_discrete_treatment:
+                treat = 1 if treat is None \
+                    else self.treatment_transformer.transform(treat)
+                control = 0 if control is None else \
+                    self.treatment_transformer.transform(control)
+            else:
+                treat = 1 if treat is None else treat
+                control = 0 if control is None else control
 
-        xt = np.repeat(np.array([[treat]]), n, axis=0)
-        x0 = np.repeat(np.array([[control]]), n, axis=0)
-        xt = self._x_basis_func(xt)
-        x0 = self._x_basis_func(x0)
+            xt = np.repeat(np.array([[treat]]), n, axis=0)
+            x0 = np.repeat(np.array([[control]]), n, axis=0)
+        else:
+            xt = x
+            x0 = deepcopy(xt)
 
-        xvw_t = np.concatenate([nd_kron(xt, v), w, np.ones((n, 1))], aixs=1)
-        xvw_0 = np.concatenate([nd_kron(x0, v), w, np.ones((n, 1))], aixs=1)
+        xt = self._x_basis_func.fit_transform(xt)
+        x0 = self._x_basis_func.fit_transform(x0)
+
+        if v is not None:
+            xv_t = nd_kron(xt, v)
+            xv_0 = nd_kron(x0, v)
+        else:
+            xv_t = xt
+            xv_0 = x0
+
+        xvw_t = get_wv(xv_t, w, np.ones((n, 1)))
+        xvw_0 = get_wv(xv_0, w, np.ones((n, 1)))
 
         yt = self.y_model.predict(xvw_t)
         y0 = self.y_model.predict(xvw_0)
 
         return yt, y0
 
-    def get_basis_func(self, degree=5, func='Poly', *para):
+    def get_basis_func(self, degree, func, para, **kwargs):
         if func == 'Poly':
-            return self._poly_basis_func(degree, *para)
+            return self._poly_basis_func(degree, para, **kwargs)
         elif func == 'Hermite':
-            return self._hermite_basis_func(degree, *para)
+            return self._hermite_basis_func(degree, para, **kwargs)
         else:
             raise ValueError('Do not support other basis functions currently.')
 
-    def _poly_basis_func(self, degree, *para):
-        pass
+    def _poly_basis_func(self, degree, para, **kwargs):
+        poly = PolynomialFeatures(degree=degree, **kwargs)
+        return poly
 
-    def _hermite_basis_func(self, degree, *para):
-        pass
+    def _hermite_basis_func(self, degree, para, **kwargs):
+        raise NotImplementedError
