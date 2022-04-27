@@ -1,17 +1,13 @@
+from email.utils import decode_params
 from estimator_model.utils import (convert2array, get_wv, get_treat_control)
 from .base_models import BaseEstLearner
-from .tree_criterion import CMSE
+from .tree_criterion import CMSE, MSE
 # from sklearn.tree._criterion import MSE
-
-from estimator_model.utils import (convert2array, get_wv, get_treat_control)
-from .base_models import BaseEstLearner
-
 import numpy as np
 from copy import deepcopy
 
 # from ctypes import memset, sizeof, c_double, memmove
 
-from sklearn.tree._criterion import Criterion
 from sklearn.utils import check_random_state
 from sklearn.preprocessing import OrdinalEncoder
 from sklearn.tree._splitter import BestSplitter
@@ -61,7 +57,7 @@ class CausalTree(BaseEstLearner):
         max_leaf_nodes=None,
         min_impurity_decrease=0.0,
         ccp_alpha=0.0,
-        eps=1e-6,
+        eps=1e-5,
         categories='auto'
     ):
         """
@@ -191,7 +187,7 @@ class CausalTree(BaseEstLearner):
                 f'Number of labels {len(y)} does not match number of samples'
             )
 
-        min_weight_leaf = 0  # maybe this needs more modifications
+        min_weight_leaf = 0  # maybe this need more modifications
 
         # Build tree step 1. Set up criterion
         # criterion = deepcopy(MSE(self.n_outputs, n_samples))
@@ -250,7 +246,7 @@ class CausalTree(BaseEstLearner):
 
     def _prepare4est(self, data=None):
         if not self._is_fitted:
-            raise Exception('The model has not been fitted yet')
+            raise Exception('The model is not fitted yet.')
 
         if data is None:
             wv = self._wv

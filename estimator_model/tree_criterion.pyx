@@ -16,7 +16,7 @@ from sklearn.tree._tree cimport SIZE_t
 from sklearn.tree._criterion cimport RegressionCriterion
 from libc.stdio cimport printf
 #-------------------------------------start of a new implementation
-cdef double eps = 1e-6
+cdef double eps = 1e-5
 
 cdef class CMSE(RegressionCriterion):
     def __cinit__(self, SIZE_t n_outputs, SIZE_t n_samples):
@@ -48,20 +48,20 @@ cdef class CMSE(RegressionCriterion):
         self.n0_total = 0.0
 
         #
-        self.weighted_n_left = 0.0 
+        #self.weighted_n_left = 0.0 
         #
         self.nt_left = 0.0
         self.n0_left = 0.0
         
         #
-        self.weighted_n_right = 0.0
+        #self.weighted_n_right = 0.0
         #
         self.nt_right = 0.0
         self.n0_right = 0.0
 
 
         #
-        self.sq_sum_total = 0.0
+        #self.sq_sum_total = 0.0
         #
         self.yt_sq_sum_total = 0.0
         self.y0_sq_sum_total = 0.0
@@ -117,13 +117,13 @@ cdef class CMSE(RegressionCriterion):
         cdef DOUBLE_t w
 
         #
-        self.sq_sum_total = 0.0
+        #self.sq_sum_total = 0.0
         #
         self.yt_sq_sum_total = 0.0
         self.y0_sq_sum_total = 0.0
 
         #
-        memset(&self.sum_total[0], 0, self.n_outputs * sizeof(double))
+        #memset(&self.sum_total[0], 0, self.n_outputs * sizeof(double))
         #
         memset(&self.yt_sum_total[0], 0, self.n_outputs * sizeof(double))
         memset(&self.y0_sum_total[0], 0, self.n_outputs * sizeof(double))
@@ -142,13 +142,13 @@ cdef class CMSE(RegressionCriterion):
             w0_y_ik = (1. - w) * y_ik
 
             #
-            self.sum_total[0] += wt_y_ik
+            #self.sum_total[0] += wt_y_ik
             #
             self.yt_sum_total[0] += wt_y_ik
             self.y0_sum_total[0] += w0_y_ik
 
             #
-            self.sq_sum_total += wt_y_ik * y_ik
+            #self.sq_sum_total += wt_y_ik * y_ik
             #
             self.yt_sq_sum_total += wt_y_ik * y_ik
             self.y0_sq_sum_total += w0_y_ik * y_ik
@@ -167,25 +167,25 @@ cdef class CMSE(RegressionCriterion):
         """Reset the criterion at pos=start."""
         cdef SIZE_t n_bytes = self.n_outputs * sizeof(double)
         #
-        memset(&self.sum_left[0], 0, n_bytes)
+        #memset(&self.sum_left[0], 0, n_bytes)
         #
         memset(&self.yt_sum_left[0], 0, n_bytes)
         memset(&self.y0_sum_left[0], 0, n_bytes)
 
         #
-        memcpy(&self.sum_right[0], &self.sum_total, n_bytes)
+        #memcpy(&self.sum_right[0], &self.sum_total, n_bytes)
         #
         memcpy(&self.yt_sum_right[0], &self.yt_sum_total[0], n_bytes)
         memcpy(&self.y0_sum_right[0], &self.y0_sum_total[0], n_bytes)
 
         #
-        self.weighted_n_left = 0.0
+        #self.weighted_n_left = 0.0
         #
         self.nt_left = 0.0
         self.n0_left = 0.0
 
         #
-        self.weighted_n_right = self.weighted_n_node_samples
+        #self.weighted_n_right = self.weighted_n_node_samples
         #
         self.nt_right = self.nt_total
         self.n0_right = self.n0_total
@@ -197,25 +197,25 @@ cdef class CMSE(RegressionCriterion):
         """Reset the criterion at pos=end."""
         cdef SIZE_t n_bytes = self.n_outputs * sizeof(double)
         #
-        memset(&self.sum_right[0], 0, n_bytes)
+        #memset(&self.sum_right[0], 0, n_bytes)
         #
         memset(&self.yt_sum_right[0], 0, n_bytes)
         memset(&self.y0_sum_right[0], 0, n_bytes)
 
         #
-        memcpy(&self.sum_left[0], &self.sum_total[0], n_bytes)
+        #memcpy(&self.sum_left[0], &self.sum_total[0], n_bytes)
         #
         memcpy(&self.yt_sum_left[0], &self.yt_sum_total[0], n_bytes)
         memcpy(&self.y0_sum_left[0], &self.y0_sum_total[0], n_bytes)
 
         #
-        self.weighted_n_right = 0.0
+        #self.weighted_n_right = 0.0
         #
         self.nt_right = 0.0
         self.n0_right = 0.0
 
         #
-        self.weighted_n_left = self.weighted_n_node_samples
+        #self.weighted_n_left = self.weighted_n_node_samples
         #
         self.nt_left = self.nt_total
         self.n0_left = self.n0_total
@@ -250,13 +250,13 @@ cdef class CMSE(RegressionCriterion):
                     w = sample_weight[i] - eps
 
                 #
-                self.sum_left[0] += w * self.y[i, 0]
+                #self.sum_left[0] += w * self.y[i, 0]
                 #
                 self.yt_sum_left[0] += w * self.y[i, 0]
                 self.y0_sum_left[0] += (1.0 - w) * self.y[i, 0]
 
                 #
-                self.weighted_n_left += w
+                #self.weighted_n_left += w
                 #
                 self.nt_left += w
                 self.n0_left += (1.0 - w)
@@ -270,20 +270,20 @@ cdef class CMSE(RegressionCriterion):
                     w = sample_weight[i] - eps
 
                 #
-                self.sum_left[0] -= w * self.y[i, 0]
+                #self.sum_left[0] -= w * self.y[i, 0]
                 #
                 self.yt_sum_left[0] -= w * self.y[i, 0]
                 self.y0_sum_left[0] -= (1.0 - w) * self.y[i, 0]
 
                 #
-                self.weighted_n_left -= w
+                #self.weighted_n_left -= w
                 #
                 self.nt_left -= w
                 self.n0_left -= (1.0 - w)
 
         #
-        self.weighted_n_right = (self.weighted_n_node_samples -
-                                 self.weighted_n_left)
+        #self.weighted_n_right = (self.weighted_n_node_samples -
+        #                         self.weighted_n_left)
         #
         self.nt_right = (self.nt_total - self.nt_left)
         self.n0_right = (self.n0_total - self.n0_left)
@@ -298,12 +298,15 @@ cdef class CMSE(RegressionCriterion):
         return 0
 
     cdef double node_impurity(self) nogil:
+        #printf("impurity\n")
         cdef double impurity
+        cdef DOUBLE_t eps_
         #### FIXME
-        ## impurity = (self.yt_sq_sum_total / (self.nt_total + eps) - (self.yt_sum_total / (self.nt_total + eps))**2.0) / (self.nt_total + eps)
-        ## impurity += (self.y0_sq_sum_total / (self.n0_total + eps) - (self.y0_sum_total / (self.n0_total + eps))**2.0) / (self.n0_total + eps)
-        ## impurity -= (self.yt_sum_total / (self.nt_total + eps) - self.y0_sum_total / (self.n0_total + eps))**2.0
-        impurity = 0.0
+        eps_ = eps / 100
+        impurity = 2 * (self.yt_sq_sum_total / (self.nt_total + eps_) - (self.yt_sum_total[0] / (self.nt_total + eps_))**2.0) / (self.nt_total + eps_)
+        impurity += 2 * (self.y0_sq_sum_total / (self.n0_total + eps_) - (self.y0_sum_total[0] / (self.n0_total + eps_))**2.0) / (self.n0_total + eps_)
+        impurity -= (self.yt_sum_total[0] / (self.nt_total + eps_) - self.y0_sum_total[0] / (self.n0_total + eps_))**2.0 / (self.nt_total + self.n0_total)
+        #printf("impurity value %f\n", impurity)
         return impurity
 
     cdef void children_impurity(self, double* impurity_left,
@@ -314,15 +317,15 @@ cdef class CMSE(RegressionCriterion):
         cdef SIZE_t start = self.start
 
         cdef DOUBLE_t y_ik
-
+        cdef DOUBLE_t eps_
         #
-        cdef double sq_sum_left = 0.0
+        #cdef double sq_sum_left = 0.0
         #
         cdef double yt_sq_sum_left = 0.0
         cdef double y0_sq_sum_left = 0.0
 
         #
-        cdef double sq_sum_right
+        #cdef double sq_sum_right
         #
         cdef double yt_sq_sum_right
         cdef double y0_sq_sum_right
@@ -340,45 +343,52 @@ cdef class CMSE(RegressionCriterion):
             y_ik = self.y[i, 0]
             
             #
-            sq_sum_left += w * y_ik * y_ik
+            #sq_sum_left += w * y_ik * y_ik
             #
             yt_sq_sum_left += w * y_ik * y_ik
             y0_sq_sum_left += (1. - w) * y_ik * y_ik
 
         #
-        sq_sum_right = self.sq_sum_total - sq_sum_left
+        #sq_sum_right = self.sq_sum_total - sq_sum_left
         #
         yt_sq_sum_right = self.yt_sq_sum_total - yt_sq_sum_left
-        y0_sq_sum_right = self.y0_sq_sum_total - y0_sq_sum_right
+        y0_sq_sum_right = self.y0_sq_sum_total - y0_sq_sum_left
 
+        eps_ = eps / 100
         #
         #impurity_left[0] = sq_sum_left / self.weighted_n_left
         #
-        impurity_left[0] = (yt_sq_sum_left / (self.nt_left + eps) - (self.yt_sum_left[0] / (self.nt_left + eps))**2.0) / (self.nt_left + eps)
-        impurity_left[0] += (y0_sq_sum_left / (self.n0_left + eps) - (self.y0_sum_left[0] / (self.n0_left + eps))**2.0) / (self.n0_left + eps)
+        impurity_left[0] = 3 * (yt_sq_sum_left / (self.nt_left + eps_) - (self.yt_sum_left[0] / (self.nt_left + eps_))**2.0) / (self.nt_left + eps_)
+        impurity_left[0] += 3 * (y0_sq_sum_left / (self.n0_left + eps_) - (self.y0_sum_left[0] / (self.n0_left + eps_))**2.0) / (self.n0_left + eps_)
         
         #
         #impurity_right[0] = sq_sum_right / self.weighted_n_right
         #
-        impurity_right[0] = (yt_sq_sum_right / (self.nt_right + eps) - (self.yt_sum_right[0] / (self.nt_right + eps))**2.0) / (self.nt_right + eps)
-        impurity_right[0] += (y0_sq_sum_right / (self.n0_right + eps) - (self.y0_sum_right[0] / (self.n0_right + eps))**2.0) / (self.n0_right + eps)
+        impurity_right[0] = 3 * (yt_sq_sum_right / (self.nt_right + eps_) - (self.yt_sum_right[0] / (self.nt_right + eps_))**2.0) / (self.nt_right + eps)
+        impurity_right[0] += 3 * (y0_sq_sum_right / (self.n0_right + eps_) - (self.y0_sum_right[0] / (self.n0_right + eps_))**2.0) / (self.n0_right + eps)
         
         #impurity_left[0] /= self.n_outputs
         #impurity_right[0] /= self.n_outputs
-        impurity_left[0] -= (self.yt_sum_left[0] / (self.nt_left + eps) - self.y0_sum_left[0] / (self.n0_left + eps)) ** 2.0
-        impurity_right[0] -= (self.yt_sum_right[0] / (self.nt_right + eps) - self.y0_sum_right[0] / (self.n0_right + eps)) ** 2.0
+        impurity_left[0] -= (self.yt_sum_left[0] / (self.nt_left + eps_) - self.y0_sum_left[0] / (self.n0_left + eps_)) ** 2.0 / (self.nt_left + self.n0_left + eps_)
+        impurity_right[0] -= (self.yt_sum_right[0] / (self.nt_right + eps_) - self.y0_sum_right[0] / (self.n0_right + eps_)) ** 2.0 / (self.nt_right + self.n0_right + eps_)
     
     cdef void node_value(self, double* dest) nogil:
+        #printf("node_value")
         """Compute the node value of samples[start:end] into dest."""
         #### FIXME
-        ### dest[0] = self.yt_sum_total / (self.nt_total + eps) - self.y0_sum_total /  (self.n0_total + eps)
-        dest[0] = 0.0
+        cdef DOUBLE_t eps_
+        eps_ = eps / 100
+        dest[0] = self.yt_sum_total[0] / (self.nt_total + eps_) - self.y0_sum_total[0] /  (self.n0_total + eps_)
+        #dest[0] = 0.0
+
 
 
     cdef double proxy_impurity_improvement(self) nogil:
         cdef double impurity_left
         cdef double impurity_right
         self.children_impurity(&impurity_left, &impurity_right)
+        #printf("impurity left %f\n", impurity_left)
+        #printf("impurity right %f\n", impurity_right)
 
         return (- (self.nt_right + self.n0_right) * impurity_right
                 - (self.nt_left + self.n0_left) * impurity_left)
@@ -386,5 +396,96 @@ cdef class CMSE(RegressionCriterion):
     cdef double impurity_improvement(self, double impurity_parent,
                                      double impurity_left,
                                      double impurity_right) nogil:
+        #printf("improve\n")
         return (impurity_parent - ((self.nt_right + self.n0_right) / (self.nt_total + self.n0_total) * impurity_right)
                                 - ((self.nt_left + self.n0_left) / (self.nt_total + self.n0_total) * impurity_left))
+
+
+
+cdef class MSE(RegressionCriterion):
+    """Mean squared error impurity criterion.
+        MSE = var_left + var_right
+    """
+
+    cdef double node_impurity(self) nogil:
+        """Evaluate the impurity of the current node.
+        Evaluate the MSE criterion as impurity of the current node,
+        i.e. the impurity of samples[start:end]. The smaller the impurity the
+        better.
+        """
+        cdef double impurity
+        cdef SIZE_t k
+
+        impurity = self.sq_sum_total / self.weighted_n_node_samples
+        for k in range(self.n_outputs):
+            impurity -= (self.sum_total[k] / self.weighted_n_node_samples)**2.0
+        
+        return impurity / self.n_outputs
+
+    cdef double proxy_impurity_improvement(self) nogil:
+        """Compute a proxy of the impurity reduction.
+        This method is used to speed up the search for the best split.
+        It is a proxy quantity such that the split that maximizes this value
+        also maximizes the impurity improvement. It neglects all constant terms
+        of the impurity decrease for a given split.
+        The absolute impurity improvement is only computed by the
+        impurity_improvement method once the best split has been found.
+        The MSE proxy is derived from
+            sum_{i left}(y_i - y_pred_L)^2 + sum_{i right}(y_i - y_pred_R)^2
+            = sum(y_i^2) - n_L * mean_{i left}(y_i)^2 - n_R * mean_{i right}(y_i)^2
+        Neglecting constant terms, this gives:
+            - 1/n_L * sum_{i left}(y_i)^2 - 1/n_R * sum_{i right}(y_i)^2
+        """
+        cdef SIZE_t k
+        cdef double proxy_impurity_left = 0.0
+        cdef double proxy_impurity_right = 0.0
+
+        for k in range(self.n_outputs):
+            proxy_impurity_left += self.sum_left[k] * self.sum_left[k]
+            proxy_impurity_right += self.sum_right[k] * self.sum_right[k]
+        ##printf("proxy improve")
+        return (proxy_impurity_left / self.weighted_n_left +
+                proxy_impurity_right / self.weighted_n_right)
+
+    cdef void children_impurity(self, double* impurity_left,
+                                double* impurity_right) nogil:
+        """Evaluate the impurity in children nodes.
+        i.e. the impurity of the left child (samples[start:pos]) and the
+        impurity the right child (samples[pos:end]).
+        """
+        cdef DOUBLE_t* sample_weight = self.sample_weight
+        cdef SIZE_t* samples = self.samples
+        cdef SIZE_t pos = self.pos
+        cdef SIZE_t start = self.start
+
+        cdef DOUBLE_t y_ik
+
+        cdef double sq_sum_left = 0.0
+        cdef double sq_sum_right
+
+        cdef SIZE_t i
+        cdef SIZE_t p
+        cdef SIZE_t k
+        cdef DOUBLE_t w = 1.0
+
+        for p in range(start, pos):
+            i = samples[p]
+
+            if sample_weight != NULL:
+                w = sample_weight[i]
+
+            for k in range(self.n_outputs):
+                y_ik = self.y[i, k]
+                sq_sum_left += w * y_ik * y_ik
+
+        sq_sum_right = self.sq_sum_total - sq_sum_left
+
+        impurity_left[0] = sq_sum_left / self.weighted_n_left
+        impurity_right[0] = sq_sum_right / self.weighted_n_right
+
+        for k in range(self.n_outputs):
+            impurity_left[0] -= (self.sum_left[k] / self.weighted_n_left) ** 2.0
+            impurity_right[0] -= (self.sum_right[k] / self.weighted_n_right) ** 2.0
+
+        impurity_left[0] /= self.n_outputs
+        impurity_right[0] /= self.n_outputs

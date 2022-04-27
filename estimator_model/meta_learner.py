@@ -671,6 +671,7 @@ class XLearner(BaseEstLearner):
         return self
 
     def _prepare_combined_treat(self, wv, rho):
+        # TODO: add support for training to select rho
         kt_pred = self.kt_model.predict(wv)
         k0_pred = self.k0_model.predict(wv)
 
