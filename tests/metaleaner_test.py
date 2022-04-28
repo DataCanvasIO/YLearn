@@ -1,75 +1,130 @@
 import numpy as np
-from numpy.random import binomial, multivariate_normal, normal, uniform
-from sklearn.linear_model import LinearRegression
-from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier, GradientBoostingRegressor
-
 import pandas as pd
+from numpy.random import binomial, multivariate_normal, uniform
+from sklearn.ensemble import GradientBoostingRegressor
+from sklearn.linear_model import LinearRegression, MultiTaskLasso
 
 from estimator_model.meta_learner import SLearner, TLearner, XLearner
-from estimator_model.doubly_robust import DoublyRobust
 
 
 # Define DGP
-def generate_data(n, d, controls_outcome, treatment_effect, propensity):
+def generate_covariates(n, d):
+    return multivariate_normal(np.zeros(d), np.diag(np.ones(d)), n)
+
+
+def to_df(**data):
+    dfs = []
+    for k, v in data.items():
+        if len(v.shape) == 1:
+            dfs.append(pd.Series(v, name=k))
+        elif v.shape[1] == 1:
+            dfs.append(pd.DataFrame(v, columns=[k]))
+        else:
+            dfs.append(pd.DataFrame(v, columns=[f'{k}_{i}' for i in range(v.shape[1])]))
+    df = pd.concat(dfs, axis=1)
+    return df
+
+
+def filter_columns(df, prefix):
+    return list(filter(lambda c: c.startswith(prefix), df.columns.tolist()))
+
+
+def generate_data_new(n_train, n_test, d, fn_treatment, fn_outcome):
     """Generates population data for given untreated_outcome, treatment_effect and propensity functions.
 
     Parameters
     ----------
-        n (int): population size
+        n_train (int): train data size
+        n_test (int): test data size
         d (int): number of covariates
-        controls_outcome (func): untreated outcome conditional on covariates
-        treatment_effect (func): treatment effect conditional on covariates
-        propensity (func): probability of treatment conditional on covariates
+        controls_outcome (func<w,x>): untreated outcome conditional on covariates
+        treatment_effect (func<w>): treatment effect conditional on covariates
     """
+
     # Generate covariates
-    X = multivariate_normal(np.zeros(d), np.diag(np.ones(d)), n)
+    # W = multivariate_normal(np.zeros(d), np.diag(np.ones(d)), n)
+    W = generate_covariates(n_train, d)
+
     # Generate treatment
-    T = np.apply_along_axis(lambda x: binomial(1, propensity(x), 1)[0], 1, X)
+    fn_x = np.vectorize(fn_treatment, signature='(n)->(m)')
+    X = fn_x(W)
+
     # Calculate outcome
-    Y0 = np.apply_along_axis(lambda x: controls_outcome(x), 1, X)
-    treat_effect = np.apply_along_axis(lambda x: treatment_effect(x), 1, X)
-    Y = Y0 + treat_effect * T
-    return (Y, T, X)
+    fn_y = np.vectorize(fn_outcome, signature='(n),(m)->(k)')
+    Y = fn_y(W, X)
 
+    # x
+    data = to_df(w=W, x=X, y=Y)
+    outcome = filter_columns(data, 'y')
+    treatment = filter_columns(data, 'x')
+    adjustment = filter_columns(data, 'w')
 
-def generate_controls_outcome(d):
-    beta = uniform(-3, 3, d)
-    return lambda x: np.dot(x, beta) + normal(0, 1)
-
-
-def generate_data_in1_out1():
-    treatment_effect = lambda x: (1 if x[1] > 0.1 else 0) * 8
-    propensity = lambda x: (0.8 if (x[2] > -0.5 and x[2] < 0.5) else 0.2)
-    # DGP constants and test data
-    d = 5
-    n = 1000
-    n_test = 250
-    controls_outcome = generate_controls_outcome(d)
-    X_test = multivariate_normal(np.zeros(d), np.diag(np.ones(d)), n_test)
-    delta = 6 / n_test
-    X_test[:, 1] = np.arange(-3, 3, delta)
-
-    y, x, w = generate_data(n, d, controls_outcome, treatment_effect, propensity)
-    data_dict = {
-        'outcome': y,
-        'treatment': x,
-    }
-    test_dict = {}
-    adjustment = []
-    for i in range(w.shape[1]):
-        data_dict[f'w_{i}'] = w[:, i].squeeze()
-        test_dict[f'w_{i}'] = X_test[:, i].squeeze()
-        adjustment.append(f'w_{i}')
-    outcome = 'outcome'
-    treatment = 'treatment'
-    data = pd.DataFrame(data_dict)
-    test_data = pd.DataFrame(test_dict)
+    X_test = generate_covariates(n_test, d)
+    # delta = 6 / n_test
+    # X_test[:, 1] = np.arange(-3, 3, delta)
+    test_data = to_df(w=generate_covariates(n_test, d)) if n_test is not None else None
 
     return data, test_data, outcome, treatment, adjustment
 
 
-def test_sleaner():
-    data, test_data, outcome, treatment, adjustment = generate_data_in1_out1()
+def TE(w):
+    return 8 if w[1] > 0.1 else 0
+
+
+def generate_data_x1y1():
+    d = 5
+    beta = uniform(-3, 3, d)
+
+    def to_treatment(w):
+        propensity = 0.8 if -0.5 < w[2] < 0.5 else 0.2
+        return np.random.binomial(1, propensity, 1)
+
+    def to_outcome(w, x):
+        treatment_effect = TE(w)
+        y0 = np.dot(w, beta) + np.random.normal(0, 1)
+        y = y0 + treatment_effect * x
+        return y
+
+    return generate_data_new(1000, 200, d, fn_treatment=to_treatment, fn_outcome=to_outcome)
+
+
+def generate_data_x2y1():
+    d = 5
+    beta = uniform(-3, 3, d)
+
+    def to_treatment(w):
+        propensity = 0.8 if -0.5 < w[2] < 0.5 else 0.2
+        return np.random.binomial(1, propensity, 2)
+
+    def to_outcome(w, x):
+        treatment_effect = 8 if w[1] > 0.1 else 0
+        y0 = np.dot(w, beta) + np.random.normal(0, 1)
+        y = y0 + treatment_effect * x.mean()
+        return np.array([y])
+
+    return generate_data_new(1000, 200, d, fn_treatment=to_treatment, fn_outcome=to_outcome)
+
+
+def generate_data_x2y2():
+    d = 5
+    beta = uniform(-3, 3, d)
+
+    def to_treatment(w):
+        propensity = 0.8 if -0.5 < w[2] < 0.5 else 0.2
+        return np.random.binomial(1, propensity, 2)
+
+    def to_outcome(w, x):
+        treatment_effect = np.array([8 if w[0] > 0.0 else 0,
+                                     8 if w[1] > 0.1 else 0, ])
+        y0 = np.dot(w, beta) + np.random.normal(0, 1)
+        y = y0 + treatment_effect * x
+        return y
+
+    return generate_data_new(1000, 200, d, fn_treatment=to_treatment, fn_outcome=to_outcome)
+
+
+def test_sleaner_x1y1():
+    data, test_data, outcome, treatment, adjustment = generate_data_x1y1()
 
     s = SLearner(model=GradientBoostingRegressor())
     s.fit(
@@ -91,12 +146,79 @@ def test_sleaner():
     s1_pred = s1.estimate(data=test_data, quantity=None)
 
 
-def test_tleaner():
-    data, test_data, outcome, treatment, adjustment = generate_data_in1_out1()
+def test_sleaner_x1y1():
+    data, test_data, outcome, treatment, adjustment = generate_data_x1y1()
 
-    t = TLearner(
-        model=GradientBoostingRegressor()
+    s = SLearner(model=GradientBoostingRegressor())
+    s.fit(
+        data=data,
+        outcome=outcome,
+        treatment=treatment,
+        adjustment=adjustment,
     )
+    s_pred = s.estimate(data=test_data, quantity=None)
+
+    s1 = SLearner(model=GradientBoostingRegressor())
+    s1.fit(
+        data=data,
+        outcome=outcome,
+        treatment=treatment,
+        adjustment=adjustment,
+        combined_treatment=False
+    )
+    s1_pred = s1.estimate(data=test_data, quantity=None)
+
+
+def test_sleaner_x2y1():
+    data, test_data, outcome, treatment, adjustment = generate_data_x2y1()
+
+    s = SLearner(model=GradientBoostingRegressor())
+    s.fit(
+        data=data,
+        outcome=outcome,
+        treatment=treatment,
+        adjustment=adjustment,
+    )
+    s_pred = s.estimate(data=test_data, quantity=None)
+
+    s1 = SLearner(model=GradientBoostingRegressor())
+    s1.fit(
+        data=data,
+        outcome=outcome,
+        treatment=treatment,
+        adjustment=adjustment,
+        combined_treatment=False
+    )
+    s1_pred = s1.estimate(data=test_data, quantity=None)
+
+
+def test_sleaner_x2y2():
+    data, test_data, outcome, treatment, adjustment = generate_data_x2y2()
+
+    s = SLearner(model=LinearRegression())
+    s.fit(
+        data=data,
+        outcome=outcome,
+        treatment=treatment,
+        adjustment=adjustment,
+    )
+    s_pred = s.estimate(data=test_data, quantity=None)
+
+    s1 = SLearner(model=MultiTaskLasso())
+    s1.fit(
+        data=data,
+        outcome=outcome,
+        treatment=treatment,
+        adjustment=adjustment,
+        combined_treatment=False
+    )
+    s1_pred = s1.estimate(data=test_data, quantity=None)
+
+
+def test_tleaner_x1y1():
+    data, test_data, outcome, treatment, adjustment = generate_data_x1y1()
+
+    t = TLearner(model=GradientBoostingRegressor())
     t.fit(
         data=data,
         outcome=outcome,
@@ -105,9 +227,7 @@ def test_tleaner():
     )
     t_pred = t.estimate(data=test_data, quantity=None)
 
-    t1 = TLearner(
-        model=GradientBoostingRegressor()
-    )
+    t1 = TLearner(model=GradientBoostingRegressor())
     t1.fit(
         data=data,
         outcome=outcome,
@@ -118,11 +238,55 @@ def test_tleaner():
     t1_pred = t1.estimate(data=test_data, quantity=None)
 
 
-def test_xleaner():
-    data, test_data, outcome, treatment, adjustment = generate_data_in1_out1()
-    x = XLearner(
-        model=GradientBoostingRegressor()
+def test_tleaner_x2y1():
+    data, test_data, outcome, treatment, adjustment = generate_data_x2y1()
+
+    t = TLearner(model=GradientBoostingRegressor())
+    t.fit(
+        data=data,
+        outcome=outcome,
+        treatment=treatment,
+        adjustment=adjustment,
     )
+    t_pred = t.estimate(data=test_data, quantity=None)
+
+    t1 = TLearner(model=GradientBoostingRegressor())
+    t1.fit(
+        data=data,
+        outcome=outcome,
+        treatment=treatment,
+        adjustment=adjustment,
+        combined_treatment=False,
+    )
+    t1_pred = t1.estimate(data=test_data, quantity=None)
+
+
+def test_tleaner_x2y2():
+    data, test_data, outcome, treatment, adjustment = generate_data_x2y2()
+
+    t = TLearner(model=LinearRegression())
+    t.fit(
+        data=data,
+        outcome=outcome,
+        treatment=treatment,
+        adjustment=adjustment,
+    )
+    t_pred = t.estimate(data=test_data, quantity=None)
+
+    t1 = TLearner(model=LinearRegression())
+    t1.fit(
+        data=data,
+        outcome=outcome,
+        treatment=treatment,
+        adjustment=adjustment,
+        combined_treatment=False,
+    )
+    t1_pred = t1.estimate(data=test_data, quantity=None)
+
+
+def test_xleaner_x1y1():
+    data, test_data, outcome, treatment, adjustment = generate_data_x1y1()
+    x = XLearner(model=GradientBoostingRegressor())
     x.fit(
         data=data,
         outcome=outcome,
@@ -131,9 +295,51 @@ def test_xleaner():
     )
     x_pred = x.estimate(data=test_data, quantity=None)
 
-    x1 = XLearner(
-        model=GradientBoostingRegressor()
+    x1 = XLearner(model=GradientBoostingRegressor())
+    x1.fit(
+        data=data,
+        outcome=outcome,
+        treatment=treatment,
+        adjustment=adjustment,
+        combined_treatment=False,
     )
+    x1_pred = x1.estimate(data=test_data, quantity=None)
+
+
+def test_xleaner_x2y1():
+    data, test_data, outcome, treatment, adjustment = generate_data_x2y1()
+    x = XLearner(model=GradientBoostingRegressor())
+    x.fit(
+        data=data,
+        outcome=outcome,
+        treatment=treatment,
+        adjustment=adjustment,
+    )
+    x_pred = x.estimate(data=test_data, quantity=None)
+
+    x1 = XLearner(model=GradientBoostingRegressor())
+    x1.fit(
+        data=data,
+        outcome=outcome,
+        treatment=treatment,
+        adjustment=adjustment,
+        combined_treatment=False,
+    )
+    x1_pred = x1.estimate(data=test_data, quantity=None)
+
+
+def test_xleaner_x2y2():
+    data, test_data, outcome, treatment, adjustment = generate_data_x2y2()
+    x = XLearner(model=LinearRegression())
+    x.fit(
+        data=data,
+        outcome=outcome,
+        treatment=treatment,
+        adjustment=adjustment,
+    )
+    x_pred = x.estimate(data=test_data, quantity=None)
+
+    x1 = XLearner(model=LinearRegression())
     x1.fit(
         data=data,
         outcome=outcome,
