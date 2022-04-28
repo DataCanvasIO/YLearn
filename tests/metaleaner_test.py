@@ -29,7 +29,7 @@ def filter_columns(df, prefix):
     return list(filter(lambda c: c.startswith(prefix), df.columns.tolist()))
 
 
-def generate_data_new(n_train, n_test, d, fn_treatment, fn_outcome):
+def generate_data(n_train, n_test, d, fn_treatment, fn_outcome):
     """Generates population data for given untreated_outcome, treatment_effect and propensity functions.
 
     Parameters
@@ -37,8 +37,8 @@ def generate_data_new(n_train, n_test, d, fn_treatment, fn_outcome):
         n_train (int): train data size
         n_test (int): test data size
         d (int): number of covariates
-        controls_outcome (func<w,x>): untreated outcome conditional on covariates
-        treatment_effect (func<w>): treatment effect conditional on covariates
+        fn_treatment (func<w,x>): untreated outcome conditional on covariates
+        fn_outcome (func<w>): treatment effect conditional on covariates
     """
 
     # Generate covariates
@@ -85,7 +85,7 @@ def generate_data_x1y1():
         y = y0 + treatment_effect * x
         return y
 
-    return generate_data_new(1000, 200, d, fn_treatment=to_treatment, fn_outcome=to_outcome)
+    return generate_data(1000, 200, d, fn_treatment=to_treatment, fn_outcome=to_outcome)
 
 
 def generate_data_x2y1():
@@ -102,7 +102,7 @@ def generate_data_x2y1():
         y = y0 + treatment_effect * x.mean()
         return np.array([y])
 
-    return generate_data_new(1000, 200, d, fn_treatment=to_treatment, fn_outcome=to_outcome)
+    return generate_data(1000, 200, d, fn_treatment=to_treatment, fn_outcome=to_outcome)
 
 
 def generate_data_x2y2():
@@ -120,7 +120,7 @@ def generate_data_x2y2():
         y = y0 + treatment_effect * x
         return y
 
-    return generate_data_new(1000, 200, d, fn_treatment=to_treatment, fn_outcome=to_outcome)
+    return generate_data(1000, 200, d, fn_treatment=to_treatment, fn_outcome=to_outcome)
 
 
 def test_sleaner_x1y1():
