@@ -20,29 +20,12 @@ class SLearner(BaseEstLearner):
 
     Attributes
     ----------
-    ml_model_dic : dict
-        A dictionary of default machine learning sklearn models currently
-        including
-            'LR': LinearRegression
-            'LogistR': LogisticRegression.
-    ml_model : str, optional
-        The machine learning model for modeling the relation between outcome
-        and (treatment, adjustment).
 
     Methods
     ----------
     _prepare4est(data, outcome, treatment, adjustment, individual=None)
         Prepare (fit the model) for estimating various quantities including
         ATE, CATE, ITE, and CITE.
-    estimate(data, outcome, treatment, adjustment, quantity='ATE',
-                 condition_set=None, condition=None, individual=None)
-        Integrate estimations for various quantities into a single method.
-    estimate_ate(self, data, outcome, treatment, adjustment)
-    estimate_cate(self, data, outcome, treatment, adjustment,
-                      condition_set, condition)
-    estimate_ite(self, data, outcome, treatment, adjustment, individual)
-    estimate_cite(self, data, outcome, treatment, adjustment,
-                      condition_set, condition, individual)
     """
 
     def __init__(
@@ -56,10 +39,11 @@ class SLearner(BaseEstLearner):
         """
         Parameters
         ----------
-        ml_model : str, optional
-            If str, ml_model is the name of the machine learning mdoels used
-            for our TLearner. If not str, then ml_model should be some valid
-            machine learning model wrapped by the class MLModels.
+        model : MLModel, optional
+            model should be some valid machine learning model with fit and
+            predict functions or wrapped by the class MLModels.
+        random_state : int
+        categories : str
         """
         self.model = model
         self._is_fitted = False
@@ -92,11 +76,13 @@ class SLearner(BaseEstLearner):
                     combined_treat=combined_treatment,
                     )
 
+        # get numpy data
         y, x, w, v = convert2array(
             data, outcome, treatment, adjustment, covariate
         )
-
         self._y_d = y.shape[1]
+
+        # get categories for treatment transformer
         if self.categories == 'auto' or self.categories is None:
             categories = 'auto'
         else:
@@ -152,6 +138,32 @@ class SLearner(BaseEstLearner):
         categories,
         **kwargs
     ):
+        """Fit function when multiple treatments are combined to give a single equivalent
+        treatment vector
+
+        Parameters
+        ----------
+        x : np.array
+            Treatment vectors with shape (n, x_d)
+        wv : np.array
+            Covariate vector with shape (n, wv_d)
+        y : np.array
+            Outcome vector with shape (n, y_d)
+        treat : Int or list, optional
+            If there is only one treament, then treat indicates the treatment
+            group. If there are multiple treatment groups, then treat should
+            be a list of int with length equal to the number of treatment
+            groups indicating the specific treat taken by each treatment group.
+        control : Int or list, optional
+            See treat for more information
+        categories : str
+
+        Returns
+        -------
+        self
+            Instance of SLearner
+        """
+        # Converting treatment to array with shape (n, num_treatments)
         self.transformer = OrdinalEncoder(categories=categories)
         self.transformer.fit(x)
         x = self.transformer.transform(x)
@@ -196,8 +208,8 @@ class SLearner(BaseEstLearner):
 
     def _prepare_combined_treat(self, wv):
         n = wv.shape[0]
-        xt = np.repeat(self.treat, n, axis=0)
-        x0 = np.repeat(self.control, n, axis=0)
+        xt = np.repeat(self.treat.reshape(1, -1), n, axis=0)
+        x0 = np.repeat(self.control.reshape(1, -1), n, axis=0)
         if len(xt.shape) == 1:
             xt = xt.reshape(-1, 1)
             x0 = x0.reshape(-1, 1)
