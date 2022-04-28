@@ -1,112 +1,182 @@
 import numpy as np
+from sklearn.preprocessing import OneHotEncoder
 
-from copy import deepcopy
+
+from estimator_model.base_models import BaseEstLearner
+from estimator_model.utils import (convert2array, get_wv, convert4onehot,
+                                   get_treat_control)
 
 
-class CausalEffectBound:
+class ApproxBound(BaseEstLearner):
+    """
+    Parameters
+    ----------
+    y_model : MLModel, optional.
+        Machine learning models for fitting the relation between treatment
+        and outcome.
+    x_prob : np.array of float, optional. Defaults to None.
+        The probability of taking specific treatments.
+    x_model : MLModel, optional. Defaults to None.
+        Machine learning models for fitting the relation between treatment
+        and condition set if condition set is True.
+    random_state : int
+    is_discrete_treatent : bool
+    categories : str or list, optional. Deafaults to 'auto'
+    """
+    # TODO: may consider multiple treatments
+
     def __init__(
         self,
         y_model,
+        x_prob=None,
+        x_model=None,
+        random_state=2022,
+        is_discrete_treatment=True,
+        categories='auto'
+    ):
+        self.y_model = y_model
+        self.x_prob = x_prob
+        self.x_model = x_model
+
+        super().__init__(
+            random_state,
+            is_discrete_treatment,
+            categories=categories
+        )
+
+    def fit(
+        self,
         data,
         outcome,
         treatment,
-        condition_set=None,
-        x_prob=None,
-        x_model=None
+        covariate=None,
+        is_discrete_covariate=False,
+        **kwargs
     ):
-        """
+        """_summary_
+
         Parameters
         ----------
-        y_model : MLModel, optional.
-            Machine learning models for fitting the relation between treatment
-            and outcome.
-        data : DataFrame
-        outcome : str
-        treatment : str
-        condition_set : list of str, optional. Defaults to None.
-            Specify this for estiamte CATE.
-        x_prob : list of float, optional. Defaults to None.
-            The probability of taking a specific treatment.
-        x_model : MLModel, optional. Defaults to None.
-            Machine learning models for fitting the relation between treatment
-            and condition set if condition set is True.
-        """
-        self.y_model = y_model
-        self.x = data[treatment]
-        self.y = data[outcome]
-        self.condition_set = data[condition_set] if condition_set else None
-        # self.x_model = x_model
-        self.x_prob = x_prob
+        data : _type_
+            _description_
+        outcome : _type_
+            _description_
+        treatment : _type_
+            _description_
+        covariate : _type_, optional
+            _description_, by default None
+        is_discrete_covariate : bool, optional
+            _description_, by default False
 
-    def fit(self):
-        """Fit all relevant models and calculate necessary quantites.
-        """
-        if self.condition_set:
-            pass
-        else:
-            if not self.x_prob:
-                self.x_prob = (
-                    self.x.value_counts().sort_index() / self.x.shape[0]
-                ).values
+        Returns
+        -------
+        _type_
+            _description_
 
-            self.y_model.fit(
-                self.x.values.reshape(-1, 1), self.y.values.reshape(-1, 1)
+        Raises
+        ------
+        ValueError
+            _description_
+        """
+        super().fit(
+            data, outcome, treatment,
+            covariate=covariate,
+            is_discrete_covariate=is_discrete_covariate
+        )
+        y, x, v = convert2array(data, outcome, treatment, covariate)
+        self._y_max = y.max(axis=0)
+        self._y_min = y.min(axis=0)
+        self._n = len(data)
+
+        if not self.is_discrete_treatment:
+            raise ValueError(
+                'The method only supports discrete treatments currently.'
             )
 
-    def effect_bound(
+        self.treatment_transformer = OneHotEncoder()
+        x_one_hot = self.treatment_transformer.fit_transform(x).toarray()
+        self._num_treatments = len(self.treatment_transformer.categories_)
+        self._x_d = x_one_hot.shape[1]
+
+        if self.x_prob is None:
+            if v is not None:
+                x = convert4onehot(x_one_hot).astype(int)
+
+                if self.is_discrete_covariate:
+                    v = OneHotEncoder().fit_transform(v)
+
+                self.x_model.fit(v, x)
+                self.x_prob = self.x_model.predic_proba(v)
+            else:
+                self.x_prob = (
+                    data[treatment].value_counts().sort_index() / self._n
+                ).values.reshape(1, -1)
+        else:
+            # TODO: modify the following line for multiple treatment
+            self.x_prob = self.x_prob.reshape(1, -1)
+
+        self._v = v
+        xv = get_wv(x_one_hot, v)
+        self.y_model.fit(xv, y.squeeze(), **kwargs)
+
+        self._is_fitted = True
+
+        return self
+
+    def estimate(
         self,
+        data=None,
+        treat=None,
+        control=None,
         y_upper=None,
         y_lower=None,
-        treatment_value=None,
-        assump='non-negative'
+        assump=None,
+        **kwargs
     ):
-        """Calculate the approximation bound of causal effects.
+        """_summary_
 
         Parameters
         ----------
-        y_upper : float.
-            The upper bound of the outcome
-        y_lower : float.
-            The lower bound of the outocme.
-        treatment_value : float, optional.
-            Specify the which treatment group is selected. Defaults to None.
+        data : _type_, optional
+            _description_, by default None
+        treat : _type_, optional
+            _description_, by default None
+        control : _type_, optional
+            _description_, by default None
+        y_upper : _type_, optional
+            _description_, by default None
+        y_lower : _type_, optional
+            _description_, by default None
         assump : str, optional.  Defaults to 'no-assump'.
-            Should be in one of
+            Should be one of
                 1. no-assump: calculate the no assumption bound whose result
                     will always contain 0.
                 2. non-negative: The treatment is always positive.
                 3. non-positive: The treatment is always negative.
                 4. optimal: The treatment is taken if its effect is positive.
 
-        Raises
-        ----------
-        Exception
 
         Returns
-        ----------
-        tuple of float
-            The first element is the lower bound while the second element is
-            the upper bound.
+        -------
+        _type_
+            _description_
+
+        Raises
+        ------
+        Exception
+            _description_
+        Exception
+            _description_
         """
-        if not treatment_value:
-            treatment_value = 1
-        if y_upper is None:
-            y_upper = self.y.max()
-        if y_lower is None:
-            y_lower = self.y.min()
+        if not self._is_fitted:
+            raise Exception('The estimator is not fitted yet.')
 
-        xt = treatment_value * np.array([[1]])
-        x0 = np.array([[0]])
-        xt_prob = self.x_prob[treatment_value]
-        x0_prob = self.x_prob[0]
-        yt, y0 = self.y_model.predict(xt), self.y_model.predict(x0)
+        normal, optim1, optim2 = self._prepare4est(
+            data, treat, control, y_upper, y_lower
+        )
+        upper, lower = normal
 
-        upper = xt_prob * yt + (1 - xt_prob) * y_upper \
-            - (1 - x0_prob) * y_lower - x0_prob * y0
-        lower = xt_prob * yt + (1 - xt_prob) * y_lower \
-            - (1 - x0_prob) * y_upper - x0_prob * y0
-
-        if assump == 'no-assump':
+        if assump == 'no-assump' or assump is None:
             return (lower, upper)
         elif assump == 'non-negative':
             return (0, upper)
@@ -114,17 +184,72 @@ class CausalEffectBound:
             return (lower, 0)
         elif assump == 'optimal':
             # TODO: need to update this for discrete treatment
-            optimal_upper1 = xt_prob * yt - (1 - x0_prob) * y_lower \
-                + (1 - xt_prob - x0_prob) * y_upper
-            optimal_lower1 = x0_prob * lower - x0_prob * y0
-            optimal_upper2 = yt - xt_prob * lower - x0_prob * y0
-            optimal_lower2 = xt_prob * yt + x0_prob * lower - y0
-            return (
-                (optimal_lower1, optimal_upper1),
-                (optimal_lower2, optimal_upper2)
-            )
+            return (optim1, optim2)
         else:
             raise Exception(
                 'Only support assumptions in no-assump, non-negative, and'
                 'non-positive'
             )
+
+    def _prepare4est(
+        self,
+        data,
+        treat,
+        control,
+        y_upper,
+        y_lower,
+    ):
+        # x_d = self._x_d
+        x_prob = self.x_prob
+
+        if self.covariate is None:
+            n = 1
+            v = None
+            if data is None:
+                y_upper = self._y_max if y_upper is None else y_upper
+                y_lower = self._y_min if y_lower is None else y_lower
+            else:
+                y = convert2array(data, self.outcome)
+                y_upper = y.max(axis=0) if y_upper is None else y_upper
+                y_lower = y.min(axis=0) if y_lower is None else y_lower
+        else:
+            if data is None:
+                v = self._v
+                y_upper = self._y_max if y_upper is None else y_upper
+                y_lower = self._y_min if y_lower is None else y_lower
+                n = self._n
+            else:
+                y, v = convert2array(data, self.outcome, self.covariate)
+                y_upper = y.max(axis=0) if y_upper is None else y_upper
+                y_lower = y.min(axis=0) if y_lower is None else y_lower
+                n = y.shape[0]
+                x_prob = self.x_model.predic_proba(v)
+
+        treat = get_treat_control(treat, self._num_treatments, True)
+        control = get_treat_control(control, self._num_treatments, False)
+
+        # TODO: modify the following line for multiple treatment
+        xt, x0 = np.zeros((n, self._x_d)), np.zeros((n, self._x_d))
+        xt[:, treat] = 1
+        x0[:, control] = 1
+
+        xt = get_wv(xt, v)
+        x0 = get_wv(xt, v)
+        yt = self.y_model.predict(xt)
+        y0 = self.y_model.predict(x0)
+        xt_prob = x_prob[:, treat]
+        x0_prob = x_prob[:, control]
+
+        upper = xt_prob * yt + (1 - xt_prob) * y_upper \
+            - (1 - x0_prob) * y_lower - x0_prob * y0
+        lower = xt_prob * yt + (1 - xt_prob) * y_lower \
+            - (1 - x0_prob) * y_upper - x0_prob * y0
+
+        optimal_upper1 = xt_prob * yt - (1 - x0_prob) * y_lower \
+            + (1 - xt_prob - x0_prob) * y_upper
+        optimal_lower1 = x0_prob * lower - x0_prob * y0
+        optimal_upper2 = yt - xt_prob * lower - x0_prob * y0
+        optimal_lower2 = xt_prob * yt + x0_prob * lower - y0
+
+        return ((upper, lower), (optimal_upper1, optimal_lower1),
+                (optimal_upper2, optimal_lower2))
