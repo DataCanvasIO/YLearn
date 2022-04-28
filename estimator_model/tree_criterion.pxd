@@ -1,7 +1,7 @@
 
 from sklearn.tree._criterion cimport RegressionCriterion
 
-cdef class CMSE(RegressionCriterion):
+cdef class HonestCMSE(RegressionCriterion):
     cdef double yt_sq_sum_total
     cdef double y0_sq_sum_total
 
@@ -21,3 +21,4 @@ cdef class CMSE(RegressionCriterion):
 
     cdef double nt_right
     cdef double n0_right
+    

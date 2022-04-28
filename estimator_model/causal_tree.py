@@ -1,8 +1,3 @@
-from email.utils import decode_params
-from estimator_model.utils import (convert2array, get_wv, get_treat_control)
-from .base_models import BaseEstLearner
-from .tree_criterion import CMSE, MSE
-# from sklearn.tree._criterion import MSE
 import numpy as np
 from copy import deepcopy
 
@@ -13,6 +8,10 @@ from sklearn.preprocessing import OrdinalEncoder
 from sklearn.tree._splitter import BestSplitter
 from sklearn.tree._tree import (DepthFirstTreeBuilder, Tree,
                                 BestFirstTreeBuilder)
+
+from estimator_model.utils import (convert2array, get_wv, get_treat_control)
+from .base_models import BaseEstLearner
+from .tree_criterion import CMSE, MSE, HonestCMSE
 # import pyximport
 # pyximport.install(setup_args={"script_args": ["--verbose"]})
 
@@ -191,7 +190,8 @@ class CausalTree(BaseEstLearner):
 
         # Build tree step 1. Set up criterion
         # criterion = deepcopy(MSE(self.n_outputs, n_samples))
-        criterion = deepcopy(CMSE(self.n_outputs, n_samples))
+        # criterion = deepcopy(CMSE(self.n_outputs, n_samples))
+        criterion = deepcopy(HonestCMSE(self.n_outputs, n_samples))
 
         # Build tree step 2. Define splitter
         splitter = BestSplitter(
