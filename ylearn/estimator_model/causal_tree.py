@@ -240,7 +240,7 @@ class CausalTree(BaseEstLearner):
         effect = self._prepare4est(data)
 
         if quantity == 'ATE' or quantity == 'CATE':
-            pass
+            np.mean(effect, axis=0)
         else:
             return effect
 
