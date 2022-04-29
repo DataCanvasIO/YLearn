@@ -2,8 +2,12 @@
 
 ylearn(learn why) is a python package for causal inference
 
-## Some points
+## Add scores for
 
-- For the estimation part, maybe we can focus more on non-linear (conditional) treatment effect?
+    1. estimation of causal effects (especially CATE)
+    2. the performances of machine learning models
 
-- Is np.ndarray more suitable than pandas.DataFrame to be feeded to our functions?
+## Add support for SHAP
+
+
+## Enable the full pipeline of discovery-identification-estimation

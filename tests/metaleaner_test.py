@@ -5,8 +5,8 @@ from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier, Grad
 
 import pandas as pd
 
-from estimator_model.meta_learner import SLearner, TLearner, XLearner
-from estimator_model.doubly_robust import DoublyRobust
+from ylearn.estimator_model.meta_learner import SLearner, TLearner, XLearner
+from ylearn.estimator_model.doubly_robust import DoublyRobust
 
 
 # Define DGP

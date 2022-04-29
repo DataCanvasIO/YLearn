@@ -3,8 +3,8 @@ from Cython.Build import cythonize
 from setuptools import setup, Extension
 
 extensions = [
-    Extension('estimator_model.tree_criterion',
-              sources=[f'estimator_model/tree_criterion.pyx'],
+    Extension('ylearn/estimator_model.tree_criterion',
+              sources=[f'ylearn/estimator_model/tree_criterion.pyx'],
               include_dirs=[numpy.get_include()]),
 ]
 

@@ -1,6 +1,6 @@
 import numpy as np
 
-from estimator_model.utils import nd_kron
+from ylearn.estimator_model.utils import nd_kron
 
 
 def _nd_kron_original(x, y):
