@@ -5,7 +5,6 @@ from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.linear_model import LinearRegression, MultiTaskLasso
 
 from ylearn.estimator_model.meta_learner import SLearner, TLearner, XLearner
-from ylearn.estimator_model.doubly_robust import DoublyRobust
 
 
 # Define DGP
@@ -89,6 +88,23 @@ def generate_data_x1y1():
     return generate_data(1000, 200, d, fn_treatment=to_treatment, fn_outcome=to_outcome)
 
 
+def generate_data_x1y2():
+    d = 5
+    beta = uniform(-3, 3, d)
+
+    def to_treatment(w):
+        propensity = 0.8 if -0.5 < w[2] < 0.5 else 0.2
+        return np.random.binomial(1, propensity, 1)
+
+    def to_outcome(w, x):
+        treatment_effect = TE(w)
+        y0 = np.dot(w, beta) + np.random.normal(0, 1)
+        y = y0 + treatment_effect * x + w[:2]
+        return y
+
+    return generate_data(1000, 200, d, fn_treatment=to_treatment, fn_outcome=to_outcome)
+
+
 def generate_data_x2y1():
     d = 5
     beta = uniform(-3, 3, d)
@@ -147,10 +163,10 @@ def test_sleaner_x1y1():
     s1_pred = s1.estimate(data=test_data, quantity=None)
 
 
-def test_sleaner_x1y1():
-    data, test_data, outcome, treatment, adjustment = generate_data_x1y1()
+def test_sleaner_x1y2():
+    data, test_data, outcome, treatment, adjustment = generate_data_x1y2()
 
-    s = SLearner(model=GradientBoostingRegressor())
+    s = SLearner(model=LinearRegression())
     s.fit(
         data=data,
         outcome=outcome,
@@ -159,7 +175,7 @@ def test_sleaner_x1y1():
     )
     s_pred = s.estimate(data=test_data, quantity=None)
 
-    s1 = SLearner(model=GradientBoostingRegressor())
+    s1 = SLearner(model=LinearRegression())
     s1.fit(
         data=data,
         outcome=outcome,
@@ -239,6 +255,29 @@ def test_tleaner_x1y1():
     t1_pred = t1.estimate(data=test_data, quantity=None)
 
 
+def test_tleaner_x1y2():
+    data, test_data, outcome, treatment, adjustment = generate_data_x1y2()
+
+    t = TLearner(model=LinearRegression())
+    t.fit(
+        data=data,
+        outcome=outcome,
+        treatment=treatment,
+        adjustment=adjustment,
+    )
+    t_pred = t.estimate(data=test_data, quantity=None)
+
+    t1 = TLearner(model=LinearRegression())
+    t1.fit(
+        data=data,
+        outcome=outcome,
+        treatment=treatment,
+        adjustment=adjustment,
+        combined_treatment=False,
+    )
+    t1_pred = t1.estimate(data=test_data, quantity=None)
+
+
 def test_tleaner_x2y1():
     data, test_data, outcome, treatment, adjustment = generate_data_x2y1()
 
@@ -297,6 +336,28 @@ def test_xleaner_x1y1():
     x_pred = x.estimate(data=test_data, quantity=None)
 
     x1 = XLearner(model=GradientBoostingRegressor())
+    x1.fit(
+        data=data,
+        outcome=outcome,
+        treatment=treatment,
+        adjustment=adjustment,
+        combined_treatment=False,
+    )
+    x1_pred = x1.estimate(data=test_data, quantity=None)
+
+
+def test_xleaner_x1y2():
+    data, test_data, outcome, treatment, adjustment = generate_data_x1y2()
+    x = XLearner(model=LinearRegression())
+    x.fit(
+        data=data,
+        outcome=outcome,
+        treatment=treatment,
+        adjustment=adjustment,
+    )
+    x_pred = x.estimate(data=test_data, quantity=None)
+
+    x1 = XLearner(model=MultiTaskLasso())
     x1.fit(
         data=data,
         outcome=outcome,
