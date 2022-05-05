@@ -152,6 +152,9 @@ class CausalTree(BaseEstLearner):
         # get new dataset with treat and controls
         treat = get_treat_control(treat, n_treatments, True)
         control = get_treat_control(control, n_treatments, treat=False)
+        
+        self.treat = treat
+        
         # TODO: this should be much more simpler when considering single treat
         _tr = np.all(treat == x, axis=1)
         _crtl = np.all(control == x, axis=1)
@@ -272,6 +275,9 @@ class CausalTree(BaseEstLearner):
     @property
     def feature_importance(self):
         return self.tree.compute_feature_importances()
+
+    def __repr__(self) -> str:
+        return f'Causal Tree'
 
 
 # class _CausalTreeOld:

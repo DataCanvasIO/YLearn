@@ -240,6 +240,8 @@ class SLearner(BaseEstLearner):
 
         return f_nji.squeeze()
 
+    def __repr__(self) -> str:
+        return f'SLearner'
 
 class TLearner(BaseEstLearner):
     """
@@ -448,6 +450,8 @@ class TLearner(BaseEstLearner):
 
         return f_nji.squeeze()
 
+    def __repr__(self) -> str:
+        return f'TLearner'
 
 class XLearner(BaseEstLearner):
     """
@@ -593,7 +597,7 @@ class XLearner(BaseEstLearner):
         self,
         data=None,
         rho=0.5,
-        quantity='CATE',
+        quantity=None,
         *args,
         **kwargs
     ):
@@ -702,3 +706,6 @@ class XLearner(BaseEstLearner):
             f_nji[:, :, i] = fnji
 
         return f_nji.squeeze()
+    
+    def __repr__(self) -> str:
+        return f'XLearner'

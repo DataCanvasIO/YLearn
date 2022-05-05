@@ -1,6 +1,6 @@
 """
 Beside effect score which measures the ability of estimating the causal
-effect, we should also implement training_score which can measure
+effect, we should also implement training_score measuring
 performances of machine learning models.
 """
 from collections import defaultdict
@@ -27,19 +27,14 @@ class RLoss(DML4CATE):
         is_discrete_treatment=False,
         categories='auto',
     ):
-        self.cf_fold = cf_fold
-        self.x_model = clone(x_model)
-        self.y_model = clone(y_model)
-
-        self.adjustment_transformer = adjustment_transformer
-        self.covariate_transformer = covariate_transformer
-
-        self.x_hat_dict = defaultdict(list)
-        self.y_hat_dict = defaultdict(list)
-        self.x_hat_dict['is_fitted'].append(False)
-        self.y_hat_dict['is_fitted'].append(False)
+        self.yx_model = None
 
         super().__init__(
+            x_model=x_model,
+            y_model=y_model,
+            cf_fold=cf_fold,
+            adjustment_transformer=adjustment_transformer,
+            covariate_transformer=covariate_transformer,
             random_state=random_state,
             is_discrete_treatment=is_discrete_treatment,
             categories=categories,
@@ -52,9 +47,12 @@ class RLoss(DML4CATE):
         treatment,
         adjustment=None,
         covariate=None,
+        combined_treatment=True,
     ):
         assert covariate is not None, \
             'Need covariates to use RLoss.'
+
+        self.combined_treatment = combined_treatment
 
         super().fit(
             data, outcome, treatment,
@@ -65,6 +63,7 @@ class RLoss(DML4CATE):
         y, x, w, v = convert2array(
             data, outcome, treatment, adjustment, covariate
         )
+        self._w = w
         self._v = v
         self._y_d = y.shape[1]
         cfold = self.cf_fold
@@ -118,26 +117,56 @@ class RLoss(DML4CATE):
         return self
 
     def score(self, test_estimator):
-        x_prime, y_prime = self.x_hat_dict['res'], self.y_hat_dict['res']
+        x_prime, y_prime = self.x_hat_dict['res'][0], self.y_hat_dict['res'][0]
         v = self._v
-
-        if test_estimator.covariate is None:
-            assert test_estimator.adjustment is not None
-            names = test_estimator.adjustment
-        else:
-            names = test_estimator.covariate
+        w = self._w
 
         data_dict = {}
-        for i, name in enumerate(names):
-            data_dict[name] = v[:, i]
+        if self.covariate is not None:
+            for i, name in enumerate(test_estimator.covariate):
+                data_dict[name] = v[:, i]
+        if self.adjustment is not None:
+            for i, name in enumerate(test_estimator.adjustment):
+                data_dict[name] = w[:, i]
+
         test_data = pd.DataFrame(data_dict)
 
         # shape (n, y_d, x_d)
         # TODO: may need more modifications
-        test_effect = test_estimator.estimate(data=test_data).reshape(
-            v.shape[0], self._y_d, self._x_d
-        )
+
+        test_effect = test_estimator.estimate(data=test_data,)
+
+        if self.is_discrete_treatment:
+            if self.combined_treatment:
+                x_d = 1
+                x_prime = x_prime[:, test_estimator.treat].reshape(-1, 1)
+        else:
+            pass
+
+        test_effect = test_effect.reshape(v.shape[0], self._y_d, x_d)
         y_pred = np.einsum('nij, nj->ni', test_effect, x_prime)
         rloss = np.mean((y_prime - y_pred)**2, axis=0)
 
         return rloss
+
+
+class PredLoss:
+    def __init__(self) -> None:
+        pass
+
+    def fit(self,):
+        pass
+
+    def score(self):
+        pass
+
+
+# class Score:
+#     def __init__(self):
+#         pass
+
+#     def fit(self, data):
+#         pass
+
+#     def score(self,):
+#         pass

@@ -299,21 +299,22 @@ class DML4CATE(BaseEstLearner):
         data=None,
         treat=None,
         control=None,
-        quantity='CATE',
+        quantity=None,
     ):
         fij = self._prepare4est(data=data)
         treat = 1 if treat is None else treat
         control = 0 if control is None else control
+        self.treat = treat
 
         if self.is_discrete_treatment:
             effect = fij[:, :, treat] - fij[:, :, control]
         else:
             effect = fij * (treat - control)
 
-        if quantity == 'CATE':
-            return effect
-        if quantity == 'ATE':
+        if quantity == 'CATE' or quantity == 'ATE':
             return effect.mean(axis=0)
+        else:
+            return effect
 
     def _cross_fit(self, model, *args, **kwargs):
         folds = kwargs.pop('folds')
@@ -407,3 +408,7 @@ class DML4CATE(BaseEstLearner):
         logger.info(
             f'_fit_2nd_stage: fitting yx_model {type(self.yx_model).__name__}')
         yx_model.fit(x_prime, y_prime)
+
+    
+    def __repr__(self) -> str:
+        return f'Double Machine Learning Estimator'
