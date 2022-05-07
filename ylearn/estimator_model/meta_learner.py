@@ -6,7 +6,7 @@ from collections import defaultdict
 
 from .base_models import BaseEstLearner
 from .utils import (convert2array, get_groups,
-                                   get_treat_control, get_wv, cartesian)
+                    get_treat_control, get_wv, cartesian)
 
 
 class SLearner(BaseEstLearner):
@@ -67,14 +67,43 @@ class SLearner(BaseEstLearner):
         combined_treatment=True,
         **kwargs
     ):
+        """Fit the SLearner in the dataset.
+
+        Parameters
+        ----------
+        data : pandas.DataFrame
+            Training dataset for training the estimator.
+        outcome : list of str, optional.
+            List of names of the outcome features.
+        treatment : list of str, optional
+            List of names of the treatment features.
+        adjustment : List of str, optional
+            Lisf ot names of adjustment set ensuring the unconfoundness, by default None
+        covariate : List of str, optional
+            Covariate features, by default None
+        treat : int, optional
+            Label of the intended treatment group, by default None
+        control : int, optional
+            Label of the intended control group, by default None
+        combined_treatment : bool, optional
+            Only modify this parameter for multiple treatments, where multiple discrete
+            treatments are combined to give a single new group of discrete treatment if
+            set as True. For an example, two binary treatments are combined to give a
+            single discrete treatment with 4 different classes, by default True.
+
+        Returns
+        -------
+        self : an instance of SLearner
+        """
         assert adjustment is not None or covariate is not None, \
             'Need adjustment set or covariates to perform estimation.'
 
-        super().fit(data, outcome, treatment,
-                    adjustment=adjustment,
-                    covariate=covariate,
-                    combined_treat=combined_treatment,
-                    )
+        super().fit(
+            data, outcome, treatment,
+            adjustment=adjustment,
+            covariate=covariate,
+            combined_treat=combined_treatment,
+        )
 
         # get numpy data
         y, x, w, v = convert2array(
@@ -242,6 +271,7 @@ class SLearner(BaseEstLearner):
 
     def __repr__(self) -> str:
         return f'SLearner'
+
 
 class TLearner(BaseEstLearner):
     """
@@ -452,6 +482,7 @@ class TLearner(BaseEstLearner):
 
     def __repr__(self) -> str:
         return f'TLearner'
+
 
 class XLearner(BaseEstLearner):
     """
@@ -706,6 +737,6 @@ class XLearner(BaseEstLearner):
             f_nji[:, :, i] = fnji
 
         return f_nji.squeeze()
-    
+
     def __repr__(self) -> str:
         return f'XLearner'
