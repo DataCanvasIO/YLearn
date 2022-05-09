@@ -31,6 +31,25 @@ def get_wv(*wv):
     return np.concatenate([w for w in wv if w is not None], axis=1)
 
 
+def get_tr_ctrl(tr_crtl, trans, treat=False, one_hot=False):
+    if tr_crtl is None:
+        tr_crtl = 1 if treat else 0
+    else:
+        if not isinstance(tr_crtl, np.ndarray):
+            if not any(
+                [isinstance(tr_crtl, list), isinstance(tr_crtl, tuple)]
+            ):
+                tr_crtl = [tr_crtl]
+            tr_crtl = np.array(tr_crtl).reshape(1, -1)
+        
+        tr_crtl = trans(tr_crtl).reshape(1, -1)
+        
+        if not one_hot:
+            tr_crtl = convert4onehot(tr_crtl).astype(int)[0]
+    
+    return tr_crtl
+
+
 def get_treat_control(treat_ctrl, num_treatments, treat=False):
     if treat_ctrl is not None:
         if not isinstance(treat_ctrl, int):
@@ -259,7 +278,8 @@ class DiscreteIOBatchData(BatchData):
             X = torch.argmax(X, dim=1)
             y = torch.argmax(y, dim=1)
 
-        super(DiscreteIOBatchData, self).__init__(X=X, W=W, y=y, X_test=X_test, y_test=y_test, train=train)
+        super(DiscreteIOBatchData, self).__init__(
+            X=X, W=W, y=y, X_test=X_test, y_test=y_test, train=train)
 
 
 class DiscreteIBatchData(BatchData):
@@ -275,7 +295,8 @@ class DiscreteIBatchData(BatchData):
         if train:
             X = torch.argmax(X, dim=1)
 
-        super(DiscreteIBatchData, self).__init__(X=X, W=W, y=y, X_test=X_test, y_test=y_test, train=train)
+        super(DiscreteIBatchData, self).__init__(
+            X=X, W=W, y=y, X_test=X_test, y_test=y_test, train=train)
 
 
 class DiscreteOBatchData(BatchData):
@@ -291,7 +312,8 @@ class DiscreteOBatchData(BatchData):
         if train:
             y = torch.argmax(y, dim=1)
 
-        super(DiscreteOBatchData, self).__init__(X=X, W=W, y=y, X_test=X_test, y_test=y_test, train=train)
+        super(DiscreteOBatchData, self).__init__(
+            X=X, W=W, y=y, X_test=X_test, y_test=y_test, train=train)
 
 
 class GaussianProb:

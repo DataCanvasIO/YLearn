@@ -81,11 +81,7 @@ class RLoss(DML4CATE):
                 categories = list(self.categories)
 
             # convert discrete treatment features to onehot vectors
-            self.transformer = OneHotEncoder(categories=categories)
-            self.transformer.fit(x)
-            x = self.transformer.transform(x).toarray()
-        else:
-            self.transformer = None
+            x = self.comp_transormer(x, categories)
 
         self._x_d = x.shape[1]
         wv = get_wv(w, v)
@@ -132,18 +128,13 @@ class RLoss(DML4CATE):
         test_data = pd.DataFrame(data_dict)
 
         # shape (n, y_d, x_d)
-        # TODO: may need more modifications
 
         test_effect = test_estimator.estimate(data=test_data,)
 
-        if self.is_discrete_treatment:
-            if self.combined_treatment:
-                x_d = 1
-                x_prime = x_prime[:, test_estimator.treat].reshape(-1, 1)
-        else:
-            pass
-
-        test_effect = test_effect.reshape(v.shape[0], self._y_d, x_d)
+        if self.is_discrete_treatment and self.combined_treatment:
+            x_prime = x_prime[:, test_estimator.treat].reshape(-1, 1)
+            test_effect = test_effect.reshape(v.shape[0], self._y_d, 1)
+        
         y_pred = np.einsum('nij, nj->ni', test_effect, x_prime)
         rloss = np.mean((y_prime - y_pred)**2, axis=0)
 

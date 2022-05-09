@@ -3,26 +3,38 @@
 ## Causal Model
 
 1. *Causal Model*
-
+    All causal models are represented by the class ***CausalModel*** in YLearn.
     A causal model is a triple
     $$
         M = \left< U, V, F\right>
     $$
-    where $U$ are **exogenous** (variables that are determined by factors outside the model), $V$ are **endogenous** that are determined by $U \cup V$, and $F$ is a set of functions such that
-    $$
-        V_i = F_i(pa_i, U_i)
-    $$
-    with $pa_i \subset V \backslash V_i$. All causal models are represented by the class ***CausalModel*** in YLearn.
-    - Example: $M = \left< U, V, F\right>$ is a causal model where $V = \{V_1, V_2\}, U = \{ U_1, U_2, I, J\}$, and $F = \{F_1, F_2 \}$ such that
-    $$
-        V_1 = \theta_1 I + U_1\\
-        V_2 = \phi V_1 + \theta_2 J + U_2.
-    $$
+    where
+    - $U$ are **exogenous** (variables that are determined by factors outside the model);
+    - $V$ are **endogenous** that are determined by $U \cup V$, and $F$ is a set of functions such that
+        $$
+            V_i = F_i(pa_i, U_i)
+        $$
+        with $pa_i \subset V \backslash V_i$.
+    - Example: $M = \left< U, V, F\right>$ is a causal model where
+        $$
+        V = \{V_1, V_2\}, \\
+        U = \{ U_1, U_2, I, J\}, \\
+         F = \{F_1, F_2 \}
+        $$
+        such that
+        $$
+            V_1 = \theta_1 I + U_1\\
+            V_2 = \phi V_1 + \theta_2 J + U_2.
+        $$
 
 2. *Causal Graph*
 
-    A **causal graph** associated with a causal model $M$ is a directed graph $G(M)$ where each node corresponds to a variable and the directed edges point from members of $pa_i$ and $U_i$ toward $V_i$.
-    - Example: $X \longleftarrow V \longrightarrow W \longrightarrow Z$.
+    A **causal graph** associated with a causal model $M$ is a directed graph $G(M)$ where each node corresponds to a variable and the directed edges point from members of $pa_i$ and $U_i$ toward $V_i$. All causal graphs can be represented by the class ***CausalGraph*** in YLearn.
+    - Example:
+
+         $X \longrightarrow V \longrightarrow W \longrightarrow Z$
+
+         $X \longleftarrow V \longrightarrow W \longrightarrow Z$.
 
 3. *Structural Equation Model*
 
@@ -42,11 +54,11 @@
     $$
         P(y|do(x)) = \sum_w P(y| x, w)P(w).
     $$
-    - Variables $X$ for which the above equality is valid are also named "conditionally ignorable given $W$" in the potential outcome framework.
+    - Variables $X$ for which the above equality is valid are also named *"conditionally ignorable given $W$"* in the *potential outcome* framework.
     - The set of variables $W$ satisfying this condition is called **adjustment set**. These variables are named as **adjustment** and represented by the letter ***w*** in YLearn.
     - In the language of strucutral equation model, these relations are encoded by
     $$
-        x = f_1 (w, \epsilon)\\
+        x = f_1 (w, \epsilon),\\
         y = f_2 (w, x, \eta).
     $$
 
@@ -58,7 +70,11 @@
     $$
         E(Y|do(X=x_1)) - E(Y|do(X=X_0))
     $$
-    which is also called **average treatment effect (ATE)**, where $Y$ is called **outcome** and $X$ is called **treatment**. When the conditional independence (conditional ignorability) holds given a set of variables $W$, which potentially affects both the outcome $Y$ and treatment $X$, then the ATE can be evaluated as
+    which is also called **average treatment effect (ATE)**, where
+    - $Y$ is called **outcome**
+    - and $X$ is called **treatment**.
+
+    When the conditional independence (conditional ignorability) holds given a set of variables $W$ potentially having effects on both outcome $Y$ and treatment $X$, then the ATE can be evaluated as
     $$
         E(Y|X=x_1, w) - E(Y|X=x_0, w).
     $$
@@ -68,7 +84,6 @@
         Y = f_2 (X, W, \eta)\\
         \text{ATE} = E\left[ f_2(x_1, W, \eta) - f_2(x_0, W, \eta)\right].
     $$
-    Note that the evaluation of $E(f_2(X, W, \eta))$ will now be the task of machine learning.
 
 2. *Conditional Average Treatment Effect (CATE) and Covariates*
 
@@ -80,6 +95,29 @@
     $$
 
 3. *Estimator Model.*
+
+    The evaluations of $E(f_2(X, W, \eta))$ in ATE and $E(f_2(x_1, W, V, \eta))$ in CATE will be the tasks of machine learning in YLearn. The concept ***EstimatorModel*** in YLearn is designed for this purpose. A common usage should be composed of two steps:
+    - Define and train an EstimatorModel:
+
+        '''python
+
+            model = EstimatorModel()
+
+            model.fit(
+                data,
+                outcome,
+                treatment,
+                adjustment,
+                covariate,
+                instrument,
+            )
+        '''
+    - Estimate the ATE, CATE, or other quantities in new dataset
+
+        '''python
+
+            model.estimate(test_data)
+        '''
 
 4. *Parameter names in YLearn.*
 
@@ -95,3 +133,6 @@
 ## Causal Discovery
 
 1.
+
+
+## Combined treatment and separate treatment

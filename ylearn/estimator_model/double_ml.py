@@ -4,12 +4,13 @@ from collections import defaultdict
 import numpy as np
 
 from sklearn import clone
-from sklearn.preprocessing import OneHotEncoder
+from sklearn.preprocessing import OneHotEncoder, OrdinalEncoder
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import KFold
 
 from .base_models import BaseEstLearner
-from .utils import convert2array, convert4onehot, nd_kron, get_wv
+from .utils import (convert2array, convert4onehot, nd_kron,
+                    get_wv, cartesian, get_tr_ctrl)
 from ylearn.utils import logging
 
 logger = logging.get_logger(__name__)
@@ -89,15 +90,15 @@ class DML4CATE(BaseEstLearner):
     effect estimation (note that we use the einstein notation here):
         y^i = f^i_j(v^k) x^j + g^i(v^k, w^l) + \epsilon
         x^j = h^j(v^k, w^l) + \eta
-    where f^i_j(v^k) is the CATE conditional on C=c and takes the form
+    where f^i_j(v^k) is the CATE conditional on V=v and takes the form
         f^i_j(v^k) = F^i_{j, k} \rho^k
-    with \rho^k: c \to R being v^k in the simplest case. Thus we have
+    with \rho^k: v \to R being v^k in the simplest case. Thus we have
         y^i = F^i_{j, k} \rho^k x^j + g^i(v^k, w^l) + \epsilon.
     The coefficients F_j^i_k can be estimated from the newly-formed data
     (\rho^k x^j, y^i) with linear regression where F^i_{j, k} are just
     coefficients of every feature in {1, 2, ..., k*j}. For a simple example, if
     both y and x only have one dimention, then the CATE for an input with
-    covariate (c^1, c^2, c^3) will be F_1c^1, F_2c^2, and F_3c^3. #TODO:
+    covariate (v^1, v^2, v^3) will be F_1v^1, F_2v^2, and F_3v^3. #TODO:
     However, note that letting \rho^k simply be v^k actually implicitly assumes
     that the value of v^k is small thus is a good approximation of \rho^k.
 
@@ -125,9 +126,31 @@ class DML4CATE(BaseEstLearner):
 
     Attributes
     ----------
+    x_model : estimator
+    y_model : estimator
+    yx_model : estimator
+    adjustment_transformer : transformer
+    covariate_transformer : transformer
+    is_discrete_treatment : bool
+    categories : str or list
+    random_state : int
+    cf_fold : int
+    treat : int or list    
+    _v : np.array
+    _y_d : int
+    _x_d : int
+    transformer : transformer
+    x_hat_dict : defaultdict(list)
+    y_hat_dict : defaultdict(list)
 
     Methods
     ----------
+    fit(data, outcome, treatment, adjustment, covariate)
+    estimate(data, treat, control, quantity)
+    _cross_fit(model)
+    _fit_first_stage(x_model, y_model, y, x, wv, folds)
+    _fit_second_stage(yx_model, y_prime, x_prime)
+    _prepare4est(data)
 
     Reference
     ----------
@@ -147,6 +170,28 @@ class DML4CATE(BaseEstLearner):
         is_discrete_treatment=False,
         categories='auto',
     ):
+        """
+        Parameters
+        ----------
+        x_model : estimator
+            Machine learning models for fitting x. Any such models should implement
+            the fit and predict (also predict_proba if x is discrete) methods
+        y_model : estimator
+            Machine learning models for fitting y
+        yx_model : estimator, optional
+            Machine learning models for fitting the residual of y on residual of x
+        cf_fold : int, optional
+            The number of folds for performing cross fit, by default 1
+        adjustment_transformer : transformer, optional
+            Transformer for adjustment variables, by default None
+        covariate_transformer : transformer, optional
+            Transformer for covariate variables, by default None
+        random_state : int, optional
+            Random seed, by default 2022
+        is_discrete_treatment : bool, optional
+            If the treatment variables are discrete, set this as True, by default False
+        categories : str, optional
+        """
         self.cf_fold = cf_fold
         self.x_model = clone(x_model)
         self.y_model = clone(y_model)
@@ -161,6 +206,7 @@ class DML4CATE(BaseEstLearner):
 
         self.x_hat_dict = defaultdict(list)
         self.y_hat_dict = defaultdict(list)
+
         self.x_hat_dict['is_fitted'].append(False)
         self.y_hat_dict['is_fitted'].append(False)
 
@@ -179,23 +225,37 @@ class DML4CATE(BaseEstLearner):
         adjustment=None,
         covariate=None,
     ):
-        # """Note that we will use the following notation in this method:
-        #         y: out
+        """Fit the DML4CATE estimator model.
 
-        # Args:
-        #     data (_type_): _description_
-        #     outcome (_type_): _description_
-        #     treatment (_type_): _description_
-        #     adjustment (_type_, optional): _description_. Defaults to None.
-        #     covariate (_type_, optional): _description_. Defaults to None.
-        # """
+        Parameters
+        ----------
+        data : pandas.DataFrame
+            The dataset used for training the model
+        outcome : str or list of str, optional
+            Names of the outcome variables
+        treatment : str or list of str
+            Names of the treatment variables
+        adjustment : str or list of str, optional
+            Names of the adjustment variables, by default None
+        covariate : str or list of str, optional
+            Names of the covariate variables, by default None
+
+        Returns
+        -------
+        instance of DML4CATE
+            The fitted estimator model
+        """
+        # must have adjustment to evaluate ATE,
+        # must also have covaraite to evalueate CATE
         assert adjustment is not None or covariate is not None, \
             'Need adjustment set or covariates to perform estimation.'
 
-        super().fit(data, outcome, treatment,
-                    adjustment=adjustment,
-                    covariate=covariate,
-                    )
+        super().fit(
+            data, outcome, treatment,
+            adjustment=adjustment,
+            covariate=covariate,
+        )
+
         y, x, w, v = convert2array(
             data, outcome, treatment, adjustment, covariate
         )
@@ -216,12 +276,9 @@ class DML4CATE(BaseEstLearner):
                 categories = list(self.categories)
 
             # convert discrete treatment features to onehot vectors
-            # TODO: modify this for multiple treatments
-            self.transformer = OneHotEncoder(categories=categories)
-            self.transformer.fit(x)
-            x = self.transformer.transform(x).toarray()
-        else:
-            self.transformer = None
+            # note that when there are multiple treatments, we should convert
+            # the problem into a single discrete treatment problem
+            x = self.comp_transormer(x, categories)
 
         self._x_d = x.shape[1]
         wv = get_wv(w, v)
@@ -251,15 +308,130 @@ class DML4CATE(BaseEstLearner):
         # step 4: fit the regression problem
         self._fit_2nd_stage(self.yx_model, x_prime, y_prime)
 
+        self._is_fitted = True
+
         return self
 
+    def estimate(
+        self,
+        data=None,
+        treat=None,
+        control=None,
+        quantity=None,
+    ):
+        """Estimate the causal effect.
+
+        Parameters
+        ----------
+        data : pd.DataFrame, optional
+            The test data for the estimator to evaluate the causal effect, note
+            that the estimator directly evaluate all quantities in the training
+            data if data is None, by default None
+        treat : float or ndarray, optional
+            In the case of single discrete treatment, treat should be an int or
+            str in one of all possible treatment values which indicates the
+            value of the intended treatment;
+            in the case of multiple discrete treatment, treat should be a list
+            or a ndarray where treat[i] indicates the value of the i-th intended
+            treatment;
+            in the case of continuous treatment, treat should be a float or a
+            ndarray, by default None
+        control : float or ndarray, optional
+            This is similar to the cases of treat, by default None
+        quantity : str, optional
+            The possible values of quantity include:
+                'CATE' : the estimator will evaluate the CATE;
+                'ATE' : the estimator will evaluate the ATE;
+                None : the estimator will evaluate the ITE or CITE, by default None
+
+        Returns
+        -------
+        ndarray
+            The desired estimation of the quantity
+        """
+        fij = self._prepare4est(data=data)
+        treat = get_tr_ctrl(treat, self.comp_transormer, True)
+        control = get_tr_ctrl(control, self.comp_transormer, False)
+        self.treat = treat
+
+        if self.is_discrete_treatment:
+            effect = fij[:, :, treat] - fij[:, :, control]
+        else:
+            effect = fij * (treat - control)
+
+        if quantity == 'CATE':
+            assert self.covariate is not None
+            return effect.mean(axis=0)
+        elif quantity == 'ATE':
+            return effect.mean(axis=0)
+        else:
+            return effect
+
+    def comp_transormer(self, x, categories='auto'):
+        """Transform the discrete treatment into one-hot vectors.
+
+        Parameters
+        ----------
+        x : ndarray, shape (n, x_d)
+            An array containing the information of the treatment variables
+        categories : str or list, optional
+            by default 'auto'
+
+        Returns
+        -------
+        ndarray
+            The transformed one-hot vectors
+        """
+        if x.shape[1] > 1:
+            if not self._is_fitted:
+                self.ord_transformer = OrdinalEncoder(categories=categories)
+                self.ord_transformer.fit(x)
+
+                labels = [
+                    np.arange(len(c)) for c in self.ord_transformer.categories_
+                ]
+                labels = cartesian(labels)
+                categories = [np.arange(len(labels))]
+
+                self.label_dict = {tuple(k): i for i, k in enumerate(labels)}
+
+            x_transformed = self.ord_transformer.transform(x).astype(int)
+            x = np.full((x.shape[0], 1), np.NaN)
+
+            for i, x_i in enumerate(x_transformed):
+                x[i] = self.label_dict[tuple(x_i)]
+
+        if not self._is_fitted:
+            self.oh_transformer = OneHotEncoder(categories=categories)
+            self.oh_transformer.fit(x)
+
+        x = self.oh_transformer.transform(x).toarray()
+
+        return x
+
     def _prepare4est(self, data=None, *args, **kwargs):
+        """Prepare for the estimation of causal quantities.
+
+        Parameters
+        ----------
+        data : pd.DataFrame, optional
+            The test data for evaluating the causal quantities, note that
+            the estimator will perform the estimation in the training data if
+            data is None, by default None
+
+        Returns
+        -------
+        ndarray, shape (n, y_d, x_d)
+            The element in the slot of (i, j, k) indicating the causal effect of
+            treatment k on the j-th dimension of the outcome for the i-th example
+        """
         assert self.x_hat_dict['is_fitted'][0] and \
-            self.y_hat_dict['is_fitted'][0], 'x_model and y_model should be'
+            self.y_hat_dict['is_fitted'][0] and self._is_fitted, 'x_model and y_model should be'
         'trained before estimation.'
 
         x_d, y_d = self._x_d, self._y_d
         v = self._v if data is None else convert2array(data, self.covariate)[0]
+
         if self.covariate_transformer is not None and v is not None:
             v = self.covariate_transformer.transform(v)
         v = np.hstack([np.ones((v.shape[0], 1)), v])
@@ -293,28 +465,6 @@ class DML4CATE(BaseEstLearner):
                 ).reshape(1, -1)
 
         return fij
-
-    def estimate(
-        self,
-        data=None,
-        treat=None,
-        control=None,
-        quantity=None,
-    ):
-        fij = self._prepare4est(data=data)
-        treat = 1 if treat is None else treat
-        control = 0 if control is None else control
-        self.treat = treat
-
-        if self.is_discrete_treatment:
-            effect = fij[:, :, treat] - fij[:, :, control]
-        else:
-            effect = fij * (treat - control)
-
-        if quantity == 'CATE' or quantity == 'ATE':
-            return effect.mean(axis=0)
-        else:
-            return effect
 
     def _cross_fit(self, model, *args, **kwargs):
         folds = kwargs.pop('folds')
@@ -376,6 +526,30 @@ class DML4CATE(BaseEstLearner):
         folds=None,
         **kwargs
     ):
+        """Fit the models in the first stage.
+
+        Parameters
+        ----------
+        x_model : estimator
+            Any x_model should have the fit and predict (also predict_proba if
+            x is discrete) methods.
+        y_model : estimator
+            Any y_model should have the fit and predict (also predict_proba if
+            y is discrete) methods.
+        y : ndarray, shape (n, y_d)
+            The outcome vector
+        x : ndarray, shape (n, x_d)
+            The treatment vector
+        wv : ndarray, shape (n, w_d + v_d)
+            The covariate and adjustment vector
+        folds : sklearn.model_selection.KFold, optional
+
+        Returns
+        -------
+        tuple of dict
+            The first dict containes the values of the fitted y_model and the 
+            second dict the fitted x_model
+        """
         if self._x_d == 1:
             x = np.ravel(x)
         if self._y_d == 1:
@@ -405,10 +579,20 @@ class DML4CATE(BaseEstLearner):
         x_prime,
         y_prime,
     ):
+        """Fit the models in the second stage.
+
+        Parameters
+        ----------
+        yx_model : estimator
+            _description_
+        x_prime : ndarray, shape (n, x_d)
+            The residuls of the treatment vector x
+        y_prime : ndarray, shape (n, y_d)
+            The residuls of the outcome vector y
+        """
         logger.info(
             f'_fit_2nd_stage: fitting yx_model {type(self.yx_model).__name__}')
         yx_model.fit(x_prime, y_prime)
 
-    
     def __repr__(self) -> str:
         return f'Double Machine Learning Estimator'
