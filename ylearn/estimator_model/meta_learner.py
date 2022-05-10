@@ -239,7 +239,7 @@ class SLearner(BaseEstLearner):
                     np.arange(len(c)) for c in self.ord_transformer.categories_
                 ]
                 labels = cartesian(labels)
-                categories = [np.arange(self._x_d)]
+                categories = [np.arange(len(labels))]
 
                 self.label_dict = {tuple(k): i for i, k in enumerate(labels)}
 
@@ -661,11 +661,12 @@ class XLearner(BaseEstLearner):
         assert adjustment is not None or covariate is not None, \
             'Need adjustment set or covariates to perform estimation.'
 
-        super().fit(data, outcome, treatment,
-                    adjustment=adjustment,
-                    covariate=covariate,
-                    combined_treat=combined_treatment,
-                    )
+        super().fit(
+            data, outcome, treatment,
+            adjustment=adjustment,
+            covariate=covariate,
+            combined_treat=combined_treatment,
+        )
 
         y, x, w, v = convert2array(
             data, outcome, treatment, adjustment, covariate
@@ -682,13 +683,12 @@ class XLearner(BaseEstLearner):
         x = self.transformer.transform(x)
 
         group_categories = self.transformer.categories_
-        n_treatments = len(group_categories)
         wv = get_wv(w, v)
         self._wv = wv
 
         if combined_treatment:
             return self._fit_combined_treat(
-                x, wv, y, treat, control, n_treatments, **kwargs
+                x, wv, y, treat, control, group_categories, **kwargs
             )
         else:
             return self._fit_separate_treat(
@@ -733,11 +733,13 @@ class XLearner(BaseEstLearner):
         x, wv, y,
         treat,
         control,
-        n_treatments,
+        group_categories,
         **kwargs
     ):
-        treat = get_treat_control(treat, n_treatments, True)
-        control = get_treat_control(control, n_treatments, False)
+        x = self._comp_transormer(x, group_categories)
+        
+        treat = get_tr_ctrl(treat, self._comp_transormer, True)
+        control = get_tr_ctrl(control, self._comp_transormer, False)
         self.treat = treat
         self.control = control
 
@@ -764,6 +766,36 @@ class XLearner(BaseEstLearner):
         self._is_fitted = True
 
         return self
+
+    def _comp_transormer(self, x, group_categories=None):
+        """Transform the discrete treatment into one-hot vectors.
+
+        Parameters
+        ----------
+        x : ndarray, shape (n, x_d)
+            An array containing the information of the treatment variables
+        categories : str or list, optional
+            by default 'auto'
+
+        Returns
+        -------
+        ndarray
+            The transformed one-hot vectors
+        """
+        if x.shape[1] > 1:
+            if not self._is_fitted:
+                labels = [np.arange(len(c)) for c in group_categories]
+                labels = cartesian(labels)
+
+                self.label_dict = {tuple(k): i for i, k in enumerate(labels)}
+
+            x_ = np.full((x.shape[0], 1), np.NaN)
+
+            for i, x_i in enumerate(x):
+                x_[i] = self.label_dict[tuple(x_i)]
+
+        return x
+
 
     def _fit_separate_treat(
         self,
