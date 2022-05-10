@@ -22,12 +22,12 @@ def generate_data(n_train, n_test, d_adjustment, d_covariate, fn_treatment, fn_o
 
     Parameters
     ----------
-        n_train (int): train data size
-        n_test (int): test data size
-        d_adjustment (int): number of adjustments
-        d_covariate (int): number of covariates
-        fn_treatment (func<w,x>): untreated outcome conditional on covariates
-        fn_outcome (func<w>): treatment effect conditional on covariates
+    n_train (int): train data size
+    n_test (int): test data size
+    d_adjustment (int): number of adjustments
+    d_covariate (int): number of covariates
+    fn_treatment (func<w,x>): untreated outcome conditional on covariates
+    fn_outcome (func<w>): treatment effect conditional on covariates
     """
 
     # Generate covariates

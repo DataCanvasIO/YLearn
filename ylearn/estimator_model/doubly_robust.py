@@ -5,13 +5,14 @@ from collections import defaultdict
 import numpy as np
 
 from sklearn import clone
-from sklearn.preprocessing import OneHotEncoder
+from sklearn.preprocessing import OneHotEncoder, OrdinalEncoder
 from sklearn.model_selection import KFold
 
 
 from . import propensity_score
 from .base_models import BaseEstLearner
-from .utils import convert2array, get_wv, convert4onehot
+from .utils import (convert2array, get_wv, convert4onehot,
+                    cartesian, get_tr_ctrl)
 
 
 class _YModelWrapper:
@@ -50,15 +51,45 @@ class DoublyRobust(BaseEstLearner):
     1. Let k (cf_folds in our class) be an int. Form a k-fold random
     partition {..., (train_data_i, test_data_i), ...,
     (train_data_k, test_data_k)}.
+
     2. For each i, train y_model and x_model on train_data_i, then evaluate
     their performances in test_data_i whoes results will be saved as
-    (y_hat_k, x_hat_k). All (y_hat_k, x_hat_k) will be the form
-    (y_hat, x_hat). Note that for each y_hat_k, we must evaluate its values
-    on all possible treatments. TODO: there might be some issuses when
-    considering multi-dim y, but im not sure currently.
-    3. Build the final data set (y_hat - y_hat_control, v) and train the final
-    yx_model on this dataset. When estimating cate, we only use this final
-    model to predict v.
+    (y_hat_k, x_hat_k). Note that x_model should be a machine learning model
+    with a predict_proba method. All (y_hat_k, x_hat_k) will be combined to
+    give the new dataset (y_hat, x_hat). Note that for each y_hat_k, we must
+    evaluate its values on all possible treatments, i.e., y_hat should have 
+    the shape (n, y_d, x_d) where n is the number of examples, y_d is the
+    dimension of y, and x_d is the dimension of x (the number of possible
+    treatment values). Note that if there are multiple treatments, we can
+    either use the combined_treatment technique to covert the multiple
+    discrete classification tasks into a single discrete classification task
+    or simply train multiple models for each classification task. For an
+    example, if there are two different binary treatments:
+        treatment_1: x_1 | x_1 \in {'sleep', 'run'},
+        treatment_2: x_2 | x_2 \in {'study', 'work'},
+    then we can convert to these two binary classification tasks into a single
+    classification with 4 different classes:
+        treatment: x | x \in {0, 1, 2, 3},
+    where, for example, 1 stands for ('sleep' and 'stuy').
+    TODO: there might be some issuses when considering multi-dim y, but im not
+    sure currently.
+
+    3. Build the final dataset (v, y_prime_treat - y_prime_control) where y_prime
+    is difined as
+        y_prime_treat = y_hat_x + \frac{(y - y_hat_x) * I(X=x)}{x_hat_x}
+    and train the final yx_model on this dataset to predict the causal effect, 
+        y_hat_treat - y_hat_control,
+    on v. Then we can directly estimate the CATE by passing the covariate v to
+    the model. Note that we train several independent models for each value of
+    treatment, thus if there are i different values for treatment (use the
+    combined_treatment technique for multiple treatments) we will have i - 1
+    different models.
+
+    Attributes
+    ----------
+
+    Methods
+    ----------
     """
 
     def __init__(
@@ -70,6 +101,22 @@ class DoublyRobust(BaseEstLearner):
         random_state=2022,
         categories='auto',
     ):
+        """
+        Parameters
+        ----------
+        x_model : estimator
+            Any valid x_model should implement the fit and predict_proba methods
+        y_model : estimator
+            Any valid y_model should implement the fit and predict methods
+        yx_model : estimatro
+            Any valid yx_model should implement the fit and predict methods
+        cf_fold : int, optional
+            The nubmer of folds for performing cross fit, by default 1
+        random_state : int, optional
+            Random seed, by default 2022
+        categories : str, optional
+            by default 'auto'
+        """
         self.cf_fold = cf_fold
         self.x_model = clone(x_model)
         self.y_model = clone(y_model)
@@ -90,21 +137,27 @@ class DoublyRobust(BaseEstLearner):
         data,
         outcome,
         treatment,
+        treat=None,
+        control=None,
         adjustment=None,
         covariate=None,
     ):
         assert adjustment is not None or covariate is not None, \
             'Need adjustment or covariate to perform estimation.'
-        super().fit(data, outcome, treatment,
-                    adjustment=adjustment,
-                    covariate=covariate,
-                    )
+        super().fit(
+            data, outcome, treatment,
+            adjustment=adjustment,
+            covariate=covariate,
+        )
+
+        # get numpy data
         n = len(data)
         y, x, w, v = convert2array(
             data, outcome, treatment, adjustment, covariate
         )
 
         self._v = v
+        # get the number of cross fit folds
         cfold = self.cf_fold
 
         if self.categories == 'auto' or self.categories is None:
@@ -112,12 +165,13 @@ class DoublyRobust(BaseEstLearner):
         else:
             categories = list(self.categories)
 
-        self.transformer = OneHotEncoder(categories=categories)
-        self.transformer.fit(x)
-        x = self.transformer.transform(x).toarray()
+        # transform x into one_hot vectors
+        x = self.comp_transormer(x, categories=categories)
         self._x_d = x.shape[1]
         self._y_d = y.shape[1]
+
         wv = get_wv(w, v)
+        # generate y model
         y_model = self._gen_y_model(self.y_model)
 
         # step 1
@@ -138,7 +192,7 @@ class DoublyRobust(BaseEstLearner):
 
         # step 3
         # calculate the estimated y
-        y_prime = np.full((n, self._y_d, self._x_d), np.NaN)
+        y_prime = np.full((n, y.shape[1], x.shape[1]), np.NaN)
 
         for i in range(self._x_d):
             y_nji = y_hat[:, :, i]
@@ -148,32 +202,74 @@ class DoublyRobust(BaseEstLearner):
                       1).reshape(-1, 1)) / (x_hat_i + 1e-5)
             y_prime[:, :, i] = y_nji
 
-        self._final_result = self._fit_2nd_stage(self.yx_model, v, y_prime)
+        self._final_result = self._fit_2nd_stage(
+            self.yx_model, v, y_prime, control, treat
+        )
+
+        self._is_fitted = True
+
         return self
 
     def estimate(
         self,
         data=None,
-        control=None,
-        quantity='CATE',
+        quantity=None,
+        all_tr_effects=False,
     ):
-        y_pred_nji = self._prepare4est(data=data)
-        control = 0 if control is None else control
-        y_pred_control = y_pred_nji[:, :, control]
-
-        effects = []
-        for i in range(self._x_d):
-            effects.append(y_pred_nji[:, :, i] - y_pred_control)
+        # shape (n, y_d, x_d)
+        y_pred_nji = self._prepare4est(data=data, all_tr=all_tr_effects)
 
         if quantity == 'CATE':
             assert self._v is not None, 'Need covariates to estimate CATE.'
-            return [effect.mean(axis=0) for effect in effects]
+            return y_pred_nji.mean(axis=0)
         elif quantity == 'ATE':
-            return [effect.mean(axis=0) for effect in effects]
+            return y_pred_nji.mean(axis=0)
         else:
-            return effects
+            return y_pred_nji
 
-    def _prepare4est(self, data=None):
+    def comp_transormer(self, x, categories='auto'):
+        """Transform the discrete treatment into one-hot vectors.
+
+        Parameters
+        ----------
+        x : ndarray, shape (n, x_d)
+            An array containing the information of the treatment variables
+        categories : str or list, optional
+            by default 'auto'
+
+        Returns
+        -------
+        ndarray
+            The transformed one-hot vectors
+        """
+        if x.shape[1] > 1:
+            if not self._is_fitted:
+                self.ord_transformer = OrdinalEncoder(categories=categories)
+                self.ord_transformer.fit(x)
+
+                labels = [
+                    np.arange(len(c)) for c in self.ord_transformer.categories_
+                ]
+                labels = cartesian(labels)
+                categories = [np.arange(len(labels))]
+
+                self.label_dict = {tuple(k): i for i, k in enumerate(labels)}
+
+            x_transformed = self.ord_transformer.transform(x).astype(int)
+            x = np.full((x.shape[0], 1), np.NaN)
+
+            for i, x_i in enumerate(x_transformed):
+                x[i] = self.label_dict[tuple(x_i)]
+
+        if not self._is_fitted:
+            self.oh_transformer = OneHotEncoder(categories=categories)
+            self.oh_transformer.fit(x)
+
+        x = self.oh_transformer.transform(x).toarray()
+
+        return x
+
+    def _prepare4est(self, data=None, all_tr=False):
         if not all((self.x_hat_dict['is_fitted'][0],
                    self.y_hat_dict['is_fitted'][0],
                    self._final_result['is_fitted'][0])):
@@ -190,8 +286,11 @@ class DoublyRobust(BaseEstLearner):
             for i in range(self._x_d):
                 model = self._final_result['models'][i]
                 y_pred_nji[:, :, i] = model.predict(v).reshape(n, self._y_d)
-
-        return y_pred_nji
+        
+        if all_tr:
+            return y_pred_nji
+        else:
+            return y_pred_nji[:, :, self.treat]
 
     def _fit_1st_stage(
         self,
@@ -227,9 +326,19 @@ class DoublyRobust(BaseEstLearner):
         yx_model,
         v,
         y_prime,
+        control,
+        treat,
     ):
         final_result = defaultdict(list)
         final_result['is_fitted'].append(False)
+
+        control = get_tr_ctrl(control, self.comp_transormer, False)
+        treat = get_tr_ctrl(treat, self.comp_transormer, True)
+        self.treat = treat
+        self.control = control
+
+        y_prime_control = (y_prime[:, :, control]).reshape(-1, self._y_d, 1)
+        y_prime = y_prime - y_prime_control
 
         if v is None:
             final_result['effect'] = y_prime
@@ -240,6 +349,7 @@ class DoublyRobust(BaseEstLearner):
                 final_result['models'].append(model)
 
         final_result['is_fitted'][0] = True
+
         return final_result
 
     def _cross_fit(self, model, *args, **kwargs):

@@ -51,7 +51,7 @@ def test_doubly_robust(dg):
 
 
 @pytest.mark.parametrize('dg', _test_settings_to_be_fix.keys())
-@pytest.mark.xfail(reason='to be fixed')
+# @pytest.mark.xfail(reason='to be fixed')
 def test_doubly_robust_to_be_fix(dg):
     x_model, y_model, yx_model = _test_settings_to_be_fix[dg]
     dr = DoublyRobust(x_model=x_model, y_model=y_model, yx_model=yx_model, cf_fold=1, random_state=2022, )
