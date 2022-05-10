@@ -45,7 +45,7 @@ class SLearner(BaseEstLearner):
         random_state : int
         categories : str
         """
-        self.model = model
+        self.model = clone(model)
         self._is_fitted = False
 
         super().__init__(
@@ -119,6 +119,7 @@ class SLearner(BaseEstLearner):
 
         # self.transformer = OneHotEncoder(categories=categories)
         wv = get_wv(w, v)
+        self._w = w
         self._wv = wv
 
         if combined_treatment:
@@ -140,6 +141,9 @@ class SLearner(BaseEstLearner):
             w, v = convert2array(
                 data, self.adjustment, self.covariate
             )
+            # if w is None:
+            #     w = self._w
+                
             wv = get_wv(w, v)
 
         if self.combined_treat:
@@ -429,6 +433,8 @@ class TLearner(BaseEstLearner):
 
         group_categories = self.transformer.categories_
         wv = get_wv(w, v)
+        self._wv = wv
+        self._w = w
 
         if combined_treatment:
             return self._fit_combined_treat(
@@ -459,6 +465,8 @@ class TLearner(BaseEstLearner):
             wv = self._wv
         else:
             w, v = convert2array(data, self.adjustment, self.covariate)
+            # if w is None:
+            #     w = self._w
             wv = get_wv(w, v)
 
         if self.combined_treat:
@@ -483,7 +491,6 @@ class TLearner(BaseEstLearner):
         # control = get_treat_control(control, n_treatments, False)
         self.treat = treat
         self.control = control
-        self._wv = wv
 
         wv_treat, y_treat = get_groups(treat, x, wv, y)
         wv_control, y_control = get_groups(control, x, wv, y)
@@ -685,6 +692,7 @@ class XLearner(BaseEstLearner):
         group_categories = self.transformer.categories_
         wv = get_wv(w, v)
         self._wv = wv
+        self._w = w
 
         if combined_treatment:
             return self._fit_combined_treat(
@@ -703,6 +711,8 @@ class XLearner(BaseEstLearner):
             wv = self._wv
         else:
             w, v = convert2array(data, self.adjustment, self.covariate)
+            # if w is None:
+            #     w = self._w
             wv = get_wv(w, v)
 
         if self.combined_treat:
