@@ -71,8 +71,6 @@ class CausalGraph:
             Unobserved bidirected edges. Defaults to None. Each element is a
             tuple containing 2 elements.
         """
-        # TODO: replace list or tuple with generator to save memory
-
         self.causation = defaultdict(list, causation)
         self.dag = self.observed_dag.copy() if dag is None else dag
 

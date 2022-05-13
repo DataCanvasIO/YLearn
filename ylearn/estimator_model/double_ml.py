@@ -224,6 +224,7 @@ class DML4CATE(BaseEstLearner):
         treatment,
         adjustment=None,
         covariate=None,
+        **kwargs,
     ):
         """Fit the DML4CATE estimator model.
 
