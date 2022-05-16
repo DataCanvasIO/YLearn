@@ -4,11 +4,12 @@ import numpy as np
 from copy import deepcopy
 from collections import defaultdict
 from . import prob
+from .utils import (check_nodes, ancestors_of_iter, descendents_of_iter)
 
 
 class CausalGraph:
     """
-    Class for building a causal graphical model.
+    The class for building a causal graphical model.
 
     Attributes
     ----------
@@ -72,6 +73,7 @@ class CausalGraph:
             tuple containing 2 elements.
         """
         self.causation = defaultdict(list, causation)
+        self.ava_nodes = self.causation.keys()
         self.dag = self.observed_dag.copy() if dag is None else dag
 
         # add unobserved bidirected confounding arcs to the graph, with the
@@ -122,9 +124,9 @@ class CausalGraph:
         W = nx.to_numpy_matrix(self.dag)
         return W
 
-    def to_adj_list(self):
-        """Return the adjacency list."""
-        pass
+    # def to_adj_list(self):
+    #     """Return the adjacency list."""
+    #     pass
 
     def is_d_separated(self, x, y, test_set):
         """Check if test_set d-separates x and y.
@@ -169,14 +171,41 @@ class CausalGraph:
         set of str
             Ancestors of nodes x of the graph
         """
-        an = set()
-        for node in x:
-            an.add(node)
-            try:
-                an.update(nx.ancestors(self.observed_dag, node))
-            except Exception:
-                pass
-        return an
+        g = self.observed_dag
+
+        return ancestors_of_iter(g, x)
+    
+    def descendents(self, x):
+        """Return the descendents of all nodes in x.
+
+        Parameters
+        ----------
+        x : set of str
+            a set of nodes in the graph
+
+        Returns
+        ----------
+        set of str
+            Descendents of nodes x of the graph
+        """
+        # des = set()
+        # x = {x} if isinstance(x, str) else x
+        
+        # for node in x:
+        #     des.add(node)
+        #     try:
+        #         des.update(nx.descendants(self.observed_dag, node))
+        #     except Exception:
+        #         pass
+        g = self.observed_dag
+        
+        return descendents_of_iter(g, x)
+
+    def parents(self, x, only_observed=True):
+        if only_observed:
+            return self.causation[x]
+        else:
+            return list(self.explicit_unob_var_dag.predecessors(x))
 
     @property
     def observed_dag(self):
@@ -328,6 +357,7 @@ class CausalGraph:
         CausalGraph
             Return a CausalGraph if new.
         """
+
         if not new:
             for node in nodes:
                 for k in list(self.causation.keys()):
@@ -437,6 +467,8 @@ class CausalGraph:
         ----------
         CausalGraph
         """
+        check_nodes(self.ava_nodes, subset)
+
         nodes = set(self.causation.keys()).difference(subset)
         return self.remove_nodes(nodes, new=True)
 
@@ -456,6 +488,8 @@ class CausalGraph:
             If new, return a subgraph of the graph without all incoming edges
             of nodes in x
         """
+        check_nodes(self.ava_nodes, x)
+
         edges = self.dag.in_edges(x, keys=True)
         o_edges, u_edges = [], []
 
@@ -487,6 +521,8 @@ class CausalGraph:
             If new, return a subgraph of the graph without all outcoming edges
             of nodes in x.
         """
+        check_nodes(self.ava_nodes, x)
+
         removing_edges = [
             edge for edge in self.dag.out_edges(x, keys=True) if edge[2] == 0
         ]

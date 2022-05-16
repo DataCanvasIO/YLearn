@@ -95,3 +95,6 @@ class Prob:
         Show the latex expression.
         """
         return Latex(f'${self.parse()}$')
+
+    # def __repr__(self) -> str:
+    #     return 'Prob'

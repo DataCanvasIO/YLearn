@@ -1,45 +1,18 @@
+from copy import deepcopy
+from collections import defaultdict
+from turtle import st
+
 import networkx as nx
 import numpy as np
+
 from sklearn.linear_model import LinearRegression as LR
 
-from copy import deepcopy
-
-from .utils import check_nodes, check_ancestors_chain
+from .utils import (check_nodes, check_ancestors_chain,
+                    powerset, IdentificationError, remove_ingo_edges,
+                    descendents_of_iter)
 from .prob import Prob
-from itertools import combinations
 
 np.random.seed(2022)
-
-
-def powerset(iterable):
-    """Return the power set of the iterable.
-
-    Parameters
-    ----------
-    iterable : container
-        Can be a set or a list.
-
-    Returns
-    ----------
-    list
-        The list of power set.
-    """
-    # TODO: return a generator instead of a list
-    s = list(iterable)
-    power_set = []
-    for i in range(len(s) + 1):
-        for j in combinations(s, i):
-            power_set.append(set(j))
-    return power_set
-
-
-class IdentificationError(Exception):
-    def __init__(self, info):
-        super().__init__(self)
-        self.info = info
-
-    def __str__(self):
-        return self.info
 
 
 class CausalModel:
@@ -48,10 +21,19 @@ class CausalModel:
 
     Attributes
     ----------
-    estimator_dic : dictionary
-        Keys are estimation methods while values are corresponding objects.
-    estimator : estimation_learner
+    data : pandas.DataFrame
+        Data used for discovering causal graph and training estimator model.
     causal_graph : CausalGraph #TODO: support CausalStructuralModel
+    treatment : list of str, optional
+        Names of treatments in the current identification problem.
+    outcome : list of str, optional
+        Names of outcomes in the current identification problem.
+    ava_nodes : dictkeys
+        All observed nodes of the CausalGraph
+    cached_result : dict
+        Results of previous identification results.
+    _adjustment_set : list of set
+        All possible backdoor adjustment set
 
     Methods
     ----------
@@ -60,16 +42,16 @@ class CausalModel:
         else return False, where y can be a set of different outcomes and x
         can be a set of different treatments. #TODO: be careful about that
         currently we treat a random variable equally as its value, i.e., we
-        do not discern P(Y|do(X)) and P(Y=y|do(X=x)). I don't know if this
-        matters.
-    identify(treatment, outcome, identify_method=None)
+        do not discern P(Y|do(X)) and P(Y=y|do(X=x)).
+    identify(treatment, outcome, identify_method='auto')
         Identify the causal effect of treatment on outocme expression.
-    estimate(x, y, treatment, adjustment_set, quantity='ATE')
+    estimate(estimator_model, data, adjustment, covariate, quantity=None)
         Estimate the causal effect of treatment on outcome (y).
-    identify_estimate(
-        x, y, treatment, outcome, identify_method=None, quantity='ATE'
-    )
-        Combination of identify and estimate.
+    get_iv(treatment, outcome)
+        Find the instrumental variables for the causal effect of the
+        treatment on the outcome.
+    is_iv(treatment, outcome, set_)
+        Determine whether a given set_ is a valid instrumental variable set.
     discover_graph(data)
         Perform causal discovery over data.
     is_valid_backdoor_set(set, treatment, outcome)
@@ -100,36 +82,17 @@ class CausalModel:
         ----------
         causal_graph : CausalGraph
         data : DataFrame (for now)
-        estimation : tuple of 2 elements
-            Describe estimation methods (the first element) and machine
-            learning models (the second element) used for estimation.
         """
         self.data = data
         self._adjustment_set = None
         self.treatment = None
         self.outcome = None
-
-        # if estimation is None:
-        #     # TODO: more flexible estimation, or should put this to estimate()
-        #     estimation = ('LR', 'SLearner')
-
-        # self.estimator_dic = {
-        #     'SLearner': SLearner(ml_model=estimation[0]),
-        #     'TLearner': TLearner(ml_model=estimation[0]),
-        #     'XLearner': XLearner(ml_model=estimation[0]),
-        #     'PropensityScore': PropensityScore(ml_model=estimation[0]),
-        # }
-
-        # self.estimator_dic = {'SLearner': None}
-
-        # assert estimation[1] in self.estimator_dic.keys(), \
-        #     f'Only support estimation methods in {self.estimator_dic.keys()}'
-
-        # self.estimator = self.estimator_dic[estimation[1]]
+        self.cached_result = defaultdict(list)
 
         self.causal_graph = causal_graph if causal_graph is not None\
             else self.discover_graph(data)
-        self.ava_nodes = self.causal_graph.causation.keys()
+
+        # self.ava_nodes = self.causal_graph.causation.keys()
 
     def id(self, y, x, prob=None, graph=None):
         """Identify the causal quantity P(y|do(x)) if identifiable else return
@@ -171,7 +134,6 @@ class CausalModel:
         v = set(graph.causation.keys())
         v_topo = list(graph.topo_order)
 
-        assert y and x
         y, x = set(y), set(x)
 
         # 1
@@ -255,7 +217,12 @@ class CausalModel:
                         )
 
     def identify(self, treatment, outcome, identify_method='auto'):
-        """Identify the causal effect expression.
+        """Identify the causal effect expression. Identification is to convert
+        any causal effect quantity, e.g., quantities with the do operator, into
+        the corresponding statistical quantitty such that it is then possible
+        to estimate the causal effect given data. However, note that not all
+        causal quantities are identifiable, in which case an IdentificationError
+        will be raised.
 
         Parameters
         ----------
@@ -281,9 +248,10 @@ class CausalModel:
 
         Returns
         ----------
-        (list, Prob) or Prob
-            Prob if identify_method is ('default', 'default'), ortherwise
-            return (list (the adjustment set), Prob).
+        dict
+            Keys of the dict are identify methods while the values are the
+            corresponding results.
+
         # TODO: support finding the minimal general adjustment set in linear
         # time
         """
@@ -294,21 +262,34 @@ class CausalModel:
         if identify_method == 'auto':
             result_dict = {
                 'ID': self.id(outcome, treatment),
-                'Backdoor': self.get_backdoor_set(treatment, outcome, 'simple'),
-                'Frontdoor': self.get_frontdoor_set(treatment, outcome, 'simple')
+                'backdoor': self.get_backdoor_set(treatment, outcome, 'simple'),
+                'frontdoor': self.get_frontdoor_set(treatment, outcome, 'simple')
             }
+            self.cached_result[f'Treatment: {treatment}, Outcome: {outcome}'].append(
+                result_dict
+            )
             return result_dict
 
         if identify_method == 'default':
-            return self.id(outcome, treatment)
+            result = self.id(outcome, treatment)
+            self.cached_result[f'Treatment: {treatment}, Outcome: {outcome}'].append(
+                (identify_method, result)
+            )
+            return {'ID': result}
 
         if identify_method[0] == 'backdoor':
             adjustment = self.get_backdoor_set(
                 treatment, outcome, adjust=identify_method[1]
             )
+            self.cached_result[f'Treatment: {treatment}, Outcome: {outcome}'].append(
+                (identify_method[0], adjustment)
+            )
         elif identify_method[0] == 'frontdoor':
             adjustment = self.get_frontdoor_set(
                 treatment, outcome, adjust=identify_method[1]
+            )
+            self.cached_result[f'Treatment: {treatment}, Outcome: {outcome}'].append(
+                (identify_method[0], adjustment)
             )
         else:
             raise IdentificationError(
@@ -316,7 +297,7 @@ class CausalModel:
                 f'identification, but was given {identify_method[1]}'
             )
 
-        return adjustment
+        return {f'{identify_method[0]}': adjustment}
 
     def estimate(
         self,
@@ -325,6 +306,7 @@ class CausalModel:
         adjustment=None,
         covariate=None,
         quantity=None,
+        **kwargs
     ):
         """Estimate the identified causal effect in new dataset.
 
@@ -350,8 +332,9 @@ class CausalModel:
             The estimated causal effect in data.
         """
         data = self.data if data is None else data
+        ava_nodes = self.causal_graph.causation.keys()
 
-        check_nodes(self.ava_nodes, adjustment, covariate)
+        check_nodes(ava_nodes, adjustment, covariate)
 
         assert self.outcome is not None
         assert self.treatment is not None
@@ -376,7 +359,8 @@ class CausalModel:
 
             assert self.is_valid_backdoor_set(
                 temp_set, self.treatment, self.outcome
-            )
+            ), 'The adjustment set should be a valid backdoor adjustment set,'
+            f'but was given {temp_set}.'
 
         # fit the estimator_model if it is not fitted
         if not estimator_model._is_fitted:
@@ -386,6 +370,7 @@ class CausalModel:
                 treatment=treatment,
                 covariate=covariate,
                 adjustment=adjustment,
+                **kwargs,
             )
 
         effect = estimator_model.estimate(data=data, quantity=quantity)
@@ -438,7 +423,7 @@ class CausalModel:
         Parameters
         ----------
         data : pandas.DataFrame
-        
+
         Returns
         ----------
         CausalGraph
@@ -458,7 +443,7 @@ class CausalModel:
             str is also acceptable for single treatment.
         outcome : set or list of str
             str is also acceptable for single outcome.
-            
+
         Returns
         ----------
         Bool
@@ -469,12 +454,13 @@ class CausalModel:
         # A valid backdoor set d-separates all backdoor paths between any pairs
         # of treatments and outcomes.
 
-        treatment = set(treatment) if type(treatment) is not str \
+        treatment = set(treatment) if not isinstance(treatment, str) \
             else {treatment}
-        outcome = set(outcome) if type(outcome) is not str else {outcome}
+        outcome = set(outcome) if not isinstance(outcome, str) else {outcome}
 
         # make sure all nodes are in the graph
-        check_nodes(self.ava_nodes, treatment, outcome, set_)
+        ava_nodes = self.causal_graph.causation.keys()
+        check_nodes(ava_nodes, treatment, outcome, set_)
 
         # build the causal graph with unobserved variables explicit
         modified_dag = self.causal_graph.remove_outgoing_edges(
@@ -525,7 +511,8 @@ class CausalModel:
         outcome = set(outcome) if type(outcome) is not str else {outcome}
 
         # make sure all nodes are present
-        check_nodes(self.ava_nodes, outcome, treatment)
+        ava_nodes = self.causal_graph.causation.keys()
+        check_nodes(ava_nodes, outcome, treatment)
 
         modified_dag = self.causal_graph.remove_outgoing_edges(
             treatment, new=True
@@ -533,7 +520,7 @@ class CausalModel:
 
         def determine(modified_dag, treatment, outcome):
             if all(
-                [self.ava_nodes[t] == [] for t in treatment]
+                [self.causal_graph.causation[t] == [] for t in treatment]
             ):
                 return nx.d_separated(modified_dag, treatment,
                                       outcome, set())
@@ -550,7 +537,7 @@ class CausalModel:
             # TODO: if the parent of x_i is the descendent of another x_j
             backdoor_list = []
             for t in treatment:
-                backdoor_list += self.ava_nodes[t]
+                backdoor_list += self.causal_graph.causation[t]
             adset = set(backdoor_list)
         # use other methods
         else:
@@ -562,7 +549,7 @@ class CausalModel:
                     nx.descendants(self.causal_graph.observed_dag, t)
                 )
             initial_set = (
-                set(list(self.ava_nodes)) -
+                set(list(ava_nodes)) -
                 treatment - outcome - des_set
             )
 
@@ -631,8 +618,10 @@ class CausalModel:
             A list containing all valid backdoor paths between the treatment and
             outcome in the graph.
         """
-        check_nodes(self.ava_nodes, treatment, outcome)
         dag = self.causal_graph.explicit_unob_var_dag
+
+        ava_nodes = self.causal_graph.causation.keys()
+        check_nodes(ava_nodes, treatment, outcome)
 
         return [
             p for p in nx.all_simple_paths(
@@ -658,14 +647,13 @@ class CausalModel:
             True if the path has a collider.
         """
         # TODO: improve the implementation.
-        check_nodes(self.ava_nodes, path)
+        dag = self.causal_graph.explicit_unob_var_dag
+        check_nodes(dag.nodes, path)
 
-        if path[1] not in self.ava_nodes[path[0]]:
+        if path[1] not in dag.predecessors(path[0]):
             backdoor_path = False
 
         if len(path) > 2:
-            dag = self.causal_graph.explicit_unob_var_dag
-
             assert(nx.is_path(dag.to_undirected(), path)), "Not a valid path."
 
             j = 0
@@ -704,10 +692,10 @@ class CausalModel:
         Boolean
             True if path is a d-connected backdoor path and False otherwise.
         """
-        check_nodes(self.ava_nodes, path)
+        check_node_graph = self.causal_graph.explicit_unob_var_dag
+        check_nodes(check_node_graph.nodes, path)
 
-        assert path[1] in \
-            self.causal_graph.explicit_unob_var_dag.predecessors(path[0]),\
+        assert path[1] in check_node_graph.predecessors(path[0]), \
             'Not a backdoor path.'
 
         # A backdoor path is not connected if it contains a collider or not a
@@ -733,7 +721,8 @@ class CausalModel:
             True if the given set is a valid frontdoor adjustment set for
             corresponding treatemtns and outcomes.
         """
-        check_nodes(self.ava_nodes, set_, set(treatment), set(outcome))
+        ava_nodes = self.causal_graph.causation.keys()
+        check_nodes(ava_nodes, set_, set(treatment), set(outcome))
 
         # rule 1, intercept all directed paths from treatment to outcome
         for path in nx.all_simple_paths(
@@ -768,7 +757,8 @@ class CausalModel:
         tuple
             2 elements (adjustment_set, Prob)
         """
-        check_nodes(self.ava_nodes, set(treatment), set(outcome))
+        ava_nodes = self.causal_graph.causation.keys()
+        check_nodes(ava_nodes, set(treatment), set(outcome))
 
         if type(treatment) is set and type(outcome) is set:
             assert (
@@ -827,10 +817,85 @@ class CausalModel:
         prob = Prob(marginal=adset, product=product_expression)
         return (adjustment, prob)
 
+    def get_iv(self, treatment, outcome):
+        """Find the instrumental variables for the causal effect of the
+        treatment on the outcome.
+
+        Parameters
+        ----------
+        treatment : iterable
+            Name(s) of the treatment.
+        outcome : iterable
+            Name(s) of the outcome.
+
+        Returns
+        -------
+        set
+            A valid instrumental variable set which will be an empty one if
+            there is no such set.
+        """
+        ava_nodes = self.causal_graph.causation.keys()
+        check_nodes(ava_nodes, treatment, outcome)
+
+        # 1. relevance: all possible instrument variables should be parents of the
+        # treatment
+        waited_instrument = set(self.causal_graph.parents(treatment))
+
+        # 2. exclusion: build the graph where all incoming edges to the treatment
+        # are removed such that those nodes which have effect on the outcome through
+        # the treatment in the modified graph are excluded to be a valid instrument
+        exp_unob_graph = self.causal_graph.explicit_unob_var_dag
+        modified_graph = remove_ingo_edges(exp_unob_graph, True, treatment)
+        excluded_nodes_an = nx.ancestors(modified_graph, outcome)
+        waited_instrument.difference_update(excluded_nodes_an)
+
+        # We also should not count on descendents of ancestors of the outcome which
+        # may have effect on y through a backdoor
+        # excluded_nodes_des = nx.descendants(modified_graph, excluded_nodes_an)
+        excluded_nodes_des = descendents_of_iter(
+            modified_graph, excluded_nodes_an
+        )
+        iv = waited_instrument.difference(excluded_nodes_des)
+
+        if not iv:
+            print(f'No valid instrument variable has been found.')
+
+        return iv
+
+    def is_valid_iv(self, treatment, outcome, set_):
+        """Determine whether a given set_ is a valid instrumental variable set.
+
+        Parameters
+        ----------
+        treatment : iterable
+            Name(s) of the treatment.
+        outcome : iterable
+            Name(s) of the outcome.
+        set_ : iterable
+
+        Returns
+        -------
+        bool
+            True if the set is a valid instrumental variable set and False
+            otherwise.
+        """
+        all_iv = self.get_iv(treatment, outcome)
+
+        if not all_iv:
+            return False
+
+        set_ = {set_} if isinstance(set_, str) else set_
+
+        for element in set_:
+            if not (element in all_iv):
+                return False
+
+        return True
+
     # The following method is for experimental use
     def estimate_hidden_cofounder(self, method='lr'):
         full_dag = self.causal_graph.explicit_unob_var_dag
-        cg  = deepcopy(self.causal_graph)
+        cg = deepcopy(self.causal_graph)
         all_nodes = full_dag.nodes
         hidden_cofounders = [node for node in all_nodes if "U" in node]
         estimated = 0
@@ -866,7 +931,7 @@ class CausalModel:
             edge_list_add = [(key_, i) for i in modified_nodes]
             cg.add_edges_from(edge_list=edge_list_add)
             estimated = estimated + 1
-        
+
         if len(hidden_cofounders) == 0:
             print('Hidden cofounder estimation done. No hidden cofounder found.')
             return
@@ -902,6 +967,4 @@ class CausalModel:
             return
 
     def __repr__(self):
-        return f'A CausalModel for {self.causal_graph}'
-
-    
+        return f'A CausalModel for {self.causal_graph}.'
