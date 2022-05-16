@@ -3,7 +3,7 @@ from itertools import product
 import pytest
 from sklearn import clone
 from sklearn.ensemble import GradientBoostingRegressor
-from sklearn.linear_model import LinearRegression, MultiTaskLasso
+from sklearn.linear_model import LinearRegression
 
 from ylearn.estimator_model.meta_learner import SLearner, TLearner, XLearner
 from . import _dgp
@@ -14,7 +14,7 @@ _test_settings = {
     _dgp.generate_data_x1b_y1: GradientBoostingRegressor(),
     _dgp.generate_data_x2b_y1: GradientBoostingRegressor(),
     _dgp.generate_data_x1b_y2: LinearRegression(),
-    _dgp.generate_data_x2b_y2: MultiTaskLasso(),
+    _dgp.generate_data_x2b_y2: LinearRegression(),
     _dgp.generate_data_x1m_y1: GradientBoostingRegressor(),
     _dgp.generate_data_x1b_y1_w5v0: GradientBoostingRegressor(),
     _dgp.generate_data_x2b_y1_w5v0: GradientBoostingRegressor(),
@@ -25,20 +25,18 @@ _test_settings = {
 }
 
 
-@pytest.mark.parametrize('dg,combined',
-                         product(_test_settings.keys() - [_dgp.generate_data_x2b_y2,
-                                                          _dgp.generate_data_x2b_y2_w5v0],
-                                 [True, False]))
+@pytest.mark.parametrize('dg,combined', product(_test_settings.keys(), [True, False]))
 def test_sleaner(dg, combined):
     model = _test_settings[dg]
     validate_leaner(dg, SLearner(model=clone(model)), fit_kwargs=dict(combined_treatment=combined))
 
 
-@pytest.mark.parametrize('dg,combined', product([_dgp.generate_data_x2b_y2_w5v0, ], [True, False]))
-# @pytest.mark.xfail(reason='to be fixed')
-def test_sleaner_to_be_fixed(dg, combined):
-    model = _test_settings[dg]
-    validate_leaner(dg, SLearner(model=clone(model)), fit_kwargs=dict(combined_treatment=combined))
+#
+# @pytest.mark.parametrize('dg,combined', product([_dgp.generate_data_x2b_y2_w5v0, ], [True, False]))
+# # @pytest.mark.xfail(reason='to be fixed')
+# def test_sleaner_to_be_fixed(dg, combined):
+#     model = _test_settings[dg]
+#     validate_leaner(dg, SLearner(model=clone(model)), fit_kwargs=dict(combined_treatment=combined))
 
 
 @pytest.mark.parametrize('dg,combined', product(_test_settings.keys(), [True, False]))

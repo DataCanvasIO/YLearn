@@ -7,3 +7,4 @@ ipython
 cython
 torch
 joblib
+pydot

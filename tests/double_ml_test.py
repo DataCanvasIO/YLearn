@@ -23,16 +23,6 @@ _test_settings = {
     _dgp.generate_data_x1m_y1: (RandomForestClassifier(),
                                 RandomForestRegressor(),
                                 ),
-    # _dgp.generate_data_x2b_y1: (RandomForestClassifier(),
-    #                             RandomForestRegressor(),
-    #                             ),
-    # _dgp.generate_data_x2b_y2: (RandomForestClassifier(),
-    #                             RandomForestRegressor(),
-    #                             ),
-}
-
-_test_settings_to_be_fixed = {
-    # data_generator: (x_model,y_model )
     _dgp.generate_data_x2b_y1: (RandomForestClassifier(),
                                 RandomForestRegressor(),
                                 ),
@@ -42,6 +32,16 @@ _test_settings_to_be_fixed = {
 }
 
 
+# _test_settings_to_be_fixed = {
+#     # data_generator: (x_model,y_model )
+#     _dgp.generate_data_x2b_y1: (RandomForestClassifier(),
+#                                 RandomForestRegressor(),
+#                                 ),
+#     _dgp.generate_data_x2b_y2: (RandomForestClassifier(),
+#                                 RandomForestRegressor(),
+#                                 ),
+# }
+
 @pytest.mark.parametrize('dg', _test_settings.keys())
 def test_double_ml(dg):
     x_model, y_model = _test_settings[dg]
@@ -49,13 +49,14 @@ def test_double_ml(dg):
     validate_leaner(dg, estimator, check_fitted=False)
 
 
-@pytest.mark.parametrize('dg', _test_settings_to_be_fixed.keys())
-# @pytest.mark.xfail(reason='to be fixed')
-def test_double_ml_to_be_fixed(dg):
-    x_model, y_model = _test_settings_to_be_fixed[dg]
-    estimator = DML4CATE(x_model=x_model, y_model=y_model, cf_fold=1, random_state=2022, is_discrete_treatment=True)
-    validate_leaner(dg, estimator, check_fitted=False)
-
+#
+# @pytest.mark.parametrize('dg', _test_settings_to_be_fixed.keys())
+# # @pytest.mark.xfail(reason='to be fixed')
+# def test_double_ml_to_be_fixed(dg):
+#     x_model, y_model = _test_settings_to_be_fixed[dg]
+#     estimator = DML4CATE(x_model=x_model, y_model=y_model, cf_fold=1, random_state=2022, is_discrete_treatment=True)
+#     validate_leaner(dg, estimator, check_fitted=False)
+#
 
 ########################################################################################
 
