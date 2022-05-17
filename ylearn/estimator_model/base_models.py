@@ -5,6 +5,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.data import DataLoader
 
+from ylearn.utils import to_repr
 from .utils import BatchData
 
 
@@ -285,6 +286,9 @@ class BaseEstLearner:
     #
     # def counterfactual_prediction(self):
     #     pass
+
+    def __repr__(self):
+        return to_repr(self)
 
 
 class MLModel:

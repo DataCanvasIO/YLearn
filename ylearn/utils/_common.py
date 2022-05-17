@@ -1,5 +1,7 @@
 import contextlib as _contextlib
+import inspect
 import warnings
+from collections import OrderedDict
 
 import numpy as np
 import pandas as pd
@@ -108,3 +110,39 @@ def infer_task_type(y, excludes=None):
                 task = const.TASK_MULTICLASS
                 labels = sorted(uniques)
     return task, labels
+
+
+def get_params(obj, include_default=False):
+    def _get_init_params(cls):
+        init = cls.__init__
+        if init is object.__init__:
+            return []
+
+        init_signature = inspect.signature(init)
+        parameters = [p for p in init_signature.parameters.values()
+                      if p.name != 'self']  # and p.kind != p.VAR_KEYWORD]
+        return parameters
+
+    fn_get_params = getattr(obj, 'get_params', None)
+    if callable(fn_get_params):
+        return fn_get_params()
+
+    out = OrderedDict()
+    for p in _get_init_params(type(obj)):
+        name = p.name
+        value = getattr(obj, name, None)
+        if include_default or value is not p.default:
+            out[name] = value
+
+    return out
+
+
+def to_repr(obj, excludes=None):
+    try:
+        if excludes is None:
+            excludes = []
+        out = ['%s=%r' % (k, v) for k, v in get_params(obj).items() if k not in excludes]
+        repr_ = ', '.join(out)
+        return f'{type(obj).__name__}({repr_})'
+    except Exception as e:
+        return f'{type(e).__name__}:{e}, at <to_repr>: {type(obj).__name__}'
