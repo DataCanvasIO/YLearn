@@ -11,7 +11,9 @@ from .utils import (convert2array, get_wv, convert4onehot,
 
 class ApproxBound(BaseEstLearner):
     """
-    Parameters
+    A model used for estimating the upper and lower bounds of the causal effects.
+    
+    Attributes
     ----------
     y_model : MLModel, optional.
         Machine learning models for fitting the relation between treatment
@@ -24,6 +26,17 @@ class ApproxBound(BaseEstLearner):
     random_state : int
     is_discrete_treatent : bool
     categories : str or list, optional. Deafaults to 'auto'
+    
+    Methods
+    ----------
+    fit(data, outcome, treatment, covariate=None, is_discrete_covariate=False,
+        **kwargs)
+    estimate(data=None, treat=None, control=None, y_upper=None, y_lower=None, assump=None,)
+        Estimate the approximation bound of the causal effect of the treatment
+        on the outcome.
+    comp_transformer(x, categories='auto')
+        Transform the discrete treatment into one-hot vectors.
+    _prepare4est(data, treat, control, y_upper, y_lower,)
     """
     # TODO: may consider multiple treatments
 

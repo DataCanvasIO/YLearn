@@ -494,6 +494,68 @@ class NetWrapper:
 
 
 class DeepIV(BaseEstLearner):
+    r"""Training of a DeepIV model g(x, w) is composed of 2 stages:
+            1. In the first stage, we train a neural network to estimate the
+            distribution of the treatment x given the instrument z and
+            adjustment (also covariate) w;
+            2. In the second stage, we train another neural network to estiamte
+            the outcome y givn treatment x and adjustment (also
+            covariate) w.
+        The trained model is used to estimate the causal effect
+            g(x_1, w) - g(x_0, w)
+        or
+            \partial_x g(x, w).
+
+    Attributes
+    ----------
+    x_net_kwargs : dict
+    y_net_kwargs : dict
+    _x_net_init : Net
+        The model for the treatment.
+    _y_net_init : Net
+        The model for the outcome.
+    x_net : NetWrapper, optional
+        Wrapped treatment model.
+    y_net : NetWrapper, optional
+        Wrapped outcome model.
+    is_discrete_instrument : bool
+        True if the instrument is discrete.
+    randome_state : int
+    is_discrete_treatment : bool
+    is_discrete_outcome : bool
+    categories : str, optional. Defaults to 'auto'
+    x_transformer : OneHotEncoder, optional
+        Transformer of the treatment.
+    _z_transformer : OneHotEncoder, optional
+        Transformer of the instrument
+    y_transformer : OneHotEncoder, optional
+        Transformer of the outcome
+    w : ndarray with shape (n, w_d)
+        Adjustment variables in the training data where n is the number of
+        examples and w_d is the number of adjustment and covaraite.
+    _y_d : ndarray
+        Shapes of the outcome variables in the training data.
+    _x_d : ndarray
+        Shapes of the treatment variables in the training data.
+    _w_d : ndarray
+        Shapes of the adjustment variables in the training data.
+    _z_d : ndarray
+        Shapes of the instrumental variables in the training data.
+
+    Methods
+    ----------
+    fit(data, outcome, treatment, instrument=None, adjustment=None,
+        approx_grad=True, sample_n=None, x_net_config=None, 
+        y_net_config=None, **kwargs)
+        Fit the instance of DeepIV.
+    estimate(data=None, treat=None, control=None, quantity='CATE', marginal_effect=False,
+             *args, **kwargs,)
+        Estimate the causal effect.
+    _gen_x_model(x_model, *args, **kwargs)
+    _gen_y_model(y_model, *args, **kwargs)
+    _prepare4est(data, treat=None, control=None, marginal_effect=False)
+    
+    """
     def __init__(
         self,
         x_net=None,
@@ -504,28 +566,28 @@ class DeepIV(BaseEstLearner):
         is_discrete_treatment=False,
         is_discrete_outcome=False,
         is_discrete_instrument=False,
-        categories=None,
+        categories='auto',
         random_state=2022,
     ):
-        r"""Training of a DeepIV model g(x, w) is composed of 2 stages:
-            1. In the first stage, we train a neural network to estimate the
-            distribution of the treatment x given the instrument z and
-            adjustment (probably also covariate) w;
-            2. In the second stage, we train another neural network to estiamte
-            the outcome y givn treatment x and adjustment (probably also
-            covariate) w.
-        The trained model is used to estimate the causal effect
-            g(x_1, w) - g(x_0, w)
-        or
-            \partial_x g(x, w).
-
+        """
         Parameters
         ----------
-        x_net : MDNWrapper or NetWrapper
+        x_net : Net
             Representation of the mixture density network for continuous
             treatment or an usual classification net for discrete treatment.
-        y_net :  NetWrapper
+        y_net :  Net
             Representation of the outcome network.
+        x_hidden_d : int, optional. Defaults to None
+            Dimension of the hidden layer of the default x_net of DeepIV.
+        y_hidden_d : int, optional. Defaults to None
+            Dimension of the hidden layer of the default y_net of DeepIV.
+        num_gaussian : int, optional. Defaults to 5.
+            Number of gaussians when using the mixture density network.
+        is_discrete_treatment : bool, optional. Defaults to False.
+        is_discrete_outcome : bool, optional. Defaults to False.
+        is_discrete_instrument : bool, optional. Defaults to False.
+        categories : str, optional. Defaults to 'auto'
+        random_state : int, optional. Defaults to 2022.
         """
         self.x_net_kwargs = {}
         if x_hidden_d is not None:
