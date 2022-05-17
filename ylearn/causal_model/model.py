@@ -1,6 +1,6 @@
 from copy import deepcopy
 from collections import defaultdict
-from turtle import st
+from tabnanny import check
 
 import networkx as nx
 import numpy as np
@@ -256,6 +256,9 @@ class CausalModel:
         # time
         """
         assert treatment and outcome, 'Please provide names of treatment and outcome'
+        ava_nodes = self.causal_graph.causation.keys()
+        check_nodes(ava_nodes, treatment, outcome)
+
         self.treatment = treatment
         self.outcome = outcome
 
@@ -273,7 +276,7 @@ class CausalModel:
         if identify_method == 'default':
             result = self.id(outcome, treatment)
             self.cached_result[f'Treatment: {treatment}, Outcome: {outcome}'].append(
-                (identify_method, result)
+                {identify_method: result}
             )
             return {'ID': result}
 
@@ -282,14 +285,14 @@ class CausalModel:
                 treatment, outcome, adjust=identify_method[1]
             )
             self.cached_result[f'Treatment: {treatment}, Outcome: {outcome}'].append(
-                (identify_method[0], adjustment)
+                {identify_method[0]: adjustment}
             )
         elif identify_method[0] == 'frontdoor':
             adjustment = self.get_frontdoor_set(
                 treatment, outcome, adjust=identify_method[1]
             )
             self.cached_result[f'Treatment: {treatment}, Outcome: {outcome}'].append(
-                (identify_method[0], adjustment)
+                {identify_method[0]: adjustment}
             )
         else:
             raise IdentificationError(
@@ -303,6 +306,8 @@ class CausalModel:
         self,
         estimator_model,
         data=None,
+        treatment=None,
+        outcome=None,
         adjustment=None,
         covariate=None,
         quantity=None,
@@ -336,18 +341,18 @@ class CausalModel:
 
         check_nodes(ava_nodes, adjustment, covariate)
 
-        assert self.outcome is not None
-        assert self.treatment is not None
+        # assert self.outcome is not None
+        # assert self.treatment is not None
 
-        outcome = self.outcome
-        treatment = self.treatment
+        outcome = self.outcome if outcome is None else outcome
+        treatment = self.treatment if treatment is None else treatment
 
         # make sure adjustment and covariate are valid backdoor adjustment sets
         if adjustment is None and covariate is None:
             if self._adjustment_set is None:
                 adjustment = self.get_backdoor_set(
                     self.treatment, self.outcome, 'simple'
-                )
+                )[0]
             else:
                 adjustment = self._adjustment_set[0]
         else:
@@ -446,7 +451,7 @@ class CausalModel:
 
         Returns
         ----------
-        Bool
+        bool
             True if the given set is a valid backdoor adjustment set for the 
             causal effect of treatment on outcome in the current causal graph.
         """
@@ -499,8 +504,8 @@ class CausalModel:
         Returns
         ----------
         tuple
-            The first element is the adjustment list, the second is encoded
-            Prob.
+            The first element is the adjustment list, while the second is the
+            encoded Prob.
         """
         # TODO: can I find the adjustment sets by using the adj matrix
         # TODO: improve the implementation
@@ -842,7 +847,7 @@ class CausalModel:
         waited_instrument = set(self.causal_graph.parents(treatment))
 
         # 2. exclusion: build the graph where all incoming edges to the treatment
-        # are removed such that those nodes which have effect on the outcome through
+        # are removed such that those nodes which have effects on the outcome through
         # the treatment in the modified graph are excluded to be a valid instrument
         exp_unob_graph = self.causal_graph.explicit_unob_var_dag
         modified_graph = remove_ingo_edges(exp_unob_graph, True, treatment)
@@ -850,7 +855,7 @@ class CausalModel:
         waited_instrument.difference_update(excluded_nodes_an)
 
         # We also should not count on descendents of ancestors of the outcome which
-        # may have effect on y through a backdoor
+        # may have effects on y through backdoor paths
         # excluded_nodes_des = nx.descendants(modified_graph, excluded_nodes_an)
         excluded_nodes_des = descendents_of_iter(
             modified_graph, excluded_nodes_an
@@ -967,4 +972,5 @@ class CausalModel:
             return
 
     def __repr__(self):
-        return f'A CausalModel for {self.causal_graph}.'
+        return (f'A CausalModel for {self.causal_graph}, where the treatment is'
+                f'{self.treatment} and the outcome is {self.outcome}.')

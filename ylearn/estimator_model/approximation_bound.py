@@ -1,10 +1,12 @@
+from unicodedata import category
+from matplotlib.pyplot import axis
 import numpy as np
-from sklearn.preprocessing import OneHotEncoder
+from sklearn.preprocessing import OneHotEncoder, OrdinalEncoder
 
 
 from .base_models import BaseEstLearner
 from .utils import (convert2array, get_wv, convert4onehot,
-                                   get_treat_control)
+                    get_tr_ctrl, cartesian, get_groups)
 
 
 class ApproxBound(BaseEstLearner):
@@ -34,6 +36,25 @@ class ApproxBound(BaseEstLearner):
         is_discrete_treatment=True,
         categories='auto'
     ):
+        """
+        Parameters
+        ----------
+        y_model : estimator, optional
+            Any valide y_model should implement the fit() and predict() methods
+        x_prob : ndarray of shape (c, ), optional. Default to None
+            An array of probabilities assigning to the corresponding values of x
+            where c is the number of different treatment classes. All elements
+            in the array are positive and sumed to 1. For example, x_prob = 
+            array([0.5, 0.5]) means both x = 0 and x = 1 take probability 0.5.
+            Please set this as None if you are using multiple treatmens.
+        x_model : estimator, optional. Default to None
+            Any valide x_model should implement the fit() and predict_proba() methods.
+        random_state : int, optional. Defaults to 2022.
+        is_discrete_treatment : bool, optional
+            True if the treatment is discrete.
+        categories : str, optional
+            _description_, by default 'auto'
+        """
         self.y_model = y_model
         self.x_prob = x_prob
         self.x_model = x_model
@@ -53,39 +74,40 @@ class ApproxBound(BaseEstLearner):
         is_discrete_covariate=False,
         **kwargs
     ):
-        """_summary_
+        """Fit x_model and y_model.
 
         Parameters
         ----------
-        data : _type_
-            _description_
-        outcome : _type_
-            _description_
-        treatment : _type_
-            _description_
-        covariate : _type_, optional
-            _description_, by default None
-        is_discrete_covariate : bool, optional
-            _description_, by default False
+        data : pandas.DataFrame
+            Training data.
+        outcome : list of str, optional
+            Names of the outcome.
+        treatment : list of str, optional
+            Names of the treatment.
+        covariate : list of str, optional. Defaults to None
+            Names of the covariate.
+        is_discrete_covariate : bool, optional. Defaults to False.
 
         Returns
         -------
-        _type_
-            _description_
+        instance of ApproxBound
+            The fitted instance of ApproxBound.
 
         Raises
         ------
         ValueError
-            _description_
+            Raise error when the treatment is not discrete.
         """
         super().fit(
             data, outcome, treatment,
             covariate=covariate,
             is_discrete_covariate=is_discrete_covariate
         )
+
         y, x, v = convert2array(data, outcome, treatment, covariate)
-        self._y_max = y.max(axis=0)
-        self._y_min = y.min(axis=0)
+        # self._y_max = y.max(axis=0)
+        # self._y_min = y.min(axis=0)
+        self._y = y
         self._n = len(data)
 
         if not self.is_discrete_treatment:
@@ -93,24 +115,27 @@ class ApproxBound(BaseEstLearner):
                 'The method only supports discrete treatments currently.'
             )
 
-        self.treatment_transformer = OneHotEncoder()
-        x_one_hot = self.treatment_transformer.fit_transform(x).toarray()
-        self._num_treatments = len(self.treatment_transformer.categories_)
+        if self.categories == 'auto' or self.categories is None:
+            categories = 'auto'
+        else:
+            categories = list(self.categories)
+
+        x_one_hot = self.comp_transormer(x, categories=categories)
+        # self._num_treatments = len(self.treatment_transformer.categories_)
         self._x_d = x_one_hot.shape[1]
+
+        self.x_label = np.array(convert4onehot(x_one_hot).astype(int))
 
         if self.x_prob is None:
             if v is not None:
-                x = convert4onehot(x_one_hot).astype(int)
-
                 if self.is_discrete_covariate:
                     v = OneHotEncoder().fit_transform(v)
 
-                self.x_model.fit(v, x)
-                self.x_prob = self.x_model.predic_proba(v)
+                self.x_model.fit(v, self.x_label)
+                self.x_prob = self.x_model.predict_proba(v)
             else:
-                self.x_prob = (
-                    data[treatment].value_counts().sort_index() / self._n
-                ).values.reshape(1, -1)
+                self.x_prob = np.unique(self.x_label, return_counts=True)[1]
+                self.x_prob = (self.x_prob / self._n).reshape(1, -1)
         else:
             # TODO: modify the following line for multiple treatment
             self.x_prob = self.x_prob.reshape(1, -1)
@@ -133,20 +158,24 @@ class ApproxBound(BaseEstLearner):
         assump=None,
         **kwargs
     ):
-        """_summary_
+        """Estimate the approximation bound of the causal effect of the treatment
+        on the outcome.
 
         Parameters
         ----------
-        data : _type_, optional
-            _description_, by default None
-        treat : _type_, optional
-            _description_, by default None
-        control : _type_, optional
-            _description_, by default None
-        y_upper : _type_, optional
-            _description_, by default None
-        y_lower : _type_, optional
-            _description_, by default None
+        data : pandas.DataFrame, optional. Default to None
+            Test data. The model will use the training data if set as None.
+        treat : ndarray of str, optional. Defaults to None
+            Values of the treatment group. For example, when there are multiple
+            discrete treatments, array(['run', 'read']) means the treat value of
+            the first treatment is taken as 'run' and that of the second treatment
+            is taken as 'read'.
+        control : ndarray of str, optional. Defaults to None
+            Values of the control group.
+        y_upper : float. Defaults to None
+            The upper bound of the outcome.
+        y_lower : float. Defaults to None
+            The lower bound of the outcome.
         assump : str, optional.  Defaults to 'no-assump'.
             Should be one of
                 1. no-assump: calculate the no assumption bound whose result
@@ -158,18 +187,23 @@ class ApproxBound(BaseEstLearner):
 
         Returns
         -------
-        _type_
-            _description_
+        tuple
+            The first element is the lower bound while the second element is the
+            upper bound. Note that if covariate is provided, all elements are 
+            ndarrays of shapes (n, ) indicating the lower and upper bounds of 
+            corresponding examples where n is the number of examples. 
 
         Raises
         ------
         Exception
-            _description_
+            Raise Exception if the model is not fitted.
         Exception
-            _description_
+            Raise Exception if the assump is not set correctly.
         """
         if not self._is_fitted:
-            raise Exception('The estimator is not fitted yet.')
+            raise Exception(
+                'The estimator is not fitted yet. Pleas call the fit method first.'
+            )
 
         normal, optim1, optim2 = self._prepare4est(
             data, treat, control, y_upper, y_lower
@@ -188,8 +222,50 @@ class ApproxBound(BaseEstLearner):
         else:
             raise Exception(
                 'Only support assumptions in no-assump, non-negative, and'
-                'non-positive'
+                f'non-positive. But was given {assump}'
             )
+
+    def comp_transormer(self, x, categories='auto'):
+        """Transform the discrete treatment into one-hot vectors.
+
+        Parameters
+        ----------
+        x : ndarray, shape (n, x_d)
+            An array containing the information of the treatment variables
+        categories : str or list, optional
+            by default 'auto'
+
+        Returns
+        -------
+        ndarray
+            The transformed one-hot vectors
+        """
+        if x.shape[1] > 1:
+            if not self._is_fitted:
+                self.ord_transformer = OrdinalEncoder(categories=categories)
+                self.ord_transformer.fit(x)
+
+                labels = [
+                    np.arange(len(c)) for c in self.ord_transformer.categories_
+                ]
+                labels = cartesian(labels)
+                categories = [np.arange(len(labels))]
+
+                self.label_dict = {tuple(k): i for i, k in enumerate(labels)}
+
+            x_transformed = self.ord_transformer.transform(x).astype(int)
+            x = np.full((x.shape[0], 1), np.NaN)
+
+            for i, x_i in enumerate(x_transformed):
+                x[i] = self.label_dict[tuple(x_i)]
+
+        if not self._is_fitted:
+            self.oh_transformer = OneHotEncoder(categories=categories)
+            self.oh_transformer.fit(x)
+
+        x = self.oh_transformer.transform(x).toarray()
+
+        return x
 
     def _prepare4est(
         self,
@@ -202,31 +278,40 @@ class ApproxBound(BaseEstLearner):
         # x_d = self._x_d
         x_prob = self.x_prob
 
+        treat = get_tr_ctrl(treat, self.comp_transormer, treat=True)
+        control = get_tr_ctrl(control, self.comp_transormer, treat=False)
+
         if self.covariate is None:
             n = 1
             v = None
             if data is None:
-                y_upper = self._y_max if y_upper is None else y_upper
-                y_lower = self._y_min if y_lower is None else y_lower
+                y = self._y
+                x = self.x_label
+                # y_upper = y.max(axis=0) if y_upper is None else y_upper
+                # y_lower = y.min(axis=0) if y_lower is None else y_lower
             else:
-                y = convert2array(data, self.outcome)
-                y_upper = y.max(axis=0) if y_upper is None else y_upper
-                y_lower = y.min(axis=0) if y_lower is None else y_lower
+                y, x = convert2array(data, self.outcome, self.treatment)
+                x = convert4onehot(self.comp_transormer(x,))
         else:
             if data is None:
                 v = self._v
-                y_upper = self._y_max if y_upper is None else y_upper
-                y_lower = self._y_min if y_lower is None else y_lower
+                y = self._y
+                x = self.x_label
                 n = self._n
             else:
-                y, v = convert2array(data, self.outcome, self.covariate)
-                y_upper = y.max(axis=0) if y_upper is None else y_upper
-                y_lower = y.min(axis=0) if y_lower is None else y_lower
+                y, v, x = convert2array(
+                    data, self.outcome, self.covariate, self.treatment
+                )
                 n = y.shape[0]
                 x_prob = self.x_model.predic_proba(v)
 
-        treat = get_treat_control(treat, self._num_treatments, True)
-        control = get_treat_control(control, self._num_treatments, False)
+        y_treat = get_groups(treat, x.reshape(-1, 1), y)[0]
+        y_ctrl = get_groups(control, x.reshape(-1, 1), y)[0]
+        y_tr_max, y_tr_min = y_treat.max(axis=0), y_treat.min(axis=0)
+        y_ctrl_max, y_ctrl_min = y_ctrl.max(axis=0), y_ctrl.min(axis=0)
+
+        y_upper = max(y_tr_max, y_ctrl_max) if y_upper is None else y_upper
+        y_lower = min(y_tr_min, y_ctrl_min) if y_lower is None else y_lower
 
         # TODO: modify the following line for multiple treatment
         xt, x0 = np.zeros((n, self._x_d)), np.zeros((n, self._x_d))
@@ -234,7 +319,7 @@ class ApproxBound(BaseEstLearner):
         x0[:, control] = 1
 
         xt = get_wv(xt, v)
-        x0 = get_wv(xt, v)
+        x0 = get_wv(x0, v)
         yt = self.y_model.predict(xt)
         y0 = self.y_model.predict(x0)
         xt_prob = x_prob[:, treat]

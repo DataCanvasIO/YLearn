@@ -1,3 +1,4 @@
+from re import I
 import networkx as nx
 
 from copy import deepcopy
@@ -56,11 +57,28 @@ def descendents_of_iter(g, x):
     return des
 
 def remove_ingo_edges(graph, incoming=True, *S):
+    """Remove incoming or outgoing edges for nodes of S in the graph.
+
+    Parameters
+    ----------
+    graph : nx.DiGraph, optional
+        
+    incoming : bool, optional
+        If True, then all incoming edges of nodes in S will be removed,
+        otherwise remove all outgoing edges of nodes in S, by default True
+
+    Returns
+    -------
+    nx.DiGraph, optional
+        A deepcopy of graph where the incoming edges or outgoing edges of nodes
+        in S are removed.
+    """
     g = deepcopy(graph)
     S = filter(None, S)
-
+    
     for i in S:
         i = {i} if isinstance(i, str) else i
+        check_nodes(g.nodes, i)
         for node in i:
             if incoming:
                 g.remove_edges_from([(p, node) for p in g.predecessors(node)])
@@ -70,6 +88,13 @@ def remove_ingo_edges(graph, incoming=True, *S):
     return g
 
 def check_nodes(nodes=None, *S):
+    """Check if nodes contained in S are present in nodes.
+
+    Parameters
+    ----------
+    nodes : list, optional
+        A list of nodes which should include all nodes in S, by default None
+    """
     S = filter(None, S)
     for i in S:
         i = {i} if isinstance(i, str) else i
