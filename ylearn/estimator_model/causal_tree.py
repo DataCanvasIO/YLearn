@@ -22,7 +22,7 @@ class CausalTree(BaseEstLearner):
 
     Attributes
     ----------
-    feature_importances_ : ndarray of shape (n_features,)
+    feature_importances_ : ndarray of shape (n_features, )
         The feature importances.
     tree_ : Tree instance
         The underlying Tree object.
@@ -33,13 +33,23 @@ class CausalTree(BaseEstLearner):
     max_leaf_nodes : int, default to None
     min_impurity_decrease : float, default to 0.0
     ccp_alpha : non-negative float, default to 0.0
+    eps : float, default to 1e-5
+        The sample weight of treatment examples will be set as 1 + eps
+    categories : str, optional, default to 'auto'
 
     Methods
     ----------
-    fit()
-    predict()
-    estimate()
-    apply()
+    fit(data, outcome, treatment,
+        adjustment=None, covariate=None, treat=None, control=None,)
+        Fit the model on data.
+    estimate(data=None, quantity=None)
+        Estimate the causal effect of the treatment on the outcome in data.
+    apply(X)
+        Return the index of the leaf that each sample is predicted as.
+    decision_path(X)
+        Return the decision path.
+    _prepare4est(data)
+        Prepare for the estimation of the causal effect.
 
     Reference
     ----------
@@ -83,7 +93,7 @@ class CausalTree(BaseEstLearner):
 
         See Also
         --------
-        BaseDecisionTree : The default implementation of decision tree.
+        BaseDecisionTree : The default implementation of decision tree in sklearn.
         """
         # self.categories = categories
         # self.random_state = random_state
@@ -112,7 +122,7 @@ class CausalTree(BaseEstLearner):
         control=None,
     ):
         # TODO: consider possibility for generalizing continuous treatment
-        """Fit the model to data.
+        """Fit the model on data.
 
         Parameters
         ----------
@@ -240,6 +250,23 @@ class CausalTree(BaseEstLearner):
         return self
 
     def estimate(self, data=None, quantity=None):
+        """Estimate the causal of treatment on the outcome in the data.
+
+        Parameters
+        ----------
+        data : pandas.DataFrame, optional. Defaults to None
+            If None, data will be set as the training data.
+        quantity : str, optional. Defautls to None
+            The type of causal effect. Avaliable options are:
+                'CATE' : the estimator will evaluate the CATE;
+                'ATE' : the estimator will evaluate the ATE;
+                None : the estimator will evaluate the ITE or CITE.          
+
+        Returns
+        -------
+        ndarray or float, optional
+            The estimated causal effect with the type of the quantity.
+        """
         effect = self._prepare4est(data)
 
         if quantity == 'ATE' or quantity == 'CATE':

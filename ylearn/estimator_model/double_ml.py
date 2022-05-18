@@ -348,7 +348,7 @@ class DML4CATE(BaseEstLearner):
         Returns
         -------
         ndarray
-            The desired estimation of the quantity
+            The estimated causal effect with the type of the quantity.
         """
         fij = self._prepare4est(data=data)
         treat = get_tr_ctrl(treat, self.comp_transormer, True)

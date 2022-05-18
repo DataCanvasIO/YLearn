@@ -390,17 +390,17 @@ class GaussianProb:
         return torch.prod(self.prob(y), dim=2)
 
 
-def sample(pi, sigma, mu):
-    """Draw samples from a MoG.
-    """
-    # Choose which gaussian we'll sample from
-    pis = Categorical(pi).sample().view(pi.size(0), 1, 1)
-    # Choose a random sample, one randn for batch X output dims
-    # Do a (output dims)X(batch size) tensor here, so the broadcast works in
-    # the next step, but we have to transpose back.
-    gaussian_noise = torch.randn(
-        (sigma.size(2), sigma.size(0)), requires_grad=False
-    )
-    variance_samples = sigma.gather(1, pis).detach().squeeze()
-    mean_samples = mu.detach().gather(1, pis).squeeze()
-    return (gaussian_noise * variance_samples + mean_samples).transpose(0, 1)
+# def sample(pi, sigma, mu):
+#     """Draw samples from a MoG.
+#     """
+#     # Choose which gaussian we'll sample from
+#     pis = Categorical(pi).sample().view(pi.size(0), 1, 1)
+#     # Choose a random sample, one randn for batch X output dims
+#     # Do a (output dims)X(batch size) tensor here, so the broadcast works in
+#     # the next step, but we have to transpose back.
+#     gaussian_noise = torch.randn(
+#         (sigma.size(2), sigma.size(0)), requires_grad=False
+#     )
+#     variance_samples = sigma.gather(1, pis).detach().squeeze()
+#     mean_samples = mu.detach().gather(1, pis).squeeze()
+#     return (gaussian_noise * variance_samples + mean_samples).transpose(0, 1)
