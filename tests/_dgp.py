@@ -1,5 +1,6 @@
 import numpy as np
 from numpy.random import binomial, multivariate_normal, uniform
+from sklearn.model_selection import train_test_split
 
 from ylearn.utils import to_df
 
@@ -32,8 +33,8 @@ def generate_data(n_train, n_test, d_adjustment, d_covariate, fn_treatment, fn_o
 
     # Generate covariates
     # W = multivariate_normal(np.zeros(d), np.diag(np.ones(d)), n)
-    W = generate_variates(n_train, d_adjustment)
-    V = generate_variates(n_train, d_covariate) if d_covariate else None
+    W = generate_variates(n_train + n_test, d_adjustment)
+    V = generate_variates(n_train + n_test, d_covariate) if d_covariate else None
 
     # Generate treatment
     fn_x = np.vectorize(fn_treatment, signature='(n)->(m)')
@@ -53,12 +54,13 @@ def generate_data(n_train, n_test, d_adjustment, d_covariate, fn_treatment, fn_o
         covariate = None
 
     if n_test is not None:
-        W_test = generate_variates(n_test, d_adjustment)
-        V_test = generate_variates(n_test, d_covariate) if d_covariate else None
-        if cut_test_at is not None:
-            delta = 6 / n_test
-            W_test[:, cut_test_at] = np.arange(-3, 3, delta)
-        test_data = to_df(w=W_test, v=V_test) if n_test is not None else None
+        # W_test = generate_variates(n_test, d_adjustment)
+        # V_test = generate_variates(n_test, d_covariate) if d_covariate else None
+        # if cut_test_at is not None:
+        #     delta = 6 / n_test
+        #     W_test[:, cut_test_at] = np.arange(-3, 3, delta)
+        # test_data = to_df(w=W_test, v=V_test) if n_test is not None else None
+        data, test_data = train_test_split(data, test_size=n_test)
     else:
         test_data = None
 

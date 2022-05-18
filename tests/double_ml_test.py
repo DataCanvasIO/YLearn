@@ -46,7 +46,7 @@ _test_settings = {
 def test_double_ml(dg):
     x_model, y_model = _test_settings[dg]
     estimator = DML4CATE(x_model=x_model, y_model=y_model, cf_fold=1, random_state=2022, is_discrete_treatment=True)
-    validate_leaner(dg, estimator, check_fitted=False)
+    validate_leaner(dg, estimator)
 
 
 #
