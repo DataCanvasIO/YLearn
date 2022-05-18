@@ -1,11 +1,19 @@
+import copy
+import math
+
 import numpy as np
 import pandas as pd
+from sklearn.base import BaseEstimator
 from sklearn.compose import make_column_selector
 from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import OrdinalEncoder, StandardScaler
+from sklearn.preprocessing import OrdinalEncoder, StandardScaler, LabelEncoder
 
+from ylearn.utils import logging, const, infer_task_type
+from ._data_cleaner import DataCleaner
 from ._dataframe_mapper import DataFrameMapper
+
+logger = logging.get_logger(__name__)
 
 
 class SafeOrdinalEncoder(OrdinalEncoder):
@@ -67,6 +75,150 @@ class SafeOrdinalEncoder(OrdinalEncoder):
         return result
 
 
+class FeatureImportancesSelectionTransformer(BaseEstimator):
+    STRATEGY_THRESHOLD = 'threshold'
+    STRATEGY_QUANTILE = 'quantile'
+    STRATEGY_NUMBER = 'number'
+
+    _default_strategy = dict(
+        default_strategy=STRATEGY_THRESHOLD,
+        default_threshold=0.1,
+        default_quantile=0.2,
+        default_number=0.8,
+    )
+
+    def __init__(self, task=None, strategy=None, threshold=None, quantile=None, number=None, data_clean=True):
+        super().__init__()
+
+        self.task = task
+        self.strategy = strategy
+        self.threshold = threshold
+        self.quantile = quantile
+        self.number = number
+        self.data_clean = data_clean
+
+        # fitted
+        self.feature_names_in_ = None
+        self.n_features_in_ = None
+        self.feature_importances_ = None
+        self.selected_features_ = None
+
+    def fit(self, X, y):
+        if self.task is None:
+            self.task, _ = infer_task_type(y)
+
+        columns_in = X.columns.to_list()
+        # logger.info(f'all columns: {columns}')
+
+        if self.data_clean:
+            logger.info('data cleaning')
+            kwargs = dict(replace_inf_values=np.nan, drop_label_nan_rows=True,
+                          drop_constant_columns=True, drop_duplicated_columns=False,
+                          drop_idness_columns=True, reduce_mem_usage=False,
+                          correct_object_dtype=False, int_convert_to=None,
+                          )
+            dc = DataCleaner(**kwargs)
+            X, y = dc.fit_transform(X, y)
+            assert set(X.columns.tolist()).issubset(set(columns_in))
+
+        preprocessor = general_preprocessor()
+        estimator = general_estimator(X, y, task=self.task)
+
+        if self.task != 'regression' and y.dtype != 'int':
+            logger.info('label encoding')
+            le = LabelEncoder()
+            y = le.fit_transform(y)
+
+        logger.info('preprocessing')
+        X = preprocessor.fit_transform(X, y)
+        logger.info('scoring')
+        estimator.fit(X, y)
+        importances = estimator.feature_importances_
+
+        selected, unselected = \
+            self._select_feature_by_importance(importances, strategy=self.strategy,
+                                               threshold=self.threshold,
+                                               quantile=self.quantile,
+                                               number=self.number)
+        columns = X.columns.to_list()
+        selected = [columns[i] for i in selected]
+
+        if len(columns) != len(columns_in):
+            importances = [0.0 if c not in columns else importances[columns.index(c)] for c in columns_in]
+            importances = np.array(importances)
+
+        self.n_features_in_ = len(columns_in)
+        self.feature_names_in_ = columns_in
+        self.feature_importances_ = importances
+        self.selected_features_ = selected
+
+        # logger.info(f'selected columns:{self.selected_features_}')
+
+        return self
+
+    def transform(self, X):
+        return X[self.selected_features_]
+
+    @classmethod
+    def _detect_strategy(cls, strategy, *, threshold=None, quantile=None, number=None,
+                         default_strategy, default_threshold, default_quantile, default_number):
+        if strategy is None:
+            if threshold is not None:
+                strategy = cls.STRATEGY_THRESHOLD
+            elif number is not None:
+                strategy = cls.STRATEGY_NUMBER
+            elif quantile is not None:
+                strategy = cls.STRATEGY_QUANTILE
+            else:
+                strategy = default_strategy
+
+        if strategy == cls.STRATEGY_THRESHOLD:
+            if threshold is None:
+                threshold = default_threshold
+        elif strategy == cls.STRATEGY_NUMBER:
+            if number is None:
+                number = default_number
+        elif strategy == cls.STRATEGY_QUANTILE:
+            if quantile is None:
+                quantile = default_quantile
+            assert 0 < quantile < 1.0
+        else:
+            raise ValueError(f'Unsupported strategy: {strategy}')
+
+        return strategy, threshold, quantile, number
+
+    @classmethod
+    def _select_feature_by_importance(cls, feature_importance,
+                                      strategy=None, threshold=None, quantile=None, number=None):
+        assert isinstance(feature_importance, (list, tuple, np.ndarray)) and len(feature_importance) > 0
+
+        strategy, threshold, quantile, number = cls._detect_strategy(
+            strategy, threshold=threshold, quantile=quantile, number=number,
+            **cls._default_strategy)
+
+        feature_importance = np.array(feature_importance)
+        idx = np.arange(len(feature_importance))
+
+        if strategy == cls.STRATEGY_THRESHOLD:
+            selected = np.where(np.where(feature_importance >= threshold, idx, -1) >= 0)[0]
+        elif strategy == cls.STRATEGY_QUANTILE:
+            q = np.quantile(feature_importance, quantile)
+            selected = np.where(np.where(feature_importance >= q, idx, -1) >= 0)[0]
+        elif strategy == cls.STRATEGY_NUMBER:
+            if isinstance(number, float) and 0 < number < 1.0:
+                number = math.ceil(len(feature_importance) * number)
+            pos = len(feature_importance) - number
+            sorted_ = np.argsort(np.argsort(feature_importance))
+            selected = np.where(sorted_ >= pos)[0]
+        else:
+            raise ValueError(f'Unsupported strategy: {strategy}')
+
+        unselected = list(set(range(len(feature_importance))) - set(selected))
+        unselected = np.array(unselected)
+
+        return selected, unselected
+
+
 def general_preprocessor():
     cat_steps = [('imputer_cat', SimpleImputer(strategy='constant', fill_value='')),
                  ('encoder', SafeOrdinalEncoder())]
@@ -88,3 +240,52 @@ def general_preprocessor():
         input_df=True,
         df_out=True)
     return preprocessor
+
+
+def general_estimator(cls, X, y=None, estimator=None, task=None, random_state=None):
+    try:
+        import lightgbm
+        lightgbm_installed = True
+    except ImportError:
+        lightgbm_installed = False
+
+    def default_gbm(task_):
+        est_cls = lightgbm.LGBMRegressor if task_ == const.TASK_REGRESSION else lightgbm.LGBMClassifier
+        return est_cls(n_estimators=50,
+                       num_leaves=15,
+                       max_depth=5,
+                       subsample=0.5,
+                       subsample_freq=1,
+                       colsample_bytree=0.8,
+                       reg_alpha=1,
+                       reg_lambda=1,
+                       importance_type='gain',
+                       random_state=random_state,
+                       verbose=-1)
+
+    def default_dt(task_):
+        from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
+        est_cls = DecisionTreeRegressor if task_ == const.TASK_REGRESSION else DecisionTreeClassifier
+        return est_cls(min_samples_leaf=20, min_impurity_decrease=0.01, random_state=random_state)
+
+    def default_rf(task_):
+        from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+        est_cls = RandomForestRegressor if task_ == const.TASK_REGRESSION else RandomForestClassifier
+        return est_cls(min_samples_leaf=20, min_impurity_decrease=0.01, random_state=random_state)
+
+    if estimator is None:
+        estimator = 'gbm' if lightgbm_installed else 'rf'
+    if task is None:
+        assert y is not None, '"y" or "task" is required.'
+        task = cls.infer_task_type(y)
+
+    if estimator == 'gbm':
+        estimator_ = default_gbm(task)
+    elif estimator == 'dt':
+        estimator_ = default_dt(task)
+    elif estimator == 'rf':
+        estimator_ = default_rf(task)
+    else:
+        estimator_ = copy.deepcopy(estimator)
+
+    return estimator_
