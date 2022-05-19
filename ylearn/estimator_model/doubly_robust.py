@@ -43,9 +43,7 @@ class DoublyRobust(BaseEstLearner):
     # TODO: consider combined treatment when dealing with multiple treatment case
     r"""
     The doubly robust estimator has 3 steps
-    (see https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3070495/pdf/kwq439.pdf
-    for reference, see also the slides
-    https://www4.stat.ncsu.edu/~davidian/double.pdf)
+    (see [1] for reference, see also the slides [2])
 
     The procedure is composed of 3 steps.
     1. Let k (cf_folds in our class) be an int. Form a k-fold random
@@ -87,9 +85,54 @@ class DoublyRobust(BaseEstLearner):
 
     Attributes
     ----------
+    _is_fitted : bool
+        True if the model is fitted ortherwise False.
+    x_model : estimator
+        Any valid x_model should implement the fit and predict_proba methods
+    y_model : estimator
+        Any valid y_model should implement the fit and predict methods
+    yx_model : estimatro
+        Any valid yx_model should implement the fit and predict methods
+    cf_fold : int, optional
+        The nubmer of folds for performing cross fit, by default 1
+    random_state : int, optional
+        Random seed, by default 2022
+    categories : str, optional
+        by default 'auto'
+    x_hat_dict : dict
+        Cached values when fitting the x_model.
+    y_hat_dict : dict
+        Cached values when fitting the y_model.
+    ord_transformer : OrdinalEncoder
+        Ordinal transformer of the discrete treament.
+    oh_transformer : OneHotEncoder
+        One hot encoder of the discrete treatment. Note that the total transformer
+        is combined by the ord_transformer and oh_transformer. See comp_transformer
+        for detail.
+    label_dict : dict        
 
     Methods
     ----------
+    fit(data, outcome, treatment, adjustment, covariate)
+        Fit the DoublyRobust estimator model.
+    estimate(data, treat, control, quantity)
+        Estimate the causal effect.
+    comp_transformer(x, categories='auto')
+        Transform the discrete treatment into one-hot vectors.
+    _cross_fit(model)
+        Fit x_model and y_model in a cross fitting manner.
+    _fit_first_stage(x_model, y_model, y, x, wv, folds)
+        Fit the first stage of the double machine learning.
+    _fit_second_stage(yx_model, y_prime, x_prime)
+        Fit the second stage of the DML.
+    _prepare4est(data)
+    _gen_x_model()
+    _gen_y_model
+
+    Reference
+    ----------
+    [1] https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3070495/pdf/kwq439.pdf
+    [2] https://www4.stat.ncsu.edu/~davidian/double.pdf 
     """
 
     def __init__(
@@ -142,6 +185,38 @@ class DoublyRobust(BaseEstLearner):
         adjustment=None,
         covariate=None,
     ):
+        """Fit the DoublyRobust estimator model.
+
+        Parameters
+        ----------
+        data : pandas.DataFrame
+            The dataset used for training the model
+        outcome : str or list of str, optional
+            Names of the outcome variables
+        treatment : str or list of str
+            Names of the treatment variables
+        treat : float or ndarray, optional
+            In the case of single discrete treatment, treat should be an int or
+            str in one of all possible treatment values which indicates the
+            value of the intended treatment;
+            in the case of multiple discrete treatment, treat should be a list
+            or a ndarray where treat[i] indicates the value of the i-th intended
+            treatment. For example, when there are multiple
+            discrete treatments, array(['run', 'read']) means the treat value of
+            the first treatment is taken as 'run' and that of the second treatment
+            is taken as 'read'.
+        control : float or ndarray, optional
+            This is similar to the cases of treat, by default None
+        adjustment : str or list of str, optional
+            Names of the adjustment variables, by default None
+        covariate : str or list of str, optional
+            Names of the covariate variables, by default None
+
+        Returns
+        -------
+        instance of DoublyRobust
+            The fitted estimator model.
+        """
         assert adjustment is not None or covariate is not None, \
             'Need adjustment or covariate to perform estimation.'
         super().fit(
@@ -214,10 +289,48 @@ class DoublyRobust(BaseEstLearner):
         self,
         data=None,
         quantity=None,
+        treat=None,
         all_tr_effects=False,
     ):
+        """Estimate the causal effect.
+
+        Parameters
+        ----------
+        data : pd.DataFrame, optional
+            The test data for the estimator to evaluate the causal effect, note
+            that the estimator directly evaluate all quantities in the training
+            data if data is None, by default None
+        quantity : str, optional
+            The possible values of quantity include:
+                'CATE' : the estimator will evaluate the CATE;
+                'ATE' : the estimator will evaluate the ATE;
+                None : the estimator will evaluate the ITE or CITE, by default None
+        all_tr_effects : bool
+            If True, return all treatment effects with different treatments, otherwise
+            only return the treatment effect of the treatment with the value of 
+            treat if treat is provided. If treat is not provided, then the value of
+            treatment is taken as the value of that when fitting
+            the estimator model.
+        treat : float or ndarray, optional
+            In the case of single discrete treatment, treat should be an int or
+            str in one of all possible treatment values which indicates the
+            value of the intended treatment;
+            in the case of multiple discrete treatment, treat should be a list
+            or a ndarray where treat[i] indicates the value of the i-th intended
+            treatment. For example, when there are multiple
+            discrete treatments, array(['run', 'read']) means the treat value of
+            the first treatment is taken as 'run' and that of the second treatment
+            is taken as 'read'.
+
+        Returns
+        -------
+        ndarray
+            The estimated causal effect with the type of the quantity.
+        """
         # shape (n, y_d, x_d)
-        y_pred_nji = self._prepare4est(data=data, all_tr=all_tr_effects)
+        y_pred_nji = self._prepare4est(
+            data=data, all_tr=all_tr_effects, treat=treat
+        )
 
         if quantity == 'CATE':
             assert self._v is not None, 'Need covariates to estimate CATE.'
@@ -269,7 +382,7 @@ class DoublyRobust(BaseEstLearner):
 
         return x
 
-    def _prepare4est(self, data=None, all_tr=False):
+    def _prepare4est(self, data=None, all_tr=False, treat=None):
         if not all((self.x_hat_dict['is_fitted'][0],
                    self.y_hat_dict['is_fitted'][0],
                    self._final_result['is_fitted'][0])):
@@ -286,11 +399,17 @@ class DoublyRobust(BaseEstLearner):
             for i in range(self._x_d):
                 model = self._final_result['models'][i]
                 y_pred_nji[:, :, i] = model.predict(v).reshape(n, self._y_d)
-        
+
         if all_tr:
             return y_pred_nji
         else:
-            return y_pred_nji[:, :, self.treat]
+            if treat is None:
+                return y_pred_nji[:, :, self.treat]
+            else:
+                treat = get_tr_ctrl(treat, self.comp_transormer, True)
+                return y_pred_nji[:, :, treat]
+
+
 
     def _fit_1st_stage(
         self,
@@ -406,6 +525,19 @@ class DoublyRobust(BaseEstLearner):
         pass
 
     def _gen_y_model(self, model):
+        """Generate a model for fitting the outcome model for the doubly robust
+        model.
+
+        Parameters
+        ----------
+        model : estimator
+            Any valid model should implement the fit() and predict() methods.
+
+        Returns
+        -------
+        instance of _YModelWrapper
+            A wrapped model.
+        """
         y_model = clone(model)
         return _YModelWrapper(y_model=y_model, x_d=self._x_d, y_d=self._y_d)
 

@@ -9,11 +9,14 @@ from sklearn.tree._splitter import BestSplitter
 from sklearn.tree._tree import (DepthFirstTreeBuilder, Tree,
                                 BestFirstTreeBuilder)
 
+from ylearn.utils import logging
 from .utils import (convert2array, get_wv, get_treat_control)
 from .base_models import BaseEstLearner
 from .tree_criterion import CMSE, MSE, HonestCMSE
 # import pyximport
 # pyximport.install(setup_args={"script_args": ["--verbose"]})
+
+logger = logging.get_logger(__name__)
 
 
 class CausalTree(BaseEstLearner):
@@ -162,9 +165,9 @@ class CausalTree(BaseEstLearner):
         # get new dataset with treat and controls
         treat = get_treat_control(treat, n_treatments, True)
         control = get_treat_control(control, n_treatments, treat=False)
-        
+
         self.treat = treat
-        
+
         # TODO: this should be much more simpler when considering single treat
         _tr = np.all(treat == x, axis=1)
         _crtl = np.all(control == x, axis=1)
@@ -205,6 +208,10 @@ class CausalTree(BaseEstLearner):
         # criterion = deepcopy(MSE(self.n_outputs, n_samples))
         # criterion = deepcopy(CMSE(self.n_outputs, n_samples))
         criterion = deepcopy(HonestCMSE(self.n_outputs, n_samples))
+
+        logger.info(
+            f'Start building the causal tree with criterion {type(criterion).__name__}'
+        )
 
         # Build tree step 2. Define splitter
         splitter = BestSplitter(
@@ -269,6 +276,10 @@ class CausalTree(BaseEstLearner):
         """
         effect = self._prepare4est(data)
 
+        logger.info(
+            f'Start estimating the causal effect with type of {quantity}.'
+        )
+        
         if quantity == 'ATE' or quantity == 'CATE':
             np.mean(effect, axis=0)
         else:

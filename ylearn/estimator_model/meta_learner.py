@@ -112,8 +112,18 @@ class SLearner(BaseEstLearner):
         combined_treatment : bool, optional
             Only modify this parameter for multiple treatments, where multiple discrete
             treatments are combined to give a single new group of discrete treatment if
-            set as True. For an example, two binary treatments are combined to give a
-            single discrete treatment with 4 different classes, by default True.
+            set as True.
+            When combined_treatment is set to True, then if there are multiple
+            treatments, we can use the combined_treatment technique to covert
+            the multiple discrete classification tasks into a single discrete
+            classification task. For an example, if there are two different
+            binary treatments:
+                treatment_1: x_1 | x_1 \in {'sleep', 'run'},
+                treatment_2: x_2 | x_2 \in {'study', 'work'},
+            then we can convert to these two binary classification tasks into
+            a single classification with 4 different classes:
+                treatment: x | x \in {0, 1, 2, 3},
+            where, for example, 1 stands for ('sleep' and 'stuy').
 
         Returns
         -------
@@ -428,21 +438,20 @@ class TLearner(BaseEstLearner):
 
     Methods
     ----------
-    fit(data, outcome, treatment, adjustment=None, covariate=None, treat=None,
-        control=None, combined_treatment=True, **kwargs)
-    estimate(data=None, quantity=None)
+    fit(data, outcome, treatment, adjustment, covariate, treat, control, combined_treatment)
+    estimate(data, quantity=None)
+    _fit_combined_treat(x, wv, y, treat, control, categories, **kwargs)
+        Fit function when combined_treat is set to True.
+    _comp_transformer(x, categories='auto')
+        Transform the discrete treatment into one-hot vectors when combined_treat
+        is set to True.
+    _fit_separate_treat(x, wv, y, categories)
+        Fit function when combined_treat is set to False.
     _prepare4est(data, outcome, treatment, adjustment, individual=None)
         Prepare (fit the model) for estimating various quantities including
         ATE, CATE, ITE, and CITE.
-    estimate(data, outcome, treatment, adjustment, quantity='ATE',
-                 condition_set=None, condition=None, individual=None)
-        Integrate estimations for various quantities into a single method.
-    estimate_ate(self, data, outcome, treatment, adjustment)
-    estimate_cate(self, data, outcome, treatment, adjustment,
-                      condition_set, condition)
-    estimate_ite(self, data, outcome, treatment, adjustment, individual)
-    estimate_cite(self, data, outcome, treatment, adjustment,
-                      condition_set, condition, individual)
+    _prepare_combined_treat(wv)
+    _prepare_separate_treat(wv)
     """
 
     def __init__(
@@ -504,9 +513,19 @@ class TLearner(BaseEstLearner):
         combined_treatment : bool, optional
             Only modify this parameter for multiple treatments, where multiple discrete
             treatments are combined to give a single new group of discrete treatment if
-            set as True. For an example, two binary treatments are combined to give a
-            single discrete treatment with 4 different classes, by default True.
-
+            set as True.
+            When combined_treatment is set to True, then if there are multiple
+            treatments, we can use the combined_treatment technique to covert
+            the multiple discrete classification tasks into a single discrete
+            classification task. For an example, if there are two different
+            binary treatments:
+                treatment_1: x_1 | x_1 \in {'sleep', 'run'},
+                treatment_2: x_2 | x_2 \in {'study', 'work'},
+            then we can convert to these two binary classification tasks into
+            a single classification with 4 different classes:
+                treatment: x | x \in {0, 1, 2, 3},
+            where, for example, 1 stands for ('sleep' and 'stuy').
+        
         Returns
         -------
         instance of TLearner
@@ -613,10 +632,10 @@ class TLearner(BaseEstLearner):
             Covariate variables with shape (n, wv_d)
         y : np.array
             Outcome vevariablesctor with shape (n, y_d)
-        treat : int or list, optional
+        treat : int or ndarray, optional
             If there is only one treament, then treat indicates the treatment
             group. If there are multiple treatment groups, then treat should
-            be a list of str with length equal to the number of treatments. 
+            be a ndarray of str with length equal to the number of treatments. 
             For example, when there are multiple
             discrete treatments, array(['run', 'read']) means the treat value of
             the first treatment is taken as 'run' and that of the second treatment
@@ -783,18 +802,20 @@ class XLearner(BaseEstLearner):
 
     Methods
     ----------
+    fit(data, outcome, treatment, adjustment, covariate, treat, control, combined_treatment)
+    estimate(data, quantity=None)
+    _fit_combined_treat(x, wv, y, treat, control, categories, **kwargs)
+        Fit function when combined_treat is set to True.
+    _comp_transformer(x, categories='auto')
+        Transform the discrete treatment into one-hot vectors when combined_treat
+        is set to True.
+    _fit_separate_treat(x, wv, y, categories)
+        Fit function when combined_treat is set to False.
     _prepare4est(data, outcome, treatment, adjustment, individual=None)
         Prepare (fit the model) for estimating various quantities including
         ATE, CATE, ITE, and CITE.
-    estimate(data, outcome, treatment, adjustment, quantity='ATE',
-                 condition_set=None, condition=None, individual=None)
-        Integrate estimations for various quantities into a single method.
-    estimate_ate(self, data, outcome, treatment, adjustment)
-    estimate_cate(self, data, outcome, treatment, adjustment,
-                      condition_set, condition)
-    estimate_ite(self, data, outcome, treatment, adjustment, individual)
-    estimate_cite(self, data, outcome, treatment, adjustment,
-                      condition_set, condition, individual)
+    _prepare_combined_treat(wv)
+    _prepare_separate_treat(wv)
     """
 
     def __init__(
@@ -857,8 +878,18 @@ class XLearner(BaseEstLearner):
         combined_treatment : bool, optional
             Only modify this parameter for multiple treatments, where multiple discrete
             treatments are combined to give a single new group of discrete treatment if
-            set as True. For an example, two binary treatments are combined to give a
-            single discrete treatment with 4 different classes, by default True.
+            set as True.
+            When combined_treatment is set to True, then if there are multiple
+            treatments, we can use the combined_treatment technique to covert
+            the multiple discrete classification tasks into a single discrete
+            classification task. For an example, if there are two different
+            binary treatments:
+                treatment_1: x_1 | x_1 \in {'sleep', 'run'},
+                treatment_2: x_2 | x_2 \in {'study', 'work'},
+            then we can convert to these two binary classification tasks into
+            a single classification with 4 different classes:
+                treatment: x | x \in {0, 1, 2, 3},
+            where, for example, 1 stands for ('sleep' and 'stuy').
 
         Returns
         -------
