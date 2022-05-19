@@ -242,7 +242,7 @@ def general_preprocessor():
     return preprocessor
 
 
-def general_estimator(cls, X, y=None, estimator=None, task=None, random_state=None):
+def general_estimator(X, y=None, estimator=None, task=None, random_state=None, **kwargs):
     try:
         import lightgbm
         lightgbm_installed = True
@@ -251,7 +251,7 @@ def general_estimator(cls, X, y=None, estimator=None, task=None, random_state=No
 
     def default_gbm(task_):
         est_cls = lightgbm.LGBMRegressor if task_ == const.TASK_REGRESSION else lightgbm.LGBMClassifier
-        return est_cls(n_estimators=50,
+        options = dict(n_estimators=50,
                        num_leaves=15,
                        max_depth=5,
                        subsample=0.5,
@@ -261,30 +261,64 @@ def general_estimator(cls, X, y=None, estimator=None, task=None, random_state=No
                        reg_lambda=1,
                        importance_type='gain',
                        random_state=random_state,
-                       verbose=-1)
+                       verbose=-1,
+                       **kwargs
+                       )
+        return est_cls(**options)
 
     def default_dt(task_):
         from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
         est_cls = DecisionTreeRegressor if task_ == const.TASK_REGRESSION else DecisionTreeClassifier
-        return est_cls(min_samples_leaf=20, min_impurity_decrease=0.01, random_state=random_state)
+        options = dict(min_samples_leaf=20, min_impurity_decrease=0.01, random_state=random_state, **kwargs)
+        return est_cls(**options)
 
     def default_rf(task_):
         from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
         est_cls = RandomForestRegressor if task_ == const.TASK_REGRESSION else RandomForestClassifier
-        return est_cls(min_samples_leaf=20, min_impurity_decrease=0.01, random_state=random_state)
+        options = dict(min_samples_leaf=20, min_impurity_decrease=0.01, random_state=random_state, **kwargs)
+        return est_cls(**options)
+
+    def default_gb(task_):
+        from sklearn.ensemble import GradientBoostingClassifier, GradientBoostingRegressor
+        est_cls = GradientBoostingRegressor if task_ == const.TASK_REGRESSION else GradientBoostingClassifier
+        options = dict(n_estimators=100, max_depth=100, random_state=random_state, **kwargs)
+        return est_cls(**options)
+
+    def default_lr(task_):
+        from sklearn.linear_model import LinearRegression, LogisticRegression
+
+        if task_ == const.TASK_REGRESSION:
+            est_cls = LinearRegression
+            options = kwargs
+        else:
+            est_cls = LogisticRegression
+            options = dict(random_state=random_state, **kwargs)
+        return est_cls(**options)
+
+    def default_lasso(task_):
+        assert task_ == const.TASK_REGRESSION
+        from sklearn.linear_model import Lasso
+        options = dict(random_state=random_state, **kwargs)
+        return Lasso(**options)
+
+    creators = dict(
+        gbm=default_gbm,
+        lgbm=default_gbm,
+        dt=default_dt,
+        rf=default_rf,
+        gb=default_gb,
+        lr=default_lr,
+        lasso=default_lasso,
+    )
 
     if estimator is None:
         estimator = 'gbm' if lightgbm_installed else 'rf'
     if task is None:
         assert y is not None, '"y" or "task" is required.'
-        task = cls.infer_task_type(y)
+        task = infer_task_type(y)
 
-    if estimator == 'gbm':
-        estimator_ = default_gbm(task)
-    elif estimator == 'dt':
-        estimator_ = default_dt(task)
-    elif estimator == 'rf':
-        estimator_ = default_rf(task)
+    if estimator in creators.keys():
+        estimator_ = creators[estimator](task)
     else:
         estimator_ = copy.deepcopy(estimator)
 
