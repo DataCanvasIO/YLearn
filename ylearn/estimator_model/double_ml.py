@@ -291,6 +291,7 @@ class DML4CATE(BaseEstLearner):
             data, outcome, treatment,
             adjustment=adjustment,
             covariate=covariate,
+            **kwargs
         )
 
         y, x, w, v = convert2array(
@@ -390,8 +391,17 @@ class DML4CATE(BaseEstLearner):
             The estimated causal effect with the type of the quantity.
         """
         fij = self._prepare4est(data=data)
-        treat = get_tr_ctrl(treat, self.comp_transormer, True)
-        control = get_tr_ctrl(control, self.comp_transormer, False)
+
+        if hasattr(self, 'treat') and treat is None:
+            treat = self.treat
+        if hasattr(self, 'control') and control is None:
+            control = self.control
+
+        dis_tr = self.is_discrete_treatment
+        treat = get_tr_ctrl(treat, self.comp_transormer, True, False, dis_tr)
+        control = get_tr_ctrl(
+            control, self.comp_transormer, False, False, dis_tr
+        )
         self.treat = treat
 
         if self.is_discrete_treatment:

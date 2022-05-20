@@ -1,12 +1,13 @@
 from copy import deepcopy
 from collections import defaultdict
-from tabnanny import check
 
 import networkx as nx
 import numpy as np
 
 from sklearn.linear_model import LinearRegression as LR
 
+from ylearn.utils._common import check_cols
+from ylearn.estimator_model.double_ml import DML4CATE
 from .utils import (check_nodes, check_ancestors_chain,
                     powerset, IdentificationError, remove_ingo_edges,
                     descendents_of_iter)
@@ -107,12 +108,12 @@ class CausalModel:
         Parameters
         ----------
         y : set of str
-            Set of outcomes.
+            Set of names of outcomes.
         x : set of str
-            Set of treatments.
+            Set of names of treatments.
         prob : Prob
             Probability distribution encoded in the graph.
-        graph : CausalGraph or CausalStructuralModel
+        graph : CausalGraph
 
         Returns
         ----------
@@ -122,7 +123,7 @@ class CausalModel:
         ----------
         IdentificationError if not identifiable.
         """
-        # TODO: need to be careful about the fact that set is not ordered,
+        # TODO: need to be careful about the fact that sets are not ordered,
         # be careful about the usage of list and set in the current
         # implementation
         if graph is None:
@@ -217,8 +218,8 @@ class CausalModel:
                         )
 
     def identify(self, treatment, outcome, identify_method='auto'):
-        """Identify the causal effect expression. Identification is to convert
-        any causal effect quantity, e.g., quantities with the do operator, into
+        """Identify the causal effect expression. Identification is an operation that
+        converts any causal effect quantity, e.g., quantities with the do operator, into
         the corresponding statistical quantitty such that it is then possible
         to estimate the causal effect given data. However, note that not all
         causal quantities are identifiable, in which case an IdentificationError
@@ -231,20 +232,24 @@ class CausalModel:
         outcome : set or list of str, optional
             Set of names of outcomes.
         identify_method : tuple of str or str, optional. Default to 'auto'.
-            Has two elements where the first one is for the identification methods
+            If the passed value is a tuple or list, then it should have two
+            elements where the first one is for the identification methods
             and the second is for the returned set style.
 
             Available options:
             'auto' : Perform identification with all possible methods
             'general': The general identification method, see id()
-            ('backdoor', 'simple'): Return a backdoor adjustment set without computation
+            ('backdoor', 'simple'): Return the set of all direct confounders of
+                                    both treatments and outcomes as a backdoor
+                                    adjustment set.
             ('backdoor', 'minimal'): Return all possible backdoor adjustment sets with
-                                     minial number of elements
-            ('backdoor', 'all'): Return all possible backdoor adjustment sets
-            ('frontdoor', 'simple'): Return a frontdoor adjustment set without computation
+                                     minial number of elements.
+            ('backdoor', 'all'): Return all possible backdoor adjustment sets.
+            ('frontdoor', 'simple'): Return all possible frontdoor adjustment sets with
+                                      minial number of elements.
             ('frontdoor', 'minimal'): Return all possible frontdoor adjustment sets with
-                                      minial number of elements
-            ('frontdoor', 'all'): Return all possible backdoor adjustment sets
+                                      minial number of elements.
+            ('frontdoor', 'all'): Return all possible frontdoor adjustment sets.
 
         Returns
         ----------
@@ -255,7 +260,8 @@ class CausalModel:
         # TODO: support finding the minimal general adjustment set in linear
         # time
         """
-        assert treatment and outcome, 'Please provide names of treatment and outcome'
+        assert treatment and outcome, 'Please provide names of treatments and outcomes.'
+        # check nodes avaliable in the graph
         ava_nodes = self.causal_graph.causation.keys()
         check_nodes(ava_nodes, treatment, outcome)
 
@@ -337,8 +343,9 @@ class CausalModel:
             The estimated causal effect in data.
         """
         data = self.data if data is None else data
+        check_cols(data, treatment, outcome, adjustment, covariate)
+        
         ava_nodes = self.causal_graph.causation.keys()
-
         check_nodes(ava_nodes, adjustment, covariate)
 
         # assert self.outcome is not None
@@ -382,45 +389,86 @@ class CausalModel:
 
         return effect
 
-    # def identify_estimate(self, data, outcome, treatment, adjustment,
-    #                       quantity='ATE',
-    #                       condition_set=None,
-    #                       condition=None,
-    #                       individual=None,
-    #                       identify_method=('backdoor', 'simple')):
-    #     """Combination of identifiy and estimate.
+    def identify_estimate(
+        self,
+        data,
+        outcome,
+        treatment,
+        estimator_model=None,
+        quantity=None,
+        identify_method='auto',
+        **kwargs
+    ):
+        """Combination of identifiy and estimate. However, since current implemented
+        estimator models assume (conditionally) unconfoundness automatically, we may
+        only consider using backdoor set adjustment to fullfill the unconfoundness
+        condition.
 
-    #     Parameters
-    #     ----------
-    #     x : DataFrame
-    #         Data of the treatment.
-    #     y : DataFrame
-    #         Data of the outcome.
-    #     treatment : str
-    #         Name of the treatment.
-    #     outcome : str
-    #         Name of the outcome.
-    #     identify_method : tuple
-    #         Refer to docstring of identify().
-    #     quantity : str
-    #         The kind of the interested causal effect, including ATE, CATE,
-    #         ITE, and CITE.
+        Parameters
+        ----------
+        data : pandas.DataFrame
+            The data used for training the estimator models and for estimating the
+            causal effect.
+        treatment : set or list of str, optional
+            Set of names of treatments.
+        outcome : set or list of str, optional
+            Set of names of outcomes.
+        identify_method : tuple of str or str, optional. Default to 'auto'.
+            If the passed value is a tuple or list, then it should have two
+            elements where the first one is 'backdoor' and the second is for
+            the returned set style.
 
-    #     Returns
-    #     ----------
-    #     float, optional
-    #     """
-    #     # TODO: now only supports estimation with adjustment set. This needs
-    #     # to be updated if the estimation of general identification problem
-    #     # is solved.
-    #     adjustment_set = self.identify(treatment, outcome, identify_method)[0]
-    #     print(f'The corresponding adjustment set is {adjustment_set}')
-    #     if identify_method[1] == 'all':
-    #         adjustment_set = list(adjustment_set[0])
-    #     return self.estimate(
-    #         data, outcome, treatment, adjustment_set, quantity, condition_set,
-    #         condition, individual
-    #     )
+            Available options:
+            'auto' : Find all possible backdoor adjustment set.
+            ('backdoor', 'simple') or 'simple': Return the set of all direct confounders of
+                                                both treatments and outcomes as a backdoor
+                                                adjustment set.
+            ('backdoor', 'minimal') or 'minimal': Return all possible backdoor adjustment sets with
+                                                    minial number of elements.
+            ('backdoor', 'all') or 'all': Return all possible backdoor adjustment sets.
+        quantity : str, optional. Default to None
+            The interested quantity when evaluating causal effects.
+
+        Returns
+        ----------
+        ndarray or float
+            The estimated causal effect in data.
+        """
+        # TODO: now only supports estimation with adjustment set. This needs
+        # to be updated if the estimation of general identification problem
+        # is solved.
+        assert all((data is not None, treatment is not None, outcome is not None))
+        
+        # if estimator_model is None:
+        #     estimator_model = DML4CATE()
+        assert estimator_model is not None
+
+        # check columns
+        check_cols(data, treatment, outcome)
+
+        # check nodes in the graph
+        ava_nodes = self.causal_graph.causation.keys()
+        check_nodes(ava_nodes, treatment, outcome)
+        
+        if isinstance(identify_method, (list, tuple)):
+            identify_method = identify_method[1]
+
+        adj_set = self.get_backdoor_set(
+            treatment, outcome, adjust=identify_method
+        )[0]
+        
+        if not estimator_model._is_fitted:
+            estimator_model.fit(
+                data=data,
+                outcome=outcome,
+                treatment=treatment,
+                covariate=adj_set,
+                **kwargs,
+            )
+
+        effect = estimator_model.estimate(data=data, quantity=quantity)
+
+        return effect
 
     def discover_graph(self, data):
         """Discover the causal graph from data.
@@ -433,7 +481,7 @@ class CausalModel:
         ----------
         CausalGraph
         """
-        assert data is not None, 'Need data to perform causal discovery.'
+        assert data is not None, 'Need data to call causal discovery.'
         raise NotImplementedError
 
     def is_valid_backdoor_set(self, set_, treatment, outcome):
@@ -458,7 +506,6 @@ class CausalModel:
         # TODO: improve the implementation
         # A valid backdoor set d-separates all backdoor paths between any pairs
         # of treatments and outcomes.
-
         treatment = set(treatment) if not isinstance(treatment, str) \
             else {treatment}
         outcome = set(outcome) if not isinstance(outcome, str) else {outcome}
@@ -887,7 +934,8 @@ class CausalModel:
         all_iv = self.get_iv(treatment, outcome)
 
         if not all_iv:
-            return False
+            raise Exception(
+                'No valid instrument variable is found in the current causal model.')
 
         set_ = {set_} if isinstance(set_, str) else set_
 

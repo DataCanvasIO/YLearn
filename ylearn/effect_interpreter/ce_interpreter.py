@@ -63,11 +63,12 @@ class CEInterpreter:
         est_model,
         **kwargs
     ):
-        covariate = est_model.covariate
+        assert est_model._is_fitted
 
-        assert covariate is not None, 'Need covariate to illustrate causal effect.'
+        covariate = est_model.covariate
+        assert covariate is not None, 'Need covariate to interpret the causal effect.'
         
-        v = convert2array(data, covariate)
+        v = convert2array(data, covariate)[0]
         n = v.shape[0]
         self.v = v
 
@@ -77,7 +78,7 @@ class CEInterpreter:
         
         self._is_fitted = True
 
-    def interpreter(self):
+    def interpret(self):
         assert self._is_fitted, 'The model is not fitted yet. Please use the fit method first.'
         
         raise NotImplemented()

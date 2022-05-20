@@ -62,6 +62,10 @@
         y = f_2 (w, x, \eta).
     $$
 
+6. *Confounder*
+
+    pass
+
 ## Estimator Model
 
 1. *Average Treatment Effect (ATE)*
