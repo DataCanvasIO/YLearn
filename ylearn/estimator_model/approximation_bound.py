@@ -1,5 +1,3 @@
-from unicodedata import category
-from matplotlib.pyplot import axis
 import numpy as np
 from sklearn.preprocessing import OneHotEncoder, OrdinalEncoder
 
