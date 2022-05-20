@@ -33,16 +33,17 @@ def generate_data(n_train, n_test, d_adjustment, d_covariate, fn_treatment, fn_o
 
     # Generate covariates
     # W = multivariate_normal(np.zeros(d), np.diag(np.ones(d)), n)
-    W = generate_variates(n_train + n_test, d_adjustment)
+    assert d_adjustment is not None or d_covariate is not None
+    W = generate_variates(n_train + n_test, d_adjustment) if d_adjustment else None
     V = generate_variates(n_train + n_test, d_covariate) if d_covariate else None
 
     # Generate treatment
     fn_x = np.vectorize(fn_treatment, signature='(n)->(m)')
-    X = fn_x(W)
+    X = fn_x(W) if W is not None else fn_x(V)
 
     # Calculate outcome
     fn_y = np.vectorize(fn_outcome, signature='(n),(m)->(k)')
-    Y = fn_y(W, X)
+    Y = fn_y(W, X) if W is not None else fn_y(V, X)
 
     # x
     data = to_df(w=W, x=X, y=Y, v=V)
@@ -78,7 +79,7 @@ def multiclass_TE(w, wi=1):
 
 def generate_data_x1b_y1(train_size=TRAIN_SIZE, test_size=TEST_SIZE,
                          d_adjustment=ADJUSTMENT_COUNT, d_covariate=COVARIATE_COUNT, cut_test_at=1):
-    beta = uniform(-3, 3, d_adjustment)
+    beta = uniform(-3, 3, d_adjustment if d_adjustment else d_covariate)
 
     def to_treatment(w):
         propensity = 0.8 if -0.5 < w[2] < 0.5 else 0.2
@@ -98,9 +99,13 @@ def generate_data_x1b_y1_w5v0():
     return generate_data_x1b_y1(d_adjustment=5, d_covariate=0)
 
 
+def generate_data_x1b_y1_w0v5():
+    return generate_data_x1b_y1(d_adjustment=0, d_covariate=5)
+
+
 def generate_data_x1b_y2(train_size=TRAIN_SIZE, test_size=TEST_SIZE,
                          d_adjustment=ADJUSTMENT_COUNT, d_covariate=COVARIATE_COUNT, cut_test_at=1):
-    beta = uniform(-3, 3, d_adjustment)
+    beta = uniform(-3, 3, d_adjustment if d_adjustment else d_covariate)
 
     def to_treatment(w):
         propensity = 0.8 if -0.5 < w[2] < 0.5 else 0.2
@@ -120,9 +125,13 @@ def generate_data_x1b_y2_w5v0():
     return generate_data_x1b_y2(d_adjustment=5, d_covariate=0)
 
 
+def generate_data_x1b_y2_w0v5():
+    return generate_data_x1b_y2(d_adjustment=0, d_covariate=5)
+
+
 def generate_data_x2b_y1(train_size=TRAIN_SIZE, test_size=TEST_SIZE,
                          d_adjustment=ADJUSTMENT_COUNT, d_covariate=COVARIATE_COUNT, cut_test_at=1):
-    beta = uniform(-3, 3, d_adjustment)
+    beta = uniform(-3, 3, d_adjustment if d_adjustment else d_covariate)
 
     def to_treatment(w):
         propensity = 0.8 if -0.5 < w[2] < 0.5 else 0.2
@@ -142,9 +151,13 @@ def generate_data_x2b_y1_w5v0():
     return generate_data_x2b_y1(d_adjustment=5, d_covariate=0)
 
 
+def generate_data_x2b_y1_w0v5():
+    return generate_data_x2b_y1(d_adjustment=0, d_covariate=5)
+
+
 def generate_data_x2b_y2(train_size=TRAIN_SIZE, test_size=TEST_SIZE,
                          d_adjustment=ADJUSTMENT_COUNT, d_covariate=COVARIATE_COUNT, cut_test_at=1):
-    beta = uniform(-3, 3, d_adjustment)
+    beta = uniform(-3, 3, d_adjustment if d_adjustment else d_covariate)
 
     def to_treatment(w):
         propensity = 0.8 if -0.5 < w[2] < 0.5 else 0.2
@@ -165,9 +178,13 @@ def generate_data_x2b_y2_w5v0():
     return generate_data_x2b_y2(d_adjustment=5, d_covariate=0)
 
 
+def generate_data_x2b_y2_w0v5():
+    return generate_data_x2b_y2(d_adjustment=0, d_covariate=5)
+
+
 def generate_data_x1m_y1(train_size=TRAIN_SIZE, test_size=TEST_SIZE,
                          d_adjustment=ADJUSTMENT_COUNT, d_covariate=COVARIATE_COUNT, cut_test_at=1):
-    beta = uniform(-3, 3, d_adjustment)
+    beta = uniform(-3, 3, d_adjustment if d_adjustment else d_covariate)
 
     def to_treatment(w):
         # propensity = 0.8 if -0.5 < w[2] < 0.5 else 0.2
@@ -186,3 +203,7 @@ def generate_data_x1m_y1(train_size=TRAIN_SIZE, test_size=TEST_SIZE,
 
 def generate_data_x1m_y1_w5v0():
     return generate_data_x1m_y1(d_adjustment=5, d_covariate=0)
+
+
+def generate_data_x1m_y1_w0v5():
+    return generate_data_x1m_y1(d_adjustment=0, d_covariate=5)

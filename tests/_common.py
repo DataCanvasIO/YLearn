@@ -25,3 +25,5 @@ def validate_leaner(data_generator, leaner,
     assert pred is not None
     if check_effect:
         assert pred.min() != pred.max()
+
+    # return leaner, pred

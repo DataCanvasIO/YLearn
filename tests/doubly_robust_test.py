@@ -48,7 +48,7 @@ _test_settings = {
 def test_doubly_robust(dg):
     x_model, y_model, yx_model = _test_settings[dg]
     dr = DoublyRobust(x_model=x_model, y_model=y_model, yx_model=yx_model, cf_fold=1, random_state=2022, )
-    validate_leaner(dg, dr, check_fitted=False, check_effect=False)
+    validate_leaner(dg, dr)
 
 #
 # @pytest.mark.parametrize('dg', _test_settings_to_be_fix.keys())
