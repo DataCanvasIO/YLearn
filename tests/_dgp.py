@@ -18,7 +18,7 @@ def filter_columns(df, prefix):
     return list(filter(lambda c: c.startswith(prefix), df.columns.tolist()))
 
 
-def generate_data(n_train, n_test, d_adjustment, d_covariate, fn_treatment, fn_outcome, cut_test_at):
+def generate_data(n_train, n_test, d_adjustment, d_covariate, fn_treatment, fn_outcome):
     """Generates population data for given untreated_outcome, treatment_effect and propensity functions.
 
     Parameters
@@ -78,7 +78,7 @@ def multiclass_TE(w, wi=1):
 
 
 def generate_data_x1b_y1(train_size=TRAIN_SIZE, test_size=TEST_SIZE,
-                         d_adjustment=ADJUSTMENT_COUNT, d_covariate=COVARIATE_COUNT, cut_test_at=1):
+                         d_adjustment=ADJUSTMENT_COUNT, d_covariate=COVARIATE_COUNT):
     beta = uniform(-3, 3, d_adjustment if d_adjustment else d_covariate)
 
     def to_treatment(w):
@@ -92,7 +92,7 @@ def generate_data_x1b_y1(train_size=TRAIN_SIZE, test_size=TEST_SIZE,
         return y
 
     return generate_data(train_size, test_size, d_adjustment, d_covariate,
-                         fn_treatment=to_treatment, fn_outcome=to_outcome, cut_test_at=cut_test_at)
+                         fn_treatment=to_treatment, fn_outcome=to_outcome)
 
 
 def generate_data_x1b_y1_w5v0():
@@ -104,7 +104,7 @@ def generate_data_x1b_y1_w0v5():
 
 
 def generate_data_x1b_y2(train_size=TRAIN_SIZE, test_size=TEST_SIZE,
-                         d_adjustment=ADJUSTMENT_COUNT, d_covariate=COVARIATE_COUNT, cut_test_at=1):
+                         d_adjustment=ADJUSTMENT_COUNT, d_covariate=COVARIATE_COUNT):
     beta = uniform(-3, 3, d_adjustment if d_adjustment else d_covariate)
 
     def to_treatment(w):
@@ -118,7 +118,7 @@ def generate_data_x1b_y2(train_size=TRAIN_SIZE, test_size=TEST_SIZE,
         return y
 
     return generate_data(train_size, test_size, d_adjustment, d_covariate,
-                         fn_treatment=to_treatment, fn_outcome=to_outcome, cut_test_at=cut_test_at)
+                         fn_treatment=to_treatment, fn_outcome=to_outcome, )
 
 
 def generate_data_x1b_y2_w5v0():
@@ -130,7 +130,7 @@ def generate_data_x1b_y2_w0v5():
 
 
 def generate_data_x2b_y1(train_size=TRAIN_SIZE, test_size=TEST_SIZE,
-                         d_adjustment=ADJUSTMENT_COUNT, d_covariate=COVARIATE_COUNT, cut_test_at=1):
+                         d_adjustment=ADJUSTMENT_COUNT, d_covariate=COVARIATE_COUNT):
     beta = uniform(-3, 3, d_adjustment if d_adjustment else d_covariate)
 
     def to_treatment(w):
@@ -144,7 +144,7 @@ def generate_data_x2b_y1(train_size=TRAIN_SIZE, test_size=TEST_SIZE,
         return np.array([y])
 
     return generate_data(train_size, test_size, d_adjustment, d_covariate,
-                         fn_treatment=to_treatment, fn_outcome=to_outcome, cut_test_at=cut_test_at)
+                         fn_treatment=to_treatment, fn_outcome=to_outcome)
 
 
 def generate_data_x2b_y1_w5v0():
@@ -156,7 +156,7 @@ def generate_data_x2b_y1_w0v5():
 
 
 def generate_data_x2b_y2(train_size=TRAIN_SIZE, test_size=TEST_SIZE,
-                         d_adjustment=ADJUSTMENT_COUNT, d_covariate=COVARIATE_COUNT, cut_test_at=1):
+                         d_adjustment=ADJUSTMENT_COUNT, d_covariate=COVARIATE_COUNT):
     beta = uniform(-3, 3, d_adjustment if d_adjustment else d_covariate)
 
     def to_treatment(w):
@@ -171,7 +171,7 @@ def generate_data_x2b_y2(train_size=TRAIN_SIZE, test_size=TEST_SIZE,
         return y
 
     return generate_data(train_size, test_size, d_adjustment, d_covariate,
-                         fn_treatment=to_treatment, fn_outcome=to_outcome, cut_test_at=cut_test_at)
+                         fn_treatment=to_treatment, fn_outcome=to_outcome)
 
 
 def generate_data_x2b_y2_w5v0():
@@ -183,7 +183,7 @@ def generate_data_x2b_y2_w0v5():
 
 
 def generate_data_x1m_y1(train_size=TRAIN_SIZE, test_size=TEST_SIZE,
-                         d_adjustment=ADJUSTMENT_COUNT, d_covariate=COVARIATE_COUNT, cut_test_at=1):
+                         d_adjustment=ADJUSTMENT_COUNT, d_covariate=COVARIATE_COUNT):
     beta = uniform(-3, 3, d_adjustment if d_adjustment else d_covariate)
 
     def to_treatment(w):
@@ -198,7 +198,7 @@ def generate_data_x1m_y1(train_size=TRAIN_SIZE, test_size=TEST_SIZE,
         return y
 
     return generate_data(train_size, test_size, d_adjustment, d_covariate,
-                         fn_treatment=to_treatment, fn_outcome=to_outcome, cut_test_at=cut_test_at)
+                         fn_treatment=to_treatment, fn_outcome=to_outcome)
 
 
 def generate_data_x1m_y1_w5v0():

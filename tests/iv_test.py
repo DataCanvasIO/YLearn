@@ -10,11 +10,18 @@ from . import _dgp
 
 
 def validate_it(data_generator, estimator,
+                float32=False,
                 fit_kwargs=None, estimate_kwargs=None,
                 check_fitted=True, check_effect=True):
     # generate data
     data, test_data, outcome, treatment, adjustment, covariate = data_generator()
     assert adjustment is not None
+
+    if float32:
+        cols = data.select_dtypes(include='float64').columns.tolist()
+        if cols:
+            data[cols] = data[cols].astype('float32')
+            test_data[cols] = test_data[cols].astype('float32')
 
     instrument = adjustment[:3]
     adjustment = adjustment[3:]
@@ -37,6 +44,7 @@ def validate_it(data_generator, estimator,
     pred = estimator.estimate(**kwargs)
     assert pred is not None
     if check_effect:
+        # assert isinstance(pred, (np.ndarray, pd.Series))
         assert pred.min() != pred.max()
 
     # return leaner, pred

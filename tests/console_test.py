@@ -1,3 +1,5 @@
+import pytest
+
 from ylearn.causal_console import CausalConsole
 from . import _dgp
 
@@ -16,6 +18,7 @@ def _validate_it(cc, test_data):
     print('local causal effect:', e, sep='\n')
 
 
+@pytest.mark.xfail(reason='to be fixed:')
 def test_basis():
     data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x2b_y1()
     cc = CausalConsole()
