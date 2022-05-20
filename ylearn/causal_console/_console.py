@@ -1,12 +1,9 @@
-import copy as _copy
-
 import pandas as pd
-from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.preprocessing import LabelEncoder
 
 from ylearn import sklearn_ex as skex
-from ylearn.estimator_model.double_ml import DML4CATE
-from ylearn.utils import view_pydot, infer_task_type, to_repr, const, logging
+from ylearn.utils import const, logging, view_pydot, infer_task_type, to_repr, discard_none
+from ._factory import ESTIMATOR_FACTORIES
 
 logger = logging.get_logger(__name__)
 
@@ -40,22 +37,6 @@ GRAPH_STRING_IV = """
   Z -> X -> Y
 }
 """
-
-TASK_ESTIMATOR_MAPPING = {
-    # y_task - x_task : estimator
-    f'{const.TASK_REGRESSION}-{const.TASK_REGRESSION}': DML4CATE(
-        y_model=RandomForestRegressor(), x_model=RandomForestRegressor(), is_discrete_treatment=False),
-    f'{const.TASK_REGRESSION}-{const.TASK_BINARY}': DML4CATE(
-        y_model=RandomForestRegressor(), x_model=RandomForestClassifier(), is_discrete_treatment=True),
-    f'{const.TASK_REGRESSION}-{const.TASK_MULTICLASS}': DML4CATE(
-        y_model=RandomForestRegressor(), x_model=RandomForestClassifier(), is_discrete_treatment=True),
-    f'{const.TASK_BINARY}-{const.TASK_REGRESSION}': DML4CATE(
-        y_model=RandomForestClassifier(), x_model=RandomForestRegressor(), is_discrete_treatment=False),
-    f'{const.TASK_BINARY}-{const.TASK_BINARY}': DML4CATE(
-        y_model=RandomForestClassifier(), x_model=RandomForestClassifier(), is_discrete_treatment=True),
-    f'{const.TASK_BINARY}-{const.TASK_MULTICLASS}': DML4CATE(
-        y_model=RandomForestClassifier(), x_model=RandomForestClassifier(), is_discrete_treatment=True),
-}
 
 
 def _to_list(v, name=None):
@@ -119,12 +100,16 @@ class CausalConsole:
                  identify_method='auto',  # discovery, feature_importances, ...
                  discovery_model=None,  # notears_linear, ...
                  treatment_count_limit=None,  # int or float
-                 estimator='auto',  # auto, ...
+                 estimator='auto',  # auto, dml, dr, ml or metaleaner, iv, div, ...
+                 estimator_options=None,  # dict or None
                  random_state=None):
+        assert estimator == 'auto' or estimator in ESTIMATOR_FACTORIES.keys()
+
         self.identify_method = identify_method
         self.discovery_model = discovery_model
         self.treatment_count_limit = treatment_count_limit
         self.estimator = estimator
+        self.estimator_options = estimator_options
         self.random_state = random_state
 
         # fitted
@@ -202,7 +187,8 @@ class CausalConsole:
                 adjustment=adjustment, covariate=covariate, instrument=instrument)
 
             logger.info(f'fit estimator for {x}  as {estimator}')
-            estimator.fit(data_t, outcome, x, adjustment=adjustment, covariate=covariate)
+            estimator.fit(data_t, outcome, x,
+                          **discard_none(adjustment=adjustment, covariate=covariate))
             estimators[x] = estimator
 
         self.estimators_ = estimators
@@ -239,7 +225,8 @@ class CausalConsole:
         n = self.treatment_count_limit
         if n is None:
             n = 0.1
-        tf = skex.FeatureImportancesSelectionTransformer(task=self.task, strategy='number', number=n)
+        tf = skex.FeatureImportancesSelectionTransformer(
+            task=self.task, strategy='number', number=n, data_clean=False)
         tf.fit(X, y)
         treatment = tf.selected_features_
 
@@ -247,17 +234,19 @@ class CausalConsole:
 
     def _create_estimator(self, data, outcome, *,
                           treatment=None, adjustment=None, covariate=None, instrument=None):
-        # FIXME
-        assert self.estimator == 'auto'
-        
-        t_task, _ = infer_task_type(data[treatment])
-        key = f'{self.task}-{t_task}'
-        assert key in TASK_ESTIMATOR_MAPPING.keys(), f'Not found estimator for {key}.'
+        estimator = self.estimator
+        if estimator == 'auto':
+            estimator = 'dml' if covariate is not None else 'ml'  # FIXME, check treatment is category or not
 
-        estimator = _copy.deepcopy(TASK_ESTIMATOR_MAPPING[key])
-        for attr in ['random_state', ]:
-            if hasattr(estimator, attr):
-                setattr(estimator, attr, getattr(self, attr))
+        options = self.estimator_options if self.estimator_options is not None else {}
+        factory = ESTIMATOR_FACTORIES[estimator](**options)
+
+        estimator = factory(data, outcome, task=self.task,
+                            treatment=treatment,
+                            adjustment=adjustment,
+                            covariate=covariate,
+                            instrument=instrument,
+                            random_state=self.random_state)
         return estimator
 
     def causal_graph(self):
