@@ -316,7 +316,7 @@ class ApproxBound(BaseEstLearner):
                     data, self.outcome, self.covariate, self.treatment
                 )
                 n = y.shape[0]
-                x_prob = self.x_model.predic_proba(v)
+                x_prob = self.x_model.predict_proba(v)
 
         y_treat = get_groups(treat, x.reshape(-1, 1), y)[0]
         y_ctrl = get_groups(control, x.reshape(-1, 1), y)[0]
