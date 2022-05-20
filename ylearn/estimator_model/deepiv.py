@@ -18,7 +18,7 @@ from torch.utils.data import DataLoader
 from torch.distributions import Categorical, Normal, MixtureSameFamily,\
     Independent
 
-from .utils import BatchData, convert2array, convert2tensor, sample,\
+from .utils import BatchData, convert2array, convert2tensor, \
     shapes, DiscreteOBatchData, DiscreteIOBatchData, DiscreteIBatchData
 from .base_models import BaseEstLearner, MLModel
 
@@ -725,6 +725,9 @@ class DeepIV(BaseEstLearner):
         # TODO: be careful here
         self.y_net.fit(x_sampled, w_sampled, target=y, **y_net_config)
 
+        self._is_fitted = True
+        return self
+
     def _prepare4est(
         self,
         data=None,
@@ -797,7 +800,8 @@ class DeepIV(BaseEstLearner):
 
         if quantity == 'CATE' or quantity == 'ATE':
             return (yt - y0).mean(dim=0) if y0 is not None else yt.mean(dim=0)
-        elif quantity == 'Counterfactual prediction':
+        # elif quantity == 'Counterfactual prediction':
+        else:
             return yt
 
     def _gen_x_model(self, x_model, *args, **kwargs):
