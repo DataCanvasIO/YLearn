@@ -15,6 +15,18 @@ class const:
     TASK_MULTILABEL = 'multilabel'
 
 
+def check_cols(data, *x,):
+    x = filter(None, x)
+    all_cols = data.columns
+
+    for iter_ in x:
+        if isinstance(iter_, str):
+            iter_ = set(iter_)
+
+        for i in iter_:
+            assert i in all_cols, f'Nonexistent variable {i}.'
+
+
 def to_df(**data):
     dfs = []
     for k, v in data.items():
@@ -25,7 +37,8 @@ def to_df(**data):
         elif v.shape[1] == 1:
             dfs.append(pd.DataFrame(v, columns=[k]))
         else:
-            dfs.append(pd.DataFrame(v, columns=[f'{k}_{i}' for i in range(v.shape[1])]))
+            dfs.append(pd.DataFrame(
+                v, columns=[f'{k}_{i}' for i in range(v.shape[1])]))
     df = pd.concat(dfs, axis=1)
     return df
 
@@ -141,7 +154,8 @@ def to_repr(obj, excludes=None):
     try:
         if excludes is None:
             excludes = []
-        out = ['%s=%r' % (k, v) for k, v in get_params(obj).items() if k not in excludes]
+        out = ['%s=%r' % (k, v) for k, v in get_params(
+            obj).items() if k not in excludes]
         repr_ = ', '.join(out)
         return f'{type(obj).__name__}({repr_})'
     except Exception as e:

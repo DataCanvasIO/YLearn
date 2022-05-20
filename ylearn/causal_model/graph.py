@@ -18,13 +18,29 @@ class CausalGraph:
         corresponding keys.
     dag : nx.MultiDiGraph
         Graph represented by the networkx package.
-    prob
-    latent_confounding_arcs
-    is_dag
-    c_components
-    observed_dag
-    topo_order
-    explicit_unob_var_dag
+    prob : ylearn.causal_model.prob.Prob
+        The encoded probability distribution of the causal graph.
+    latent_confounding_arcs : list of tuple of two str
+        Two elements in the tuple are names of nodes in the graph where there
+        exists an latent confounding arcs between them. Semi-Markovian graphs
+        with unobserved confounders can be converted to a graph without
+        unobserved variables, where one can add bi-directed latent confounding
+        arcs represent these relations. For example, the causal graph X <- U -> Y,
+        where U is an unobserved confounder of X and Y, can be converted
+        equivalently to X <-->Y where <--> is a latent confounding arcs.
+    is_dag : bool
+        Determine whether the graph is a DAG, which is a necessary condition 
+        for it to be a valid causal graph.
+    c_components : set
+        The C-components of the graph.
+    observed_dag : nx.MultiDiGraph
+        A causal graph with only observed variables.
+    topo_order : list
+        The topological order of the graph.
+    explicit_unob_var_dag : nx.MultiDiGraph
+        A new dag where all unobserved confounding arcs are replaced
+        by explicit unobserved variables. See latent_confounding_arcs for more 
+        details of the unobserved variables.
 
     Methods
     ----------
@@ -83,7 +99,7 @@ class CausalGraph:
                 self.dag.add_edges_from(
                     [(edge[0], edge[1], 'n'), (edge[1], edge[0], 'n')]
                 )
-
+    
     @property
     def prob(self):
         """The encoded probability distribution.

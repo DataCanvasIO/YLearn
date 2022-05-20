@@ -199,6 +199,11 @@ class NP2SLS(BaseEstLearner):
         if not self._is_fitted:
             raise Exception('The estimator is not fitted yet.')
 
+        if hasattr(self, 'treat') and treat is None:
+            treat = self.treat
+        if hasattr(self, 'control') and control is None:
+            control = self.control
+        
         yt, y0 = self._prepare4est(
             data=data,
             treat=treat,
@@ -276,7 +281,7 @@ class NP2SLS(BaseEstLearner):
         elif func == 'Hermite':
             return self._hermite_basis_func(degree, para, **kwargs)
         else:
-            raise ValueError('Do not support other basis functions currently.')
+            raise ValueError(f'Do not support {func} currently.')
 
     def _poly_basis_func(self, degree, para, **kwargs):
         poly = PolynomialFeatures(degree=degree, **kwargs)
