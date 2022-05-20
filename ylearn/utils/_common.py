@@ -146,3 +146,31 @@ def to_repr(obj, excludes=None):
         return f'{type(obj).__name__}({repr_})'
     except Exception as e:
         return f'{type(e).__name__}:{e}, at <to_repr>: {type(obj).__name__}'
+
+
+def to_snake_case(camel_str):
+    last_isupper = None
+    a = []
+    for c in camel_str:
+        u = c.isupper()
+        if u:
+            if last_isupper is False:
+                a.append('_')
+            a.append(c.lower())
+        else:
+            a.append(c)
+        last_isupper = u
+    s = "".join(a)
+    while s.startswith("_"):
+        s = s[1:]
+    return s
+
+
+def to_camel_case(snake_str):
+    components = snake_str.split('_')
+    return ''.join(x.title() for x in components)
+
+
+def discard_none(**kwargs):
+    r = {k: v for k, v in kwargs.items() if v is not None}
+    return r
