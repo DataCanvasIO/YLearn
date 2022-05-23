@@ -1,3 +1,5 @@
+import pandas as pd
+
 from ylearn import sklearn_ex as skex
 from ylearn.utils import const, logging, infer_task_type, to_repr, to_snake_case
 
@@ -187,10 +189,46 @@ class IVFactory(BaseEstimatorFactory):
         )
 
 
+try:
+    import torch
+    from ylearn.estimator_model.deepiv import DeepIV
+
+
+    class DeepIVWrapper(DeepIV):
+        def fit(self, data, outcome, treatment, **kwargs):
+            data = self._f64to32(data)
+            return super().fit(data, outcome, treatment=treatment, **kwargs)
+
+        def estimate(self, data=None, *args, **kwargs, ):
+            if data is not None:
+                data = self._f64to32(data)
+
+            effect = super().estimate(data, *args, **kwargs)
+            if isinstance(effect, torch.Tensor):
+                effect = effect.detach().numpy()
+            return effect
+
+        @staticmethod
+        def _f64to32(data):
+            assert isinstance(data, pd.DataFrame)
+            data_f64 = data.select_dtypes(include='float64')
+            if len(data_f64.columns) > 0:
+                data = data.copy()
+                data[data.columns] = data_f64.astype('float32')
+            return data
+
+except ImportError as e:
+    DeepIVWrapper = f'{e}'
+    logger.warn(DeepIVWrapper)
+
+
 @register()
 @register(name='div')
 class DeepIVFactory(BaseEstimatorFactory):
     def __init__(self, x_net=None, y_net=None, x_hidden_d=None, y_hidden_d=None, num_gaussian=5, ):
+        if isinstance(DeepIVWrapper, str):
+            raise ImportError(DeepIVWrapper)
+
         self.x_net = x_net
         self.y_net = y_net
         self.x_hidden_d = x_hidden_d
@@ -199,12 +237,10 @@ class DeepIVFactory(BaseEstimatorFactory):
 
     def __call__(self, data, outcome, task,
                  treatment=None, adjustment=None, covariate=None, instrument=None, random_state=None):
-        from ylearn.estimator_model.deepiv import DeepIV
-
         assert instrument is not None
 
         x_task, _ = infer_task_type(data[treatment])
-        return DeepIV(
+        return DeepIVWrapper(
             x_net=self.x_net,
             y_net=self.y_net,
             x_hidden_d=self.x_hidden_d,
