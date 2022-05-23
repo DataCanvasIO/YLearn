@@ -94,7 +94,8 @@ def squared_loss(output, target):
 def rho_h_update(model, X, lambda2, rho, alpha, h, rho_max):
     h_new = None
     optimizer = torch.optim.LBFGS(model.parameters(), lr=0.01, max_iter=1500)
-    X_torch = torch.from_numpy(X)
+    #X_torch = torch.from_numpy(X)
+    X_torch = torch.Tensor(X)
     while rho < rho_max:
         def closure():
             optimizer.zero_grad()
@@ -130,9 +131,8 @@ def func(X, lambda2: float = 0.01, max_iter: int = 100, h_tol: float = 1e-6, rho
         W_est = model.get_W()
         if h <= h_tol or rho >= rho_max or np.isnan(W_est).any():
             break
-    W_est = model.fc1_to_adj()
+    W_est = model.get_W()
     W_est[np.abs(W_est) < w_threshold] = 0
     return W_est
 
-X=None
-W_est = func(X,extra_layer_dim = [10])#在extra_layer_dim里设置额外的神经网络结构
+
