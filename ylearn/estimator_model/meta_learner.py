@@ -20,17 +20,26 @@ class SLearner(BaseEstLearner):
 
     Attributes
     ----------
-    model : estimator
+    model : estimator, optional
+        The machine learning model for the control group data. Any valid x0_model
+        should implement the fit() and predict_proba() methods.
     random_state : int. Defaults to 2022.
+    _is_fitted : bool. Defaults to False.
+        True if the TLearner is fitted ortherwise False.
+    _y_d : int
+    treatment : list of str, optional
+        Names of the treatments.
+    outcome : list of str, optional
+        Names of the outcomes.
+    adjustment : list of str, optional
+        Names of the adjustment set.
+    covariate : list of str, optional
+        Names of the covariates.
+    combined_treat : bool
+        Whether use the combined treat technique when training the model.
     categories : str, optional. Defaults to 'auto'.
     combined_treat : bool. Defaults to True.
         Whether combine multiple treatments into a single treatment.
-    _y_d : int
-        Dimension of the outcome variable.
-    _w : ndarray with shape (n, w_d)
-        Adjustment variables in the training data where w_d is the number of
-        elements in the adjustment
-    _wv : ndarray with shape (n, w_d + v_d)
     _is_fitted : bool
         True if the model is fitted ortherwise False.
 
@@ -63,9 +72,10 @@ class SLearner(BaseEstLearner):
         """
         Parameters
         ----------
-        model : MLModel, optional
-            model should be some valid machine learning model with fit and
-            predict functions or wrapped by the class MLModels.
+        model : estimator, optional
+            The base machine learning model for training SLearner. Any model
+            should be some valid machine learning model with fit() and
+            predict_proba() functions.
         random_state : int
         categories : str
         """
@@ -417,11 +427,6 @@ class TLearner(BaseEstLearner):
 
     Attributes
     -----------
-    ml_model_dic : dict
-        A dictionary of default machine learning sklearn models currently
-        including
-            'LR': LinearRegression
-            'LogistR': LogisticRegression.
     xt_model : estimator, optional
         The machine learning model for the treatment group data. Any valid xt_model
         should implement the fit() and predict_proba() methods.
@@ -433,6 +438,17 @@ class TLearner(BaseEstLearner):
         True if the TLearner is fitted ortherwise False.
     _y_d : int
     transformer : OrdinalEncoder
+    categories : str
+    treatment : list of str, optional
+        Names of the treatments.
+    outcome : list of str, optional
+        Names of the outcomes.
+    adjustment : list of str, optional
+        Names of the adjustment set.
+    covariate : list of str, optional
+        Names of the covariates.
+    combined_treat : bool
+        Whether use the combined treat technique when training the model.
     _wv : ndarray with shape (n, w_d + v_d)
     _w : ndarray with shape (n, w_d)
 
@@ -465,10 +481,12 @@ class TLearner(BaseEstLearner):
 
         Parameters
         ----------
-        ml_model : str, optional
-            If str, ml_model is the name of the machine learning mdoels used
-            for our TLearner. If not str, then ml_model should be some valid
-            machine learning model wrapped by the class MLModels.
+        model : estimator, optional
+            The base machine learning model for training TLearner. Any model
+            should be some valid machine learning model with fit() and
+            predict_proba() functions.
+        random_state : int
+        categories : str
         """
         self.xt_model = clone(model)
         self.x0_model = clone(model)
@@ -786,20 +804,28 @@ class XLearner(BaseEstLearner):
 
     Attributes
     ----------
-    ml_model_dic : dict
-        A dictionary of default machine learning sklearn models currently
-        including
-            'LR': LinearRegression
-            'LogistR': LogisticRegression.
-    f1 : MLModel, optional
+    ft_model : estiamtor, optional
         Machine learning model for the treatment gropu in the step 1.
-    f0 : MLModel, optional
+    f0_model : estiamtor, optional
         Machine learning model for the control gropu in the step 1.
-    k1 : MLModel, optional
+    kt_model : estiamtor, optional
         Machine learning model for the treatment gropu in the step 2.
-    k0 : MLModel, optional
+    k0_model : estiamtor, optional
         Machine learning model for the control gropu in the step 2.
-
+    _is_fitted : bool
+        True if the instance of XLearner is fitted otherwise False.
+    categories : str
+    treatment : list of str, optional
+        Names of the treatments.
+    outcome : list of str, optional
+        Names of the outcomes.
+    adjustment : list of str, optional
+        Names of the adjustment set.
+    covariate : list of str, optional
+        Names of the covariates.
+    combined_treat : bool
+        Whether use the combined treat technique when training the model.
+    
     Methods
     ----------
     fit(data, outcome, treatment, adjustment, covariate, treat, control, combined_treatment)
@@ -828,10 +854,12 @@ class XLearner(BaseEstLearner):
         """
         Parameters
         ----------
-        ml_model : str, optional
-            If str, ml_model is the name of the machine learning mdoels used
-            for our TLearner. If not str, then ml_model should be some valid
-            machine learning model wrapped by the class MLModels.
+        model : estimator, optional
+            The base machine learning model for training TLearner. Any model
+            should be some valid machine learning model with fit() and
+            predict_proba() functions.
+        random_state : int
+        categories : str
         """
         self.ft_model = clone(model)
         self.f0_model = clone(model)

@@ -55,6 +55,8 @@ class CausalGraph:
         CausalGraph, else create a new graph and add nodes.
     add_edges_from(edge_list, new=False, observed=True)
         Add all edges in the edge_list to the CausalGraph.
+    parents(x, observed=True)
+        Find the parents of the node x in the CausalGraph.
     add_edge(i, j, observed=True)
         Add an edge between nodes i and j to the CausalGraph. Add an unobserved
         confounding arc if not observed.
@@ -218,6 +220,21 @@ class CausalGraph:
         return descendents_of_iter(g, x)
 
     def parents(self, x, only_observed=True):
+        """Return the direct parents of the node x in the graph.
+
+        Parameters
+        ----------
+        x : str, optional 
+            Name of the node x.
+        only_observed : bool, optional
+            If True, then only find the observed parents in the causal graph,
+            otherwise also include the unobserved variables, by default True
+
+        Returns
+        -------
+        list
+            Parents of the node x.
+        """
         if only_observed:
             return self.causation[x]
         else:
