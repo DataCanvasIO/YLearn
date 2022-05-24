@@ -36,10 +36,10 @@ jobs:
     - name: Build extensions
       run: |
         python setup.py build_ext --inplace
-    - name: set environment variables
-      uses: allenevans/set-env@v2.0.0
-      with:
-        FOO_PYTHONPATH: '.'
+#    - name: set environment variables
+#      uses: allenevans/set-env@v2.0.0
+#      with:
+#        FOO_PYTHONPATH: '.'
     - name: Dump environment variables
       run: |
         python -c "import os;list(map(print,os.environ.items()))"
