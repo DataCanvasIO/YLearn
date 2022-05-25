@@ -27,7 +27,7 @@ class CausalGraph:
         unobserved variables, where one can add bi-directed latent confounding
         arcs represent these relations. For example, the causal graph X <- U -> Y,
         where U is an unobserved confounder of X and Y, can be converted
-        equivalently to X <-->Y where <--> is a latent confounding arcs.
+        equivalently to X <-->Y where <--> is a latent confounding arc.
     is_dag : bool
         Determine whether the graph is a DAG, which is a necessary condition 
         for it to be a valid causal graph.

@@ -1,3 +1,4 @@
+# TODO: add copyright of the implementation of sklearn tree
 import numbers
 from math import ceil
 from copy import deepcopy
@@ -7,14 +8,36 @@ import numpy as np
 
 from sklearn.utils import check_random_state
 from sklearn.utils import check_scalar
-from sklearn.tree._splitter import BestSplitter
-from sklearn.tree._tree import (DepthFirstTreeBuilder, Tree,
-                                BestFirstTreeBuilder)
 
-from ylearn.utils import logging
-from ylearn.utils._common import convert2array
+from sklearn.tree._splitter import Splitter
+from sklearn.tree._splitter import BestSplitter
+from sklearn.tree._splitter import RandomSplitter
+from sklearn.tree._criterion import Criterion
+# from sklearn.tree._criterion import MSE
+from sklearn.tree._tree import Tree
+from sklearn.tree._tree import DepthFirstTreeBuilder
+from sklearn.tree._tree import BestFirstTreeBuilder
+
+from ..utils import logging
+from ..utils._common import convert2array
+
+from ..estimator_model.tree_criterion import PRegCriteria
+from ..estimator_model.tree_criterion import MSE, PRegCriteria1
 
 logger = logging.get_logger(__name__)
+
+
+CRITERIA = {
+    "policy_reg": PRegCriteria,
+    "policy_clf": None,
+    'policy_test': MSE,
+    'policy_test1': PRegCriteria1
+}
+
+SPLITTERS = {
+    "best": BestSplitter,
+    "random": RandomSplitter,
+}
 
 
 class PolicyModel:
@@ -61,18 +84,20 @@ class PolicyModel:
     This implementation is based on the implementation of BaseDecisionTree
     of sklearn.
     """
-    # TODO: sample_weight
 
     def __init__(
         self, *,
+        criterion='policy_reg',
+        splitter='best',
         max_depth=None,
         min_samples_split=2,
         min_samples_leaf=1,
         random_state=2022,
         max_leaf_nodes=None,
+        max_features=None,
         min_impurity_decrease=0.0,
         ccp_alpha=0.0,
-        sample_weight=None,
+        min_weight_fraction_leaf=0.0,
     ):
         """
         Many parameters are similar to those of BaseDecisionTree of sklearn.
@@ -96,6 +121,8 @@ class PolicyModel:
         ccp_alpha : non-negative float, default to 0.0
             Value for pruning the tree. #TODO: not implemented yet.
         """
+        self.criterion = criterion
+        self.splitter = splitter
         self.max_depth = max_depth
         self.min_samples_split = min_samples_split
         self.min_samples_leaf = min_samples_leaf
@@ -103,15 +130,17 @@ class PolicyModel:
         self.min_impurity_decrease = min_impurity_decrease
         self.ccp_alpha = ccp_alpha
         self.random_state = random_state
-        self.sample_weight = sample_weight
+        self.min_weight_fraction_leaf = min_weight_fraction_leaf
+        self.max_features = max_features
 
     def fit(
         self,
         data,
-        covariate,
+        covariate, *,
         effect=None,
         effect_array=None,
         est_model=None,
+        sample_weight=None,
     ):
         # TODO: consider possibility for generalizing continuous treatment
         """Fit the model on data.
@@ -130,10 +159,12 @@ class PolicyModel:
         ----------
         instance of self
         """
+        ce, v = convert2array(data, effect, covariate)
+        self.covariate = covariate
+        
         if effect_array is not None:
             ce = effect_array
         else:
-            ce, v = convert2array(data, effect, covariate)
             if effect is None:
                 assert est_model is not None, \
                     'The causal effect is not provided and no estimator model is'
@@ -141,21 +172,24 @@ class PolicyModel:
                 assert est_model.covariate == covariate
 
                 if hasattr(est_model, 'covariate_transformer'):
-                    v = est_model.covariate_transformer.transform(v)
+                    self.cov_transformer = est_model.covariate_transformer
+                    v = self.cov_transformer.transform(v)
 
                 ce = est_model.estimate(data)
 
+        self._v = v
+        
         # check random state
         random_state = check_random_state(self.random_state)
 
         # Determine output settings
-        n_samples, n_features_in = v.shape  # dimension of the input
+        n_samples, self.n_features_in = v.shape  # dimension of the input
 
         # reshape ce if necessary
         if ce.ndim == 1:
             ce = ce.reshape(-1, 1)
 
-        self.n_outputs = ce.shape[1]
+        self.n_outputs_ = ce.shape[1]
 
         # Check parameters
         if self.max_depth is not None:
@@ -207,41 +241,122 @@ class PolicyModel:
             )
             min_samples_split = int(ceil(self.min_samples_split * n_samples))
             min_samples_split = max(2, min_samples_split)
-        
+
         min_samples_split = max(min_samples_split, 2 * min_samples_leaf)
 
         # check self.max_leaf_nodes
-        max_leaf_nodes = -1 if self.max_leaf_nodes is None \
-            else self.max_leaf_nodes
+        if self.max_leaf_nodes is not None:
+            check_scalar(
+                self.max_leaf_nodes,
+                name='max_leaf_nodes',
+                target_type=numbers.Integral,
+                min_val=2,
+            )
+
+        max_leaf_nodes = -1 if self.max_leaf_nodes is None else self.max_leaf_nodes
+
+        # check min_weight_fraction_leaf
+        check_scalar(
+            self.min_weight_fraction_leaf,
+            name='min_weight_fraction_leaf',
+            target_type=numbers.Real,
+            min_val=0.0,
+            max_val=0.5,
+        )
+
+        # check max_features
+        if isinstance(self.max_features, str):
+            if self.max_features == 'sqrt':
+                max_features = max(1, int(np.sqrt(self.n_features_in)))
+            elif self.max_features == 'log2':
+                max_features = max(1, int(np.log2(self.n_features_in)))
+            else:
+                raise ValueError(
+                    'Invalid value for max_features. Allowed string values'
+                    f'Allowed string values are "sqrt" or "log2", but was given {self.max_features}.'
+                )
+        elif self.max_features is None:
+            max_features = self.n_features_in
+        elif isinstance(self.max_features, numbers.Integral):
+            check_scalar(
+                self.max_features,
+                name='max_features',
+                target_type=numbers.Integral,
+                min_val=1,
+                include_boundaries='left',
+            )
+            max_features = self.max_features
+        else:
+            check_scalar(
+                self.max_features,
+                name='max_features',
+                target_type=numbers.Real,
+                min_val=0.0,
+                max_val=1.0,
+                include_boundaries='right',
+            )
+            if self.max_features > 0.0:
+                max_features = max(
+                    1, int(self.max_features * self.n_features_in)
+                )
+            else:
+                max_features = 0
+
+        self.max_features_ = max_features
+
+        check_scalar(
+            self.min_impurity_decrease,
+            name='min_impurity_decrease',
+            target_type=numbers.Real,
+            min_val=0.0,
+        )
 
         if len(ce) != n_samples:
             raise ValueError(
-                f'Number of labels {len(ce)} does not match number of samples'
+                f'The number of labels {len(ce)} does not match the number of samples'
             )
 
-        min_weight_leaf = 0  # maybe this need more modifications
+        # set min_weight_leaf
+        if sample_weight is None:
+            min_weight_leaf = self.min_weight_fraction_leaf * n_samples
+        else:
+            min_weight_leaf = self.min_weight_fraction_leaf * \
+                np.sum(sample_weight)
 
         # Build tree step 1. Set up criterion
-        criterion = None
+        criterion = self.criterion
+
+        if not isinstance(criterion, Criterion):
+            # assert criterion == 'policy_clf' or criterion == 'policy_reg', f'The str criterion should be policy, but was given {self.criterion}'
+            criterion = CRITERIA[self.criterion](self.n_outputs_, n_samples)
+        else:
+            criterion = deepcopy(self.criterion)
 
         logger.info(
             f'Start building the causal tree with criterion {type(criterion).__name__}'
         )
 
         # Build tree step 2. Define splitter
-        splitter = BestSplitter(
-            criterion,
-            n_features_in,
-            min_samples_leaf,
-            min_weight_leaf,
-            random_state,
+        splitter = self.splitter
+        
+        if not isinstance(self.splitter, Splitter):
+            splitter = SPLITTERS[self.splitter](
+                criterion,
+                self.max_features_,
+                min_samples_leaf,
+                min_weight_leaf,
+                random_state,
+            )
+
+        logger.info(
+            f'Building the causal tree with splitter {type(splitter).__name__}'
         )
 
         # Build tree step 3. Define the tree
-        self.tree = Tree(
-            n_features_in,
-            np.array([1] * self.n_outputs, dtype=np.intp),
-            self.n_outputs,
+        self.tree_ = Tree(
+            self.n_features_in,
+            np.array([1] * self.n_outputs_, dtype=np.intp),
+            self.n_outputs_,
         )
 
         # Build tree step 3. Build the tree
@@ -265,12 +380,17 @@ class PolicyModel:
                 self.min_impurity_decrease,
             )
 
-        builder.build(self.tree, v, ce, self.sample_weight)
+        logger.info(
+            f'Building the causal tree with builder {type(builder).__name__}'
+        )
+
+        builder.build(self.tree_, v, ce, sample_weight)
+
         self._is_fitted = True
 
         return self
 
-    def estimate(self, data=None):
+    def predict(self, data=None):
         """Estimate the optimal policy for the causal effects of the treatment
         on the outcome in the data.
 
@@ -284,12 +404,35 @@ class PolicyModel:
         ndarray or float, optional
             The estimated causal effect with the type of the quantity.
         """
-        effect = self._prepare4est(data)
-        pass
+        pred = self._prepare4est(data)
+
+        return pred
 
     def _prepare4est(self, data=None):
-        raise NotImplemented()
+        assert self._is_fitted, 'The model is not fitted yet.'
 
+        if data is None:
+            v = self._v
+        else:
+            v = convert2array(data, self.covariate)[0]
+            if hasattr(self, 'cov_transformer'):
+                v = self.cov_transformer.transform(v)
+        
+        v = v.astype(np.float32)
+
+        proba = self.tree_.predict(v)
+        n_samples = v.shape[0]
+
+        # if self.criterion == 'policy_reg':
+        #     if self.n_outputs_ == 1:
+        #         return proba[:, 0]
+        #     else:
+        #         return proba[:, :, 0]
+        # else:
+        #     pass
+
+        return proba[:, :, 0]
+        
     def _prune_tree(self):
         pass
 

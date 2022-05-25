@@ -21,4 +21,3 @@ cdef class HonestCMSE(RegressionCriterion):
 
     cdef double nt_right
     cdef double n0_right
-    

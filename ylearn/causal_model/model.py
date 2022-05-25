@@ -907,7 +907,7 @@ class CausalModel:
 
         # 2. exclusion: build the graph where all incoming edges to the treatment
         # are removed such that those nodes which have effects on the outcome through
-        # the treatment in the modified graph are excluded to be a valid instrument
+        # the treatment in the modified graph are excluded to be valid instruments
         exp_unob_graph = self.causal_graph.explicit_unob_var_dag
         modified_graph = remove_ingo_edges(exp_unob_graph, True, treatment)
         excluded_nodes_an = nx.ancestors(modified_graph, outcome)
