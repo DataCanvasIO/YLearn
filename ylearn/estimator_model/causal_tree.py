@@ -12,7 +12,7 @@ from sklearn.tree._tree import (DepthFirstTreeBuilder, Tree,
 from ylearn.utils import logging
 from .utils import (convert2array, get_wv, get_treat_control)
 from .base_models import BaseEstLearner
-from .tree_criterion import CMSE, MSE, HonestCMSE
+from ._tree.tree_criterion import CMSE, MSE, HonestCMSE
 # import pyximport
 # pyximport.install(setup_args={"script_args": ["--verbose"]})
 

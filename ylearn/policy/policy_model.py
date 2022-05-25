@@ -21,8 +21,9 @@ from sklearn.tree._tree import BestFirstTreeBuilder
 from ..utils import logging
 from ..utils._common import convert2array
 
-from ..estimator_model.tree_criterion import PRegCriteria
-from ..estimator_model.tree_criterion import MSE, PRegCriteria1
+from ._tree.tree_criterion import PRegCriteria
+from ._tree.tree_criterion import PRegCriteria1
+from ..estimator_model._tree.tree_criterion import MSE
 
 logger = logging.get_logger(__name__)
 
