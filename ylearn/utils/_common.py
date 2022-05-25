@@ -188,3 +188,20 @@ def to_camel_case(snake_str):
 def discard_none(**kwargs):
     r = {k: v for k, v in kwargs.items() if v is not None}
     return r
+
+
+def convert2array(data, *S):
+    assert isinstance(data, pd.DataFrame)
+
+    def _get_array(cols):
+        if cols is not None:
+            r = data[cols].values
+            if len(r.shape) == 1:
+                r = np.expand_dims(r, axis=1)
+        else:
+            r = None
+        return r
+
+    S = map(_get_array, S)
+
+    return tuple(S)

@@ -535,3 +535,8 @@ cdef class MSE(RegressionCriterion):
 
         impurity_left[0] /= self.n_outputs
         impurity_right[0] /= self.n_outputs
+
+
+# cdef class PCriterion(RegressionCriterion):
+#    cdef double node_impurity(self) nogil:
+#        pass

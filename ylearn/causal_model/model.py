@@ -1,5 +1,6 @@
 from copy import deepcopy
 from collections import defaultdict
+from turtle import clone
 
 import networkx as nx
 import numpy as np
@@ -220,8 +221,8 @@ class CausalModel:
     def identify(self, treatment, outcome, identify_method='auto'):
         """Identify the causal effect expression. Identification is an operation that
         converts any causal effect quantity, e.g., quantities with the do operator, into
-        the corresponding statistical quantitty such that it is then possible
-        to estimate the causal effect given data. However, note that not all
+        the corresponding statistical quantity such that it is then possible
+        to estimate the causal effect in some given data. However, note that not all
         causal quantities are identifiable, in which case an IdentificationError
         will be raised.
 
@@ -261,6 +262,7 @@ class CausalModel:
         # time
         """
         assert treatment and outcome, 'Please provide names of treatments and outcomes.'
+
         # check nodes avaliable in the graph
         ava_nodes = self.causal_graph.causation.keys()
         check_nodes(ava_nodes, treatment, outcome)
@@ -279,7 +281,7 @@ class CausalModel:
             )
             return result_dict
 
-        if identify_method == 'default':
+        if identify_method == 'general':
             result = self.id(outcome, treatment)
             self.cached_result[f'Treatment: {treatment}, Outcome: {outcome}'].append(
                 {identify_method: result}
@@ -311,7 +313,7 @@ class CausalModel:
     def estimate(
         self,
         estimator_model,
-        data=None,
+        data=None, *,
         treatment=None,
         outcome=None,
         adjustment=None,
@@ -319,7 +321,7 @@ class CausalModel:
         quantity=None,
         **kwargs
     ):
-        """Estimate the identified causal effect in new dataset.
+        """Estimate the identified causal effect in a new dataset.
 
         Parameters
         ----------
@@ -344,7 +346,7 @@ class CausalModel:
         """
         data = self.data if data is None else data
         check_cols(data, treatment, outcome, adjustment, covariate)
-        
+
         ava_nodes = self.causal_graph.causation.keys()
         check_nodes(ava_nodes, adjustment, covariate)
 
@@ -354,7 +356,7 @@ class CausalModel:
         outcome = self.outcome if outcome is None else outcome
         treatment = self.treatment if treatment is None else treatment
 
-        # make sure adjustment and covariate are valid backdoor adjustment sets
+        # make sure the adjustment and the covariate are valid backdoor adjustment sets
         if adjustment is None and covariate is None:
             if self._adjustment_set is None:
                 adjustment = self.get_backdoor_set(
@@ -366,7 +368,9 @@ class CausalModel:
             if adjustment is not None and covariate is not None:
                 temp_set = set(adjustment).union(set(covariate))
             else:
-                temp_set = [set(x) for x in [adjustment, covariate] if x]
+                temp_set = [
+                    set(x) for x in [adjustment, covariate] if x is not None
+                ]
                 temp_set = temp_set.pop()
 
             assert self.is_valid_backdoor_set(
@@ -399,8 +403,9 @@ class CausalModel:
         identify_method='auto',
         **kwargs
     ):
-        """Combination of identifiy and estimate. However, since current implemented
-        estimator models assume (conditionally) unconfoundness automatically, we may
+        """Combination of the identifiy method and the estimate method. However,
+        since current implemented estimator models assume (conditionally)
+        unconfoundness automatically (except for methods related to iv), we may
         only consider using backdoor set adjustment to fullfill the unconfoundness
         condition.
 
@@ -438,7 +443,7 @@ class CausalModel:
         # to be updated if the estimation of general identification problem
         # is solved.
         assert all((data is not None, treatment is not None, outcome is not None))
-        
+
         # if estimator_model is None:
         #     estimator_model = DML4CATE()
         assert estimator_model is not None
@@ -449,26 +454,33 @@ class CausalModel:
         # check nodes in the graph
         ava_nodes = self.causal_graph.causation.keys()
         check_nodes(ava_nodes, treatment, outcome)
-        
+
         if isinstance(identify_method, (list, tuple)):
             identify_method = identify_method[1]
 
         adj_set = self.get_backdoor_set(
             treatment, outcome, adjust=identify_method
-        )[0]
-        
-        if not estimator_model._is_fitted:
-            estimator_model.fit(
+        )
+
+        self._est_result_dict = defaultdict(list)
+
+        for sub_adj_set in adj_set:
+            est_model = clone(estimator_model)
+
+            est_model.fit(
                 data=data,
                 outcome=outcome,
                 treatment=treatment,
-                covariate=adj_set,
+                covariate=sub_adj_set,
                 **kwargs,
             )
 
-        effect = estimator_model.estimate(data=data, quantity=quantity)
+            self._est_result_dict['est_models'].append(est_model)
 
-        return effect
+            effect = estimator_model.estimate(data=data, quantity=quantity)
+            self._est_result_dict['effects'].append(effect)
+
+        return self._est_result_dict
 
     def discover_graph(self, data):
         """Discover the causal graph from data.
@@ -580,9 +592,11 @@ class CausalModel:
 
         # raise exception if no set can be used as the backdoor set
         if not determine(modified_dag, treatment, outcome):
-            raise IdentificationError(
+            print(
                 'No set can satisfy the backdoor criterion.'
             )
+
+            return None
 
         # Simply take all parents of both treatment and outcome as the backdoor set
         if adjust == 'simple':
@@ -631,11 +645,9 @@ class CausalModel:
             finally:
                 adset = set(backdoor_set_list[0])
 
-            if adjust == 'all':
+            if any((adjust == 'all', adjust == 'minimal')):
                 backdoor_list = backdoor_set_list
                 self._adjustment_set = backdoor_set_list
-            elif adjust == 'minimal':
-                backdoor_list = backdoor_set_list[0]
             else:
                 raise IdentificationError(
                     'Do not support backdoor set styles other than simple, all'
@@ -911,6 +923,7 @@ class CausalModel:
 
         if not iv:
             print(f'No valid instrument variable has been found.')
+            iv = None
 
         return iv
 
@@ -935,7 +948,8 @@ class CausalModel:
 
         if not all_iv:
             raise Exception(
-                'No valid instrument variable is found in the current causal model.')
+                'No valid instrument variable is found in the current causal model.'
+            )
 
         set_ = {set_} if isinstance(set_, str) else set_
 
