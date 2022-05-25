@@ -12,14 +12,17 @@ cimport numpy as np
 
 np.import_array()
 
+cdef double INFINITY = np.inf
+
 from sklearn.tree._tree cimport DOUBLE_t
 from sklearn.tree._tree cimport SIZE_t
 
 from sklearn.tree._criterion cimport RegressionCriterion
 from libc.stdio cimport printf
-#-------------------------------------start of a new implementation
+#-------------------------------------start of the implementation
 cdef double eps = 1e-5
-cdef double alpha = 1e8
+cdef double alpha = 1e10
+
 
 cdef class HonestCMSE(RegressionCriterion):
     def __cinit__(self, SIZE_t n_outputs, SIZE_t n_samples):
@@ -304,6 +307,8 @@ cdef class HonestCMSE(RegressionCriterion):
         #printf("impurity\n")
         cdef double impurity
         #### FIXME
+        # Note: the reason we initiate impurity as alpha is to prevent node_impurity
+        # being negative, which whill then make the training of the tree stop immediately
         impurity = alpha
         impurity += 2 * (self.yt_sq_sum_total / (self.nt_total + eps) - (self.yt_sum_total[0] / (self.nt_total + eps))**2.0) / (self.nt_total + eps)
         impurity += 2 * (self.y0_sq_sum_total / (self.n0_total + eps) - (self.y0_sum_total[0] / (self.n0_total + eps))**2.0) / (self.n0_total + eps)
@@ -380,8 +385,6 @@ cdef class HonestCMSE(RegressionCriterion):
         #### FIXME
         dest[0] = self.yt_sum_total[0] / (self.nt_total + eps) - self.y0_sum_total[0] /  (self.n0_total + eps)
         #dest[0] = 0.0
-
-
 
     cdef double proxy_impurity_improvement(self) nogil:
         cdef double impurity_left
@@ -461,8 +464,9 @@ cdef class MSE(RegressionCriterion):
         """
         cdef double impurity
         cdef SIZE_t k
-
+        printf("node impurity\n")
         impurity = self.sq_sum_total / self.weighted_n_node_samples
+
         for k in range(self.n_outputs):
             impurity -= (self.sum_total[k] / self.weighted_n_node_samples)**2.0
         
@@ -489,7 +493,7 @@ cdef class MSE(RegressionCriterion):
         for k in range(self.n_outputs):
             proxy_impurity_left += self.sum_left[k] * self.sum_left[k]
             proxy_impurity_right += self.sum_right[k] * self.sum_right[k]
-        ##printf("proxy improve")
+
         return (proxy_impurity_left / self.weighted_n_left +
                 proxy_impurity_right / self.weighted_n_right)
 
@@ -513,7 +517,7 @@ cdef class MSE(RegressionCriterion):
         cdef SIZE_t p
         cdef SIZE_t k
         cdef DOUBLE_t w = 1.0
-
+        printf("children impurity\n")
         for p in range(start, pos):
             i = samples[p]
 
@@ -535,8 +539,3 @@ cdef class MSE(RegressionCriterion):
 
         impurity_left[0] /= self.n_outputs
         impurity_right[0] /= self.n_outputs
-
-
-# cdef class PCriterion(RegressionCriterion):
-#    cdef double node_impurity(self) nogil:
-#        pass
