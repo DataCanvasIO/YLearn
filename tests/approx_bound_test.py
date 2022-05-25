@@ -1,3 +1,5 @@
+import numpy as np
+import pandas as pd
 import pytest
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LinearRegression
@@ -15,8 +17,12 @@ _test_settings = {
 
 
 @pytest.mark.parametrize('dg', _test_settings.keys())
-@pytest.mark.xfail(reason='to be fixed: effect is not ndarray')
-def test_doubly_robust(dg):
+def test_approx_bound(dg):
     y_model, x_model, x_proba = _test_settings[dg]
     dr = ApproxBound(x_model=x_model, y_model=y_model, x_prob=x_proba, random_state=2022)
-    validate_leaner(dg, dr)
+    est, effect = validate_leaner(dg, dr, check_effect=False)
+
+    # ApproxBound estimate effect: tuple(lower_bound, upper_bound)
+    assert isinstance(effect, tuple) and len(effect) == 2
+    assert isinstance(effect[0], (pd.Series, np.ndarray)) and effect[0].min() < effect[0].max()
+    assert isinstance(effect[1], (pd.Series, np.ndarray)) and effect[1].min() < effect[1].max()

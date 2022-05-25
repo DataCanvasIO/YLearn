@@ -20,6 +20,18 @@ def validate_leaner(data_generator, leaner,
     leaner.fit(data, outcome, treatment, **kwargs)
     if check_fitted:
         assert hasattr(leaner, '_is_fitted') and getattr(leaner, '_is_fitted')
+    #
+    # # estimate
+    # kwargs = dict(quantity='ATE')
+    # if estimate_kwargs:
+    #     kwargs.update(estimate_kwargs)
+    # ate = leaner.estimate(**kwargs)
+    # assert ate is not None
+    # if check_effect:
+    #     assert isinstance(ate, (float, np.ndarray))
+    #     if isinstance(ate, np.ndarray):
+    #         assert ate.dtype.kind == 'f'
+    #         assert len(ate.ravel()) == len(outcome)
 
     # estimate
     kwargs = dict(data=test_data, quantity=None)
@@ -31,4 +43,4 @@ def validate_leaner(data_generator, leaner,
         assert isinstance(pred, (np.ndarray, pd.Series))
         assert pred.min() != pred.max()
 
-    # return leaner, pred
+    return leaner, pred
