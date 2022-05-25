@@ -3,13 +3,14 @@ from copy import deepcopy
 
 # from ctypes import memset, sizeof, c_double, memmove
 
+import sklearn
 from sklearn.utils import check_random_state
 from sklearn.preprocessing import OrdinalEncoder
 from sklearn.tree._splitter import BestSplitter
 from sklearn.tree._tree import (DepthFirstTreeBuilder, Tree,
                                 BestFirstTreeBuilder)
 
-from ylearn.utils import logging
+from ylearn.utils import logging, Version
 from .utils import (convert2array, get_wv, get_treat_control)
 from .base_models import BaseEstLearner
 from ._tree.tree_criterion import CMSE, MSE, HonestCMSE
@@ -17,6 +18,8 @@ from ._tree.tree_criterion import CMSE, MSE, HonestCMSE
 # pyximport.install(setup_args={"script_args": ["--verbose"]})
 
 logger = logging.get_logger(__name__)
+
+_is_sk10 = Version(sklearn.__version__) >= Version('1.0')
 
 
 class CausalTree(BaseEstLearner):
@@ -231,14 +234,25 @@ class CausalTree(BaseEstLearner):
 
         # Build tree step 3. Build the tree
         if max_leaf_nodes < 0:
-            builder = DepthFirstTreeBuilder(
-                splitter,
-                min_samples_split,
-                min_samples_leaf,
-                min_weight_leaf,
-                max_depth,
-                self.min_impurity_decrease,
-            )
+            if _is_sk10:
+                builder = DepthFirstTreeBuilder(
+                    splitter,
+                    min_samples_split,
+                    min_samples_leaf,
+                    min_weight_leaf,
+                    max_depth,
+                    self.min_impurity_decrease,
+                )
+            else:
+                builder = DepthFirstTreeBuilder(
+                    splitter,
+                    min_samples_split,
+                    min_samples_leaf,
+                    min_weight_leaf,
+                    max_depth,
+                    self.min_impurity_decrease,
+                    1e-7,
+                )
         else:
             builder = BestFirstTreeBuilder(
                 splitter,
