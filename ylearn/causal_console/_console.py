@@ -52,6 +52,20 @@ def _to_list(v, name=None):
     return v
 
 
+def _join_list(*args):
+    r = []
+    for a in args:
+        if a is None:
+            pass
+        elif isinstance(a, list):
+            r += a
+        elif isinstance(a, tuple):
+            r += list(a)
+        else:
+            r += _to_list(a)
+    return r
+
+
 def _safe_remove(alist, value, copy=False):
     assert alist is None or isinstance(alist, list)
 
@@ -162,9 +176,7 @@ class CausalConsole:
 
         ##
         preprocessor = skex.general_preprocessor()
-
-        y = data.pop(outcome)
-
+        y = data[outcome]
         if self.task is None:
             self.task, _ = infer_task_type(y)
             logger.info(f'infer task as {self.task}')
@@ -173,22 +185,28 @@ class CausalConsole:
             logger.info('encode outcome with LabelEncoder')
             y_encoder = LabelEncoder()
             y = y_encoder.fit_transform(y)
+            data[outcome] = y
         else:
             y_encoder = None
 
         logger.info('preprocess data ...')
-        data_t = preprocessor.fit_transform(data, y)
-        data_t[outcome] = y
-        estimators = {}
+        columns = _join_list(self.adjustment_, self.covariate_, self.instrument_)
+        assert len(columns) > 0
 
+        data_t = preprocessor.fit_transform(data[columns], y)
+        assert isinstance(data_t, pd.DataFrame) and set(data_t.columns.tolist()) == set(columns)
+        data[columns] = data_t
+
+        estimators = {}
         for x in treatment:
             estimator = self._create_estimator(
-                data_t, outcome, treatment=x,
+                data, outcome, treatment=x,
                 adjustment=adjustment, covariate=covariate, instrument=instrument)
 
             logger.info(f'fit estimator for {x}  as {estimator}')
-            estimator.fit(data_t, outcome, x,
-                          **discard_none(adjustment=adjustment, covariate=covariate))
+            fit_kwargs = dict(**discard_none(adjustment=adjustment, covariate=covariate, instrument=instrument),
+                              **kwargs)
+            estimator.fit(data, outcome, x, **fit_kwargs)
             estimators[x] = estimator
 
         self.estimators_ = estimators
@@ -238,10 +256,11 @@ class CausalConsole:
         if estimator == 'auto':
             estimator = 'dml' if covariate is not None else 'ml'  # FIXME, check treatment is category or not
 
+        x_task, _ = infer_task_type(data[treatment])
         options = self.estimator_options if self.estimator_options is not None else {}
         factory = ESTIMATOR_FACTORIES[estimator](**options)
 
-        estimator = factory(data, outcome, task=self.task,
+        estimator = factory(data, outcome, y_task=self.task, x_task=x_task,
                             treatment=treatment,
                             adjustment=adjustment,
                             covariate=covariate,
@@ -270,7 +289,9 @@ class CausalConsole:
 
     def cohort_causal_effect(self, Xtest):
         if Xtest is not None and self.preprocessor_ is not None:
-            Xtest = self.preprocessor_.transform(Xtest)
+            columns = _join_list(self.adjustment_, self.covariate_, self.instrument_)
+            assert len(columns) > 0
+            Xtest[columns] = self.preprocessor_.transform(Xtest[columns])
 
         dfs = []
         for x, est in self.estimators_.items():
@@ -285,7 +306,9 @@ class CausalConsole:
 
     def local_causal_effect(self, Xtest):
         if Xtest is not None and self.preprocessor_ is not None:
-            Xtest = self.preprocessor_.transform(Xtest)
+            columns = _join_list(self.adjustment_, self.covariate_, self.instrument_)
+            assert len(columns) > 0
+            Xtest[columns] = self.preprocessor_.transform(Xtest[columns])
 
         dfs = []
         for x, est in self.estimators_.items():

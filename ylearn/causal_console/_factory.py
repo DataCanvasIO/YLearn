@@ -1,7 +1,7 @@
 import pandas as pd
 
 from ylearn import sklearn_ex as skex
-from ylearn.utils import const, logging, infer_task_type, to_repr, to_snake_case
+from ylearn.utils import const, logging, to_repr, to_snake_case
 
 logger = logging.get_logger(__name__)
 
@@ -29,8 +29,8 @@ def register(name=None):
 
 
 class BaseEstimatorFactory:
-    def __call__(self, data, outcome, task,
-                 treatment=None, adjustment=None, covariate=None, instrument=None, random_state=None):
+    def __call__(self, data, outcome, treatment, y_task, x_task,
+                 adjustment=None, covariate=None, instrument=None, random_state=None):
         raise NotImplemented()
 
     @staticmethod
@@ -61,15 +61,14 @@ class DMLFactory(BaseEstimatorFactory):
         self.x_model = x_model
         self.yx_model = yx_model
 
-    def __call__(self, data, outcome, task,
-                 treatment=None, adjustment=None, covariate=None, instrument=None, random_state=None):
+    def __call__(self, data, outcome, treatment, y_task, x_task,
+                 adjustment=None, covariate=None, instrument=None, random_state=None):
         from ylearn.estimator_model.double_ml import DML4CATE
         assert adjustment is not None
         assert covariate is not None
 
-        x_task, _ = infer_task_type(data[treatment])
         return DML4CATE(
-            y_model=self._model(data, task=task, estimator=self.y_model, random_state=random_state),
+            y_model=self._model(data, task=y_task, estimator=self.y_model, random_state=random_state),
             x_model=self._model(data, task=x_task, estimator=self.x_model, random_state=random_state),
             yx_model=self._model(data, task=const.TASK_REGRESSION, estimator=self.yx_model, random_state=random_state),
             is_discrete_treatment=x_task != const.TASK_REGRESSION,
@@ -85,15 +84,14 @@ class DRFactory(BaseEstimatorFactory):
         self.x_model = x_model
         self.yx_model = yx_model
 
-    def __call__(self, data, outcome, task,
-                 treatment=None, adjustment=None, covariate=None, instrument=None, random_state=None):
+    def __call__(self, data, outcome, treatment, y_task, x_task,
+                 adjustment=None, covariate=None, instrument=None, random_state=None):
         from ylearn.estimator_model.doubly_robust import DoublyRobust
 
         assert adjustment is not None
 
-        x_task, _ = infer_task_type(data[treatment])
         return DoublyRobust(
-            y_model=self._model(data, task=task, estimator=self.y_model, random_state=random_state),
+            y_model=self._model(data, task=y_task, estimator=self.y_model, random_state=random_state),
             x_model=self._model(data, task=x_task, estimator=self.x_model, random_state=random_state),
             yx_model=self._model(data, task=const.TASK_REGRESSION, estimator=self.yx_model, random_state=random_state),
             cf_fold=self._cf_fold(data),
@@ -110,8 +108,8 @@ class MetaLeanerFactory(BaseEstimatorFactory):
         self.leaner = leaner
         self.model = model
 
-    def __call__(self, data, outcome, task,
-                 treatment=None, adjustment=None, covariate=None, instrument=None, random_state=None):
+    def __call__(self, data, outcome, treatment, y_task, x_task,
+                 adjustment=None, covariate=None, instrument=None, random_state=None):
         from ylearn.estimator_model.meta_learner import SLearner, TLearner, XLearner
 
         assert adjustment is not None
@@ -120,8 +118,8 @@ class MetaLeanerFactory(BaseEstimatorFactory):
         learners = dict(s=SLearner, t=TLearner, x=XLearner)
         est_cls = learners[tag]
         return est_cls(
-            model=self._model(data, task=task, estimator=self.model, random_state=random_state),
-            is_discrete_outcome=task != const.TASK_REGRESSION,
+            model=self._model(data, task=y_task, estimator=self.model, random_state=random_state),
+            is_discrete_outcome=y_task != const.TASK_REGRESSION,
             # is_discrete_treatment=x_task != const.TASK_REGRESSION,
             random_state=random_state,
             # combined_treatment=False,
@@ -133,9 +131,8 @@ class MetaLeanerFactory(BaseEstimatorFactory):
 class CausalTreeFactory(BaseEstimatorFactory):
     # def __init__(self):
     #     pass
-
-    def __call__(self, data, outcome, task,
-                 treatment=None, adjustment=None, covariate=None, instrument=None, random_state=None):
+    def __call__(self, data, outcome, treatment, y_task, x_task,
+                 adjustment=None, covariate=None, instrument=None, random_state=None):
         from ylearn.estimator_model.causal_tree import CausalTree
 
         assert adjustment is not None
@@ -151,15 +148,14 @@ class ApproxBoundFactory(BaseEstimatorFactory):
         self.x_model = x_model
         self.x_prob = x_prob
 
-    def __call__(self, data, outcome, task,
-                 treatment=None, adjustment=None, covariate=None, instrument=None, random_state=None):
+    def __call__(self, data, outcome, treatment, y_task, x_task,
+                 adjustment=None, covariate=None, instrument=None, random_state=None):
         from ylearn.estimator_model.approximation_bound import ApproxBound
 
         assert covariate is not None
 
-        x_task, _ = infer_task_type(data[treatment])
         return ApproxBound(
-            y_model=self._model(data, task=task, estimator=self.y_model, random_state=random_state),
+            y_model=self._model(data, task=y_task, estimator=self.y_model, random_state=random_state),
             x_model=self._model(data, task=x_task, estimator=self.x_model, random_state=random_state),
             x_prob=self.x_prob,
             is_discrete_treatment=x_task != const.TASK_REGRESSION,
@@ -173,17 +169,16 @@ class IVFactory(BaseEstimatorFactory):
         self.y_model = y_model
         self.x_model = x_model
 
-    def __call__(self, data, outcome, task,
-                 treatment=None, adjustment=None, covariate=None, instrument=None, random_state=None):
+    def __call__(self, data, outcome, treatment, y_task, x_task,
+                 adjustment=None, covariate=None, instrument=None, random_state=None):
         from ylearn.estimator_model.iv import NP2SLS
 
         assert instrument is not None
 
-        x_task, _ = infer_task_type(data[treatment])
         return NP2SLS(
-            y_model=self._model(data, task=task, estimator=self.y_model, random_state=random_state),
+            y_model=self._model(data, task=y_task, estimator=self.y_model, random_state=random_state),
             x_model=self._model(data, task=x_task, estimator=self.x_model, random_state=random_state),
-            is_discrete_outcome=task != const.TASK_REGRESSION,
+            is_discrete_outcome=y_task != const.TASK_REGRESSION,
             is_discrete_treatment=x_task != const.TASK_REGRESSION,
             random_state=random_state,
         )
@@ -235,18 +230,17 @@ class DeepIVFactory(BaseEstimatorFactory):
         self.y_hidden_d = y_hidden_d
         self.num_gaussian = num_gaussian
 
-    def __call__(self, data, outcome, task,
-                 treatment=None, adjustment=None, covariate=None, instrument=None, random_state=None):
+    def __call__(self, data, outcome, treatment, y_task, x_task,
+                 adjustment=None, covariate=None, instrument=None, random_state=None):
         assert instrument is not None
 
-        x_task, _ = infer_task_type(data[treatment])
         return DeepIVWrapper(
             x_net=self.x_net,
             y_net=self.y_net,
             x_hidden_d=self.x_hidden_d,
             y_hidden_d=self.y_hidden_d,
             num_gaussian=self.num_gaussian,
-            is_discrete_outcome=task != const.TASK_REGRESSION,
+            is_discrete_outcome=y_task != const.TASK_REGRESSION,
             is_discrete_treatment=x_task != const.TASK_REGRESSION,
             random_state=random_state,
         )
