@@ -16,24 +16,32 @@ class ApproxBound(BaseEstLearner):
     y_model : MLModel, optional.
         Machine learning models for fitting the relation between treatment
         and outcome.
+    
     x_prob : np.array of float, optional. Defaults to None.
         The probability of taking specific treatments.
+    
     x_model : MLModel, optional. Defaults to None.
         Machine learning models for fitting the relation between treatment
         and condition set if condition set is True.
+    
     random_state : int
+    
     is_discrete_treatent : bool
+    
     categories : str or list, optional. Deafaults to 'auto'
     
     Methods
     ----------
     fit(data, outcome, treatment, covariate=None, is_discrete_covariate=False,
         **kwargs)
+    
     estimate(data=None, treat=None, control=None, y_upper=None, y_lower=None, assump=None,)
         Estimate the approximation bound of the causal effect of the treatment
         on the outcome.
+    
     comp_transformer(x, categories='auto')
         Transform the discrete treatment into one-hot vectors.
+    
     _prepare4est(data, treat, control, y_upper, y_lower,)
     """
     # TODO: may consider multiple treatments
@@ -52,17 +60,22 @@ class ApproxBound(BaseEstLearner):
         ----------
         y_model : estimator, optional
             Any valide y_model should implement the fit() and predict() methods
+        
         x_prob : ndarray of shape (c, ), optional. Default to None
             An array of probabilities assigning to the corresponding values of x
             where c is the number of different treatment classes. All elements
             in the array are positive and sumed to 1. For example, x_prob = 
             array([0.5, 0.5]) means both x = 0 and x = 1 take probability 0.5.
             Please set this as None if you are using multiple treatmens.
+        
         x_model : estimator, optional. Default to None
             Any valide x_model should implement the fit() and predict_proba() methods.
+        
         random_state : int, optional. Defaults to 2022.
+        
         is_discrete_treatment : bool, optional
             True if the treatment is discrete.
+        
         categories : str, optional
             _description_, by default 'auto'
         """
@@ -91,12 +104,16 @@ class ApproxBound(BaseEstLearner):
         ----------
         data : pandas.DataFrame
             Training data.
+        
         outcome : list of str, optional
             Names of the outcome.
+        
         treatment : list of str, optional
             Names of the treatment.
+        
         covariate : list of str, optional. Defaults to None
             Names of the covariate.
+        
         is_discrete_covariate : bool, optional. Defaults to False.
 
         Returns
@@ -176,17 +193,22 @@ class ApproxBound(BaseEstLearner):
         ----------
         data : pandas.DataFrame, optional. Default to None
             Test data. The model will use the training data if set as None.
+        
         treat : ndarray of str, optional. Defaults to None
             Values of the treatment group. For example, when there are multiple
             discrete treatments, array(['run', 'read']) means the treat value of
             the first treatment is taken as 'run' and that of the second treatment
             is taken as 'read'.
+        
         control : ndarray of str, optional. Defaults to None
             Values of the control group.
+        
         y_upper : float. Defaults to None
             The upper bound of the outcome.
+        
         y_lower : float. Defaults to None
             The lower bound of the outcome.
+        
         assump : str, optional.  Defaults to 'no-assump'.
             Should be one of
                 1. no-assump: calculate the no assumption bound whose result
@@ -208,6 +230,7 @@ class ApproxBound(BaseEstLearner):
         ------
         Exception
             Raise Exception if the model is not fitted.
+        
         Exception
             Raise Exception if the assump is not set correctly.
         """
@@ -243,6 +266,7 @@ class ApproxBound(BaseEstLearner):
         ----------
         x : ndarray, shape (n, x_d)
             An array containing the information of the treatment variables
+        
         categories : str or list, optional
             by default 'auto'
 

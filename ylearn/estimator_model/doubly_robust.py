@@ -87,46 +87,65 @@ class DoublyRobust(BaseEstLearner):
     ----------
     _is_fitted : bool
         True if the model is fitted ortherwise False.
+   
     x_model : estimator
         Any valid x_model should implement the fit and predict_proba methods
+   
     y_model : estimator
         Any valid y_model should implement the fit and predict methods
+   
     yx_model : estimatro
         Any valid yx_model should implement the fit and predict methods
+    
     cf_fold : int, optional
         The nubmer of folds for performing cross fit, by default 1
+   
     random_state : int, optional
         Random seed, by default 2022
+   
     categories : str, optional
         by default 'auto'
+  
     x_hat_dict : dict
         Cached values when fitting the x_model.
+   
     y_hat_dict : dict
         Cached values when fitting the y_model.
+  
     ord_transformer : OrdinalEncoder
         Ordinal transformer of the discrete treament.
+  
     oh_transformer : OneHotEncoder
         One hot encoder of the discrete treatment. Note that the total transformer
         is combined by the ord_transformer and oh_transformer. See comp_transformer
         for detail.
+  
     label_dict : dict        
 
     Methods
     ----------
     fit(data, outcome, treatment, adjustment, covariate)
         Fit the DoublyRobust estimator model.
+    
     estimate(data, treat, control, quantity)
         Estimate the causal effect.
+   
     comp_transformer(x, categories='auto')
         Transform the discrete treatment into one-hot vectors.
+    
     _cross_fit(model)
         Fit x_model and y_model in a cross fitting manner.
+    
     _fit_first_stage(x_model, y_model, y, x, wv, folds)
         Fit the first stage of the double machine learning.
+    
     _fit_second_stage(yx_model, y_prime, x_prime)
         Fit the second stage of the DML.
+    
     _prepare4est(data)
+    
     _gen_x_model()
+    
     _gen_y_model
 
     Reference
@@ -149,14 +168,19 @@ class DoublyRobust(BaseEstLearner):
         ----------
         x_model : estimator
             Any valid x_model should implement the fit and predict_proba methods
+       
         y_model : estimator
             Any valid y_model should implement the fit and predict methods
+        
         yx_model : estimatro
             Any valid yx_model should implement the fit and predict methods
+        
         cf_fold : int, optional
             The nubmer of folds for performing cross fit, by default 1
+        
         random_state : int, optional
             Random seed, by default 2022
+        
         categories : str, optional
             by default 'auto'
         """
@@ -191,10 +215,13 @@ class DoublyRobust(BaseEstLearner):
         ----------
         data : pandas.DataFrame
             The dataset used for training the model
+       
         outcome : str or list of str, optional
             Names of the outcome variables
+        
         treatment : str or list of str
             Names of the treatment variables
+       
         treat : float or ndarray, optional
             In the case of single discrete treatment, treat should be an int or
             str in one of all possible treatment values which indicates the
@@ -205,10 +232,13 @@ class DoublyRobust(BaseEstLearner):
             discrete treatments, array(['run', 'read']) means the treat value of
             the first treatment is taken as 'run' and that of the second treatment
             is taken as 'read'.
+       
         control : float or ndarray, optional
             This is similar to the cases of treat, by default None
+       
         adjustment : str or list of str, optional
             Names of the adjustment variables, by default None
+      
         covariate : str or list of str, optional
             Names of the covariate variables, by default None
 
@@ -300,17 +330,20 @@ class DoublyRobust(BaseEstLearner):
             The test data for the estimator to evaluate the causal effect, note
             that the estimator directly evaluate all quantities in the training
             data if data is None, by default None
+        
         quantity : str, optional
             The possible values of quantity include:
                 'CATE' : the estimator will evaluate the CATE;
                 'ATE' : the estimator will evaluate the ATE;
                 None : the estimator will evaluate the ITE or CITE, by default None
+        
         all_tr_effects : bool
             If True, return all treatment effects with different treatments, otherwise
             only return the treatment effect of the treatment with the value of 
             treat if treat is provided. If treat is not provided, then the value of
             treatment is taken as the value of that when fitting
             the estimator model.
+        
         treat : float or ndarray, optional
             In the case of single discrete treatment, treat should be an int or
             str in one of all possible treatment values which indicates the
@@ -347,6 +380,7 @@ class DoublyRobust(BaseEstLearner):
         ----------
         x : ndarray, shape (n, x_d)
             An array containing the information of the treatment variables
+        
         categories : str or list, optional
             by default 'auto'
 

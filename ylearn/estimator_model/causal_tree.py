@@ -30,17 +30,27 @@ class CausalTree(BaseEstLearner):
     ----------
     feature_importances_ : ndarray of shape (n_features, )
         The feature importances.
+    
     tree_ : Tree instance
         The underlying Tree object.
+    
     max_depth : int, default to None
+    
     min_samples_split : int or float, default to 2
+    
     min_samples_leaf : int or float, default to 1
+    
     random_state : int
+    
     max_leaf_nodes : int, default to None
+    
     min_impurity_decrease : float, default to 0.0
+    
     ccp_alpha : non-negative float, default to 0.0
+    
     eps : float, default to 1e-5
         The sample weight of treatment examples will be set as 1 + eps
+    
     categories : str, optional, default to 'auto'
 
     Methods
@@ -48,12 +58,16 @@ class CausalTree(BaseEstLearner):
     fit(data, outcome, treatment,
         adjustment=None, covariate=None, treat=None, control=None,)
         Fit the model on data.
+    
     estimate(data=None, quantity=None)
         Estimate the causal effect of the treatment on the outcome in data.
+    
     apply(X)
         Return the index of the leaf that each sample is predicted as.
+    
     decision_path(X)
         Return the decision path.
+    
     _prepare4est(data)
         Prepare for the estimation of the causal effect.
 
@@ -82,18 +96,24 @@ class CausalTree(BaseEstLearner):
         ----------
         max_depth : int, default to None
             The maximum depth of the tree.
+        
         min_samples_split : int or float, default to 2
             The minimum number of samples required to split an internal node.
+        
         min_samples_leaf : int or float, default to 1
             The minimum number of samples required to be at a leaf node.
+        
         random_state : int
+        
         max_leaf_nodes : int, default to None
             Grow a tree with ``max_leaf_nodes`` in best-first fashion.
             Best nodes are defined as relative reduction in impurity.
             If None then unlimited number of leaf nodes.
+        
         min_impurity_decrease : float, default to 0.0
             A node will be split if this split induces a decrease of the
             impurity greater than or equal to this value.
+        
         ccp_alpha : non-negative float, default to 0.0
             Value for pruning the tree. #TODO: not implemented yet.
 
@@ -133,8 +153,10 @@ class CausalTree(BaseEstLearner):
         Parameters
         ----------
         data : pandas.DataFrame
+        
         outcome : str or list of str
             Names of the outcomes.
+        
         treatment : str or list of str
             Names of the treatment vectors..
 
@@ -277,6 +299,7 @@ class CausalTree(BaseEstLearner):
         ----------
         data : pandas.DataFrame, optional. Defaults to None
             If None, data will be set as the training data.
+        
         quantity : str, optional. Defautls to None
             The type of causal effect. Avaliable options are:
                 'CATE' : the estimator will evaluate the CATE;

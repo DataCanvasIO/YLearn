@@ -41,7 +41,7 @@ SPLITTERS = {
 }
 
 
-class PolicyModel:
+class PolicyTree:
     """
     A class for finding the optimal policy for maxmizing the causal effect
     with the tree model.
@@ -53,30 +53,58 @@ class PolicyModel:
 
     Attributes
     ----------
-    feature_importances_ : ndarray of shape (n_features, )
+    criterion : {'policy_reg'}, default to 'policy_reg' # TODO: may add more criterion
+
+    feature_importances_ : ndarray of shape (n_features,)
         The feature importances.
+        The higher, the more important the feature.
+        The importance of a feature is computed as the
+        (normalized) total reduction of the criterion brought by that feature.
+
     tree_ : Tree instance
-        The underlying Tree object.
+        The underlying Tree object. Please refer to
+        ``help(sklearn.tree._tree.Tree)`` for attributes of Tree object and
+        :ref:`sphx_glr_auto_examples_tree_plot_unveil_tree_structure.py`
+        for basic usage of these attributes.
+
+    n_outputs_ : int
+        The number of outputs when fit() is performed.
+
+    max_features_ : int
+        The inferred value of max_features.
+    
+    n_features_in_ : int
+        Number of features seen during fit().
+
     max_depth : int, default to None
+
     min_samples_split : int or float, default to 2
+
     min_samples_leaf : int or float, default to 1
+
     random_state : int
+
     max_leaf_nodes : int, default to None
+
     min_impurity_decrease : float, default to 0.0
+
     ccp_alpha : non-negative float, default to 0.0
-    categories : str, optional, default to 'auto'
 
     Methods
     ----------
     fit(data, outcome, treatment,
         adjustment=None, covariate=None, treat=None, control=None,)
         Fit the model on data.
+
     estimate(data=None, quantity=None)
         Estimate the causal effect of the treatment on the outcome in data.
+
     apply(X)
         Return the index of the leaf that each sample is predicted as.
+
     decision_path(X)
         Return the decision path.
+
     _prepare4est(data)
         Prepare for the estimation of the causal effect.
 
@@ -105,20 +133,79 @@ class PolicyModel:
 
         Parameters
         ----------
-        max_depth : int, default to None
-            The maximum depth of the tree.
-        min_samples_split : int or float, default to 2
-            The minimum number of samples required to split an internal node.
-        min_samples_leaf : int or float, default to 1
+        criterion : {'policy_reg'}, default to 'policy_reg' # TODO: may add more criterion
+            The function to measure the quality of a split. The criterion for
+            training the tree is (in the Einstein notation)
+                    S = \sum_i g_{ik} y^k_{i},
+            where g_{ik} = \phi(v_i)_k is a map from the covariates, v_i, to a
+            basis vector which has only one nonzero element in the R^k space. By
+            using this criterion, the aim of the model is to find the index of the
+            treatment which will render the max causal effect, i.e., finding the
+            optimal policy.
+
+        splitter : {"best", "random"}, default="best"
+            The strategy used to choose the split at each node. Supported
+            strategies are "best" to choose the best split and "random" to choose
+            the best random split.
+
+        max_depth : int, default=None
+            The maximum depth of the tree. If None, then nodes are expanded until
+            all leaves are pure or until all leaves contain less than
+            min_samples_split samples.
+
+        min_samples_split : int or float, default=2
+            The minimum number of samples required to split an internal node:
+            - If int, then consider `min_samples_split` as the minimum number.
+            - If float, then `min_samples_split` is a fraction and
+            `ceil(min_samples_split * n_samples)` are the minimum
+            number of samples for each split.
+
+        min_samples_leaf : int or float, default=1
             The minimum number of samples required to be at a leaf node.
+            A split point at any depth will only be considered if it leaves at
+            least ``min_samples_leaf`` training samples in each of the left and
+            right branches.  This may have the effect of smoothing the model,
+            especially in regression.
+            - If int, then consider `min_samples_leaf` as the minimum number.
+            - If float, then `min_samples_leaf` is a fraction and
+            `ceil(min_samples_leaf * n_samples)` are the minimum
+            number of samples for each node.
+        
+        min_weight_fraction_leaf : float, default=0.0
+            The minimum weighted fraction of the sum total of weights (of all
+            the input samples) required to be at a leaf node. Samples have
+            equal weight when sample_weight is not provided.
+
+        max_features : int, float or {"sqrt", "log2"}, default=None
+            The number of features to consider when looking for the best split:
+            - If int, then consider `max_features` features at each split.
+            - If float, then `max_features` is a fraction and
+            `int(max_features * n_features)` features are considered at each
+            split.
+            - If "sqrt", then `max_features=sqrt(n_features)`.
+            - If "log2", then `max_features=log2(n_features)`.
+            - If None, then `max_features=n_features`.
+
         random_state : int
+            Controls the randomness of the estimator.
+        
         max_leaf_nodes : int, default to None
             Grow a tree with ``max_leaf_nodes`` in best-first fashion.
             Best nodes are defined as relative reduction in impurity.
             If None then unlimited number of leaf nodes.
-        min_impurity_decrease : float, default to 0.0
-            A node will be split if this split induces a decrease of the
-            impurity greater than or equal to this value.
+
+        min_impurity_decrease : float, default=0.0
+            A node will be split if this split induces a decrease of the impurity
+            greater than or equal to this value.
+            The weighted impurity decrease equation is the following::
+                N_t / N * (impurity - N_t_R / N_t * right_impurity
+                                    - N_t_L / N_t * left_impurity)
+            where ``N`` is the total number of samples, ``N_t`` is the number of
+            samples at the current node, ``N_t_L`` is the number of samples in the
+            left child, and ``N_t_R`` is the number of samples in the right child.
+            ``N``, ``N_t``, ``N_t_R`` and ``N_t_L`` all refer to the weighted sum,
+            if ``sample_weight`` is passed.
+
         ccp_alpha : non-negative float, default to 0.0
             Value for pruning the tree. #TODO: not implemented yet.
         """
@@ -149,10 +236,13 @@ class PolicyModel:
         Parameters
         ----------
         data : pandas.DataFrame
+
         covariate : str or list of str
             Names of the covariates.
+
         effect : str or list of str
             Names of the causal effects vectors.
+
         effect_array : ndarray
             ndarray of ausal effects.
 
@@ -391,9 +481,28 @@ class PolicyModel:
 
         return self
 
-    def predict(self, data=None):
+    def predict_ind(self, data=None):
         """Estimate the optimal policy for the causal effects of the treatment
-        on the outcome in the data.
+        on the outcome in the data, i.e., return the index of the optimal treatment.
+
+        Parameters
+        ----------
+        data : pandas.DataFrame, optional. Defaults to None
+            If None, data will be set as the training data.    
+
+        Returns
+        -------
+        ndarray or float, optional
+            The estimated causal effect with the type of the quantity.
+        """
+        pred = self._prepare4est(data).argmax(1)
+
+        return pred
+
+    def predict_opt_effect(self, data=None):
+        """Estimate the value of the optimal policy for the causal effects of the treatment
+        on the outcome in the data, i.e., return the value of the causal effects
+        when taking the optimal treatment.
 
         Parameters
         ----------
@@ -420,34 +529,105 @@ class PolicyModel:
                 v = self.cov_transformer.transform(v)
         
         v = v.astype(np.float32)
-
+        
         proba = self.tree_.predict(v)
         n_samples = v.shape[0]
 
-        # if self.criterion == 'policy_reg':
-        #     if self.n_outputs_ == 1:
-        #         return proba[:, 0]
-        #     else:
-        #         return proba[:, :, 0]
-        # else:
-        #     pass
-
-        return proba[:, :, 0]
+        if self.criterion == 'policy_reg':
+            if self.n_outputs_ == 1:
+                return proba[:, 0]
+            else:
+                return proba[:, :, 0]
+        else:
+            pass
         
     def _prune_tree(self):
-        pass
+        raise NotImplemented()
 
-    def apply(self, X):
+    def _check_features(self, data):
+        """Validate the training data on predict (probabilities)."""
+        if data is None:
+            v = self._v
+        else:
+            v = convert2array(data, self.covariate)[0]
+            if hasattr(self, 'cov_transformer'):
+                v = self.cov_transformer.transform(v)
+
+            assert v.shape[1] == self.tree_.n_features
+        v = v.astype(np.float32)
+        
+        return v
+                
+    def apply(self, data=None):
         """Return the index of the leaf that each sample is predicted as.
-        """
-        pass
 
-    def decision_path(self, X):
-        pass
+        Parameters
+        ----------
+        data : DataFrame, optional
+            The input samples. The data must contains columns of the covariates
+            used for training the model. If None, the training data will be
+            passed as input samples , by default None
+
+        Returns
+        -------
+        v_leaves : array-like of shape (n_samples, )
+            For each datapoint v_i in v, return the index of the leaf v_i
+            ends up in. Leaves are numbered within
+            ``[0; self.tree_.node_count)``, possibly with gaps in the
+            numbering.
+        """
+        assert self._is_fitted, 'The model is not fitted yet.'
+
+        v = self._check_features(data=data)
+
+        return self.tree_.apply(v)        
+        
+
+    def decision_path(self, data=None):
+        """Return the decision path in the tree.
+
+        Parameters
+        ----------
+        data : DataFrame, optional
+            The input samples. The data must contains columns of the covariates
+            used for training the model. If None, the training data will be
+            passed as input samples , by default None
+        
+        Returns
+        -------
+        indicator : sparse matrix of shape (n_samples, n_nodes)
+            Return a node indicator CSR matrix where non zero elements
+            indicates that the samples goes through the nodes.
+        """
+        assert self._is_fitted, 'The model is not fitted yet.'
+
+        v = self._check_features(data=data)
+
+        return self.tree_.decision_path(v)
 
     @property
     def feature_importance(self):
-        pass
+        """Return the feature importances.
+        The importance of a feature is computed as the (normalized) total
+        reduction of the criterion brought by that feature.
+        It is also known as the Gini importance.
+        Warning: impurity-based feature importances can be misleading for
+        high cardinality features (many unique values). See
+        :func:`sklearn.inspection.permutation_importance` as an alternative.
+
+        Returns
+        -------
+        feature_importances_ : ndarray of shape (n_features,)
+            Normalized total reduction of criteria by feature
+            (Gini importance).
+        """
+        assert self._is_fitted
+
+        return self.tree_.compute_feature_importances()
 
     def plot_result(self,):
-        pass
+        raise NotImplemented()
+
+    @property
+    def n_features_(self):
+        return self.n_features_in

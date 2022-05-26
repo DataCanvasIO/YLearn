@@ -46,25 +46,36 @@ class RLoss(DML4CATE):
     ----------
     _is_fitted : bool
         True if the model is fitted ortherwise False.
+    
     x_model : estimator
         Machine learning models for fitting x. Any such models should implement
         the fit and predict (also predict_proba if x is discrete) methods
+    
     y_model : estimator
         Machine learning models for fitting y.
+   
     yx_model : estimator
         Machine learning models for fitting the residual of y on residual of x.
         Currently this should be a linear regression model.
+    
     adjustment_transformer : transformer
         Transformer for adjustment variables, by default None.
+    
     covariate_transformer : transformer
         Transformer for covariate variables, by default None.
+   
     is_discrete_treatment : bool
+   
     categories : str or list
+   
     random_state : int
+   
     cf_fold : int
         The number of folds for performing cross fit, by default 1
+    
     x_hat_dict : defaultdict(list)
         Cached values when fitting the treatment model.
+   
     y_hat_dict : defaultdict(list)
         Cached values when fitting the outcome model.
     
@@ -72,8 +83,10 @@ class RLoss(DML4CATE):
     ----------
     fit(data, outcome, treatment, adjustment, covariate)
         Fit the RLoss estimator model in the validation set.
+   
     comp_transformer(x, categories='auto')
         Transform the discrete treatment into one-hot vectors.
+    
     score(self, test_estimator)
         Calculate the metric value of the RLoss for the test_estimator in the 
         validation set.
@@ -136,20 +149,28 @@ class RLoss(DML4CATE):
         x_model : estimator
             Machine learning models for fitting x. Any such models should implement
             the fit and predict (also predict_proba if x is discrete) methods
+        
         y_model : estimator
             Machine learning models for fitting y.
+      
         yx_model : estimator, optional
             Machine learning models for fitting the residual of y on residual of x.
+        
         cf_fold : int, optional
             The number of folds for performing cross fit, by default 1
+        
         adjustment_transformer : transformer, optional
             Transformer for adjustment variables, by default None
+        
         covariate_transformer : transformer, optional
             Transformer for covariate variables, by default None
+       
         random_state : int, optional
             Random seed, by default 2022
+       
         is_discrete_treatment : bool, optional
             If the treatment variables are discrete, set this as True, by default False
+      
         categories : str, optional
         """
         self.yx_model = None
@@ -180,14 +201,19 @@ class RLoss(DML4CATE):
         ----------
         data : pandas.DataFrame
             The dataset used for training the model
+       
         outcome : str or list of str, optional
             Names of the outcome variables
+       
         treatment : str or list of str
             Names of the treatment variables
+        
         adjustment : str or list of str, optional
             Names of the adjustment variables, by default None
+        
         covariate : str or list of str, optional
             Names of the covariate variables, by default None
+        
         combined_treatment : bool
             When combined_treatment is set to True, then if there are multiple
             treatments, we can use the combined_treatment technique to covert
@@ -333,15 +359,20 @@ class RLoss(DML4CATE):
         x_model : estimator
             Any x_model should have the fit and predict (also predict_proba if
             x is discrete) methods.
+       
         y_model : estimator
             Any y_model should have the fit and predict (also predict_proba if
             y is discrete) methods.
+        
         y : ndarray, shape (n, y_d)
             The outcome vector
+        
         x : ndarray, shape (n, x_d)
             The treatment vector
+       
         wv : ndarray, shape (n, w_d + v_d)
             The covariate and adjustment vector
+        
         folds : sklearn.model_selection.KFold, optional
 
         Returns

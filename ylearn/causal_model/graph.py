@@ -16,10 +16,13 @@ class CausalGraph:
     causation : dict
         Data structure of the causal graph where values are parents of the
         corresponding keys.
+    
     dag : nx.MultiDiGraph
         Graph represented by the networkx package.
+    
     prob : ylearn.causal_model.prob.Prob
         The encoded probability distribution of the causal graph.
+    
     latent_confounding_arcs : list of tuple of two str
         Two elements in the tuple are names of nodes in the graph where there
         exists an latent confounding arcs between them. Semi-Markovian graphs
@@ -28,15 +31,20 @@ class CausalGraph:
         arcs represent these relations. For example, the causal graph X <- U -> Y,
         where U is an unobserved confounder of X and Y, can be converted
         equivalently to X <-->Y where <--> is a latent confounding arc.
+    
     is_dag : bool
         Determine whether the graph is a DAG, which is a necessary condition 
         for it to be a valid causal graph.
+    
     c_components : set
         The C-components of the graph.
+    
     observed_dag : nx.MultiDiGraph
         A causal graph with only observed variables.
+    
     topo_order : list
         The topological order of the graph.
+    
     explicit_unob_var_dag : nx.MultiDiGraph
         A new dag where all unobserved confounding arcs are replaced
         by explicit unobserved variables. See latent_confounding_arcs for more 
@@ -46,33 +54,45 @@ class CausalGraph:
     ----------
     to_adj_matrix()
         Return the numpy matrix of the adjecency matrix.
+    
     to_adj_list()
         Return the numpy array of the adjecency matrix.
+    
     ancestors(y)
         Return ancestors of y.
+    
     add_nodes(nodes, new=False)
         If not new, add all nodes in the nodes to the current
         CausalGraph, else create a new graph and add nodes.
+    
     add_edges_from(edge_list, new=False, observed=True)
         Add all edges in the edge_list to the CausalGraph.
+    
     parents(x, observed=True)
         Find the parents of the node x in the CausalGraph.
+    
     add_edge(i, j, observed=True)
         Add an edge between nodes i and j to the CausalGraph. Add an unobserved
         confounding arc if not observed.
+    
     remove_nodes(nodes, new=False)
         Remove all nodes in the graph. If new, do this in a new CausalGraph.
+    
     remove_edge(i, j, observed=True)
         Remove the edge in the CausalGraph. If observed, remove the unobserved
         latent confounding arcs.
+    
     remove_edges_from(edge_list, new=False, observed=True)
         Remove all edges in the edge_list in the CausalGraph.
+    
     build_sub_graph(subset)
         Return a new CausalGraph as the subgraph of self with nodes in the
         subset.
+    
     remove_incoming_edges(y, new=False)
         Remove all incoming edges of all nodes in y. If new, return a new
         CausalGraph.
+    
     remove_outgoing_edges(y, new=False)
         Remove all outgoing edges of all nodes in y. If new, return a new
         CausalGraph.
@@ -84,8 +104,10 @@ class CausalGraph:
         ----------
         causation : dict
             Data structure of the causation
+        
         graph : nx.MultiGraph, optional
             The causal graph. Defaults to None.
+        
         latent_confounding_arcs : set or list, optional
             Unobserved bidirected edges. Defaults to None. Each element is a
             tuple containing 2 elements.
@@ -152,7 +174,9 @@ class CausalGraph:
         Parameters
         ----------
         x : set of str
+        
         y : set of str
+        
         test_set : set of str
 
         Returns
@@ -226,6 +250,7 @@ class CausalGraph:
         ----------
         x : str, optional 
             Name of the node x.
+        
         only_observed : bool, optional
             If True, then only find the observed parents in the causal graph,
             otherwise also include the unobserved variables, by default True
@@ -293,6 +318,7 @@ class CausalGraph:
         Parameters
         ----------
         nodes : set or list
+        
         new : bool, optional
             If new create and return a new graph. Defaults to False.
 
@@ -325,8 +351,10 @@ class CausalGraph:
         edge_list : list
             Every element of the list contains two elements, the first for
             the parent
+        
         new : bool
             Return a new graph if set as True
+        
         observed : bool
             Add unobserved bidirected confounding arcs if not observed.
         """
@@ -363,8 +391,10 @@ class CausalGraph:
         ----------
         s : str
             Source of the edge.
+        
         t : str
             Target of the edge.
+        
         observed : bool
             Add an unobserved latent confounding arc if False.
         """
@@ -381,6 +411,7 @@ class CausalGraph:
         Parameters
         ----------
         nodes : set or list
+        
         new : bool, optional
             If True, create a new graph, remove nodes in that graph and return
             it. Defaults to False.
@@ -427,6 +458,7 @@ class CausalGraph:
         ----------
         edge : tuple
             2 elements.
+        
         observed : bool
             If not observed, remove the unobserved latent confounding arcs.
         """
@@ -448,8 +480,10 @@ class CausalGraph:
         Parameters
         ----------
         edge_list : list
+        
         new : bool, optional
             If new, creat a new CausalGraph and remove edges.
+        
         observed : bool, optional
             Remove unobserved latent confounding arcs if not observed.
 
@@ -512,6 +546,7 @@ class CausalGraph:
         Parameters
         ----------
         x : set or list
+        
         new : bool
             Return a new graph if set as Ture.
 
@@ -546,6 +581,7 @@ class CausalGraph:
         Parameters
         ----------
         x : set
+        
         new : bool
 
         Returns

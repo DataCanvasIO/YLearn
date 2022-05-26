@@ -12,12 +12,16 @@ class Prob:
     ----------
     variables : set
         The variables (v in the above example) of the probability.
+    
     conditional : set
         The conditional set (y in the above example).
+    
     divisor : set
         Not defined yet.
+    
     marginal : set
         The sum set (w in the above example) for marginalizing the probability.
+    
     product : set
         If not set(), then the probability is composed of the first probability
         object (P(v|y)) and several other probabiity objects that are all saved
@@ -28,6 +32,7 @@ class Prob:
     ----------
     parse()
         Return the expression of the probability distribution.
+    
     show_latex_expression()
         Show the latex expression.
     """
@@ -42,10 +47,13 @@ class Prob:
         Parameters
         ----------
         variables : set
+        
         conditional : set
+        
         marginal : set
             elements are strings, summing over these elements will return the
             marginal distribution
+        
         product : set
             set of Prob
         """

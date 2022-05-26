@@ -25,15 +25,21 @@ class CausalModel:
     ----------
     data : pandas.DataFrame
         Data used for discovering causal graph and training estimator model.
+    
     causal_graph : CausalGraph #TODO: support CausalStructuralModel
+    
     treatment : list of str, optional
         Names of treatments in the current identification problem.
+    
     outcome : list of str, optional
         Names of outcomes in the current identification problem.
+    
     ava_nodes : dictkeys
         All observed nodes of the CausalGraph
+    
     cached_result : dict
         Results of previous identification results.
+    
     _adjustment_set : list of set
         All possible backdoor adjustment set
 
@@ -45,35 +51,48 @@ class CausalModel:
         can be a set of different treatments. #TODO: be careful about that
         currently we treat a random variable equally as its value, i.e., we
         do not discern P(Y|do(X)) and P(Y=y|do(X=x)).
+    
     identify(treatment, outcome, identify_method='auto')
         Identify the causal effect of treatment on outocme expression.
+    
     estimate(estimator_model, data, adjustment, covariate, quantity=None)
         Estimate the causal effect of treatment on outcome (y).
+    
     get_iv(treatment, outcome)
         Find the instrumental variables for the causal effect of the
         treatment on the outcome.
+    
     is_iv(treatment, outcome, set_)
         Determine whether a given set_ is a valid instrumental variable set.
+    
     discover_graph(data)
         Perform causal discovery over data.
+    
     is_valid_backdoor_set(set, treatment, outcome)
         Determine if a given set is a valid backdoor adjustment set for causal
         effects of treatments on outcomes.
+    
     get_backdoor_set(treatment, outcome, adjust='simple')
         Return backdoor adjustment sets for the given treatment and outcome
         in the style stored in adjust (simple, minimal, or all).
+    
     get_backdoor_path(treatment, outcome)
         Return all backdoor paths in the graph between treatment and outcome.
+    
     has_collider(path, backdoor_path=True)
         If the path in the current graph has a collider, return True, else
         return False.
+    
     is_connected_backdoor_path(path)
         Test whether a backdoor path is connected in the current graph, where
         path[0] is the start of the path and path[-1] is the end.
+    
     is_frontdoor_set(set, treatment, outcome)
         Determine if a given set is a frontdoor adjustment set.
+    
     get_frontdoor_set(treatment, outcome, adjust)
         Return the frontdoor adjustment set for given treatment and outcome.
+    
     estimate_hidden_cofounder()
         Estimation of hidden cofounders.
     """
@@ -83,6 +102,7 @@ class CausalModel:
         Parameters
         ----------
         causal_graph : CausalGraph
+        
         data : DataFrame (for now)
         """
         self.data = data
@@ -110,10 +130,13 @@ class CausalModel:
         ----------
         y : set of str
             Set of names of outcomes.
+        
         x : set of str
             Set of names of treatments.
+        
         prob : Prob
             Probability distribution encoded in the graph.
+        
         graph : CausalGraph
 
         Returns
@@ -230,8 +253,10 @@ class CausalModel:
         ----------
         treatment : set or list of str, optional
             Set of names of treatments.
+        
         outcome : set or list of str, optional
             Set of names of outcomes.
+        
         identify_method : tuple of str or str, optional. Default to 'auto'.
             If the passed value is a tuple or list, then it should have two
             elements where the first one is for the identification methods
@@ -328,14 +353,18 @@ class CausalModel:
         estimator_model : EstimatorModel
             Any suitable estimator models implemented in the EstimatorModel can
             be applied here. 
+        
         data : pandas.Dataframe, optional. Default to None
             The data set for causal effect to be estimated. If None, use the data
             which is used for discovering causal graph.
+        
         adjustment : set or list, optional. Default to None
             Names of the adjustment set. If None, the ajustment set is given by
             the simplest backdoor set found by CausalModel.
+        
         covariate : set or list, optional. Default to None
             Names of covariate set. Ignored if set as None.
+        
         quantity : str, optional. Default to None
             The interested quantity when evaluating causal effects.
 
@@ -414,10 +443,13 @@ class CausalModel:
         data : pandas.DataFrame
             The data used for training the estimator models and for estimating the
             causal effect.
+        
         treatment : set or list of str, optional
             Set of names of treatments.
+        
         outcome : set or list of str, optional
             Set of names of outcomes.
+        
         identify_method : tuple of str or str, optional. Default to 'auto'.
             If the passed value is a tuple or list, then it should have two
             elements where the first one is 'backdoor' and the second is for
@@ -431,6 +463,7 @@ class CausalModel:
             ('backdoor', 'minimal') or 'minimal': Return all possible backdoor adjustment sets with
                                                     minial number of elements.
             ('backdoor', 'all') or 'all': Return all possible backdoor adjustment sets.
+        
         quantity : str, optional. Default to None
             The interested quantity when evaluating causal effects.
 
@@ -504,8 +537,10 @@ class CausalModel:
         ----------
         set_ : set
             The adjustment set.
+        
         treatment : set or list of str
             str is also acceptable for single treatment.
+        
         outcome : set or list of str
             str is also acceptable for single outcome.
 
@@ -546,8 +581,10 @@ class CausalModel:
         ----------
         treatment : set or list of str
             Names of the treatment. str is also acceptable for single treatment.
+        
         outcome : set or list of str 
             Names of the outcome. str is also acceptable for single outcome.
+        
         adjust : str
             Set style of the backdoor set
                 simple: directly return the parent set of treatment
@@ -674,6 +711,7 @@ class CausalModel:
         Parameters
         ----------
         treatment : str
+        
         outcome : str
 
         Returns
@@ -702,6 +740,7 @@ class CausalModel:
         ----------
         path : list of str
             A list containing nodes in the path.
+        
         backdoor_path : bool
             Whether the path is a backdoor path
 
@@ -776,7 +815,9 @@ class CausalModel:
         Parameters
         ----------
         set_ : set of str
+        
         treatement : str
+        
         outcome : str
 
         Returns
@@ -813,6 +854,7 @@ class CausalModel:
         ----------
         treatment : set of str or str
             Contain only one element.
+        
         outcome : set of str or str
             Contain only one element.
 
@@ -889,6 +931,7 @@ class CausalModel:
         ----------
         treatment : iterable
             Name(s) of the treatment.
+        
         outcome : iterable
             Name(s) of the outcome.
 
@@ -934,8 +977,10 @@ class CausalModel:
         ----------
         treatment : iterable
             Name(s) of the treatment.
+        
         outcome : iterable
             Name(s) of the outcome.
+        
         set_ : iterable
 
         Returns

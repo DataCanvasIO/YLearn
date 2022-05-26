@@ -23,41 +23,59 @@ class SLearner(BaseEstLearner):
     model : estimator, optional
         The machine learning model for the control group data. Any valid x0_model
         should implement the fit() and predict_proba() methods.
+    
     random_state : int. Defaults to 2022.
+    
     _is_fitted : bool. Defaults to False.
         True if the TLearner is fitted ortherwise False.
+    
     _y_d : int
+    
     treatment : list of str, optional
         Names of the treatments.
+    
     outcome : list of str, optional
         Names of the outcomes.
+   
     adjustment : list of str, optional
         Names of the adjustment set.
+    
     covariate : list of str, optional
         Names of the covariates.
+   
     combined_treat : bool
         Whether use the combined treat technique when training the model.
+   
     categories : str, optional. Defaults to 'auto'.
+   
     combined_treat : bool. Defaults to True.
         Whether combine multiple treatments into a single treatment.
+    
     _is_fitted : bool
         True if the model is fitted ortherwise False.
 
     Methods
     ----------
     fit(data, outcome, treatment, adjustment, covariate, treat, control, combined_treatment)
+    
     estimate(data, quantity=None)
+   
     _fit_combined_treat(x, wv, y, treat, control, categories, **kwargs)
         Fit function when combined_treat is set to True.
+   
     _comp_transformer(x, categories='auto')
         Transform the discrete treatment into one-hot vectors when combined_treat
         is set to True.
+   
     _fit_separate_treat(x, wv, y, categories)
         Fit function when combined_treat is set to False.
+   
     _prepare4est(data, outcome, treatment, adjustment, individual=None)
         Prepare (fit the model) for estimating various quantities including
         ATE, CATE, ITE, and CITE.
+    
     _prepare_combined_treat(wv)
+    
     _prepare_separate_treat(wv)
     """
 
@@ -76,7 +94,9 @@ class SLearner(BaseEstLearner):
             The base machine learning model for training SLearner. Any model
             should be some valid machine learning model with fit() and
             predict_proba() functions.
+      
         random_state : int
+       
         categories : str
         """
         self.model = clone(model)
@@ -107,18 +127,25 @@ class SLearner(BaseEstLearner):
         ----------
         data : pandas.DataFrame
             Training dataset for training the estimator.
+       
         outcome : list of str, optional.
             List of names of the outcome features.
+        
         treatment : list of str, optional
             List of names of the treatment features.
+       
         adjustment : List of str, optional
             Lisf ot names of adjustment set ensuring the unconfoundness, by default None
+        
         covariate : List of str, optional
             Covariate features, by default None
+        
         treat : int, optional
             Label of the intended treatment group, by default None
+        
         control : int, optional
             Label of the intended control group, by default None
+       
         combined_treatment : bool, optional
             Only modify this parameter for multiple treatments, where multiple discrete
             treatments are combined to give a single new group of discrete treatment if
@@ -207,8 +234,7 @@ class SLearner(BaseEstLearner):
         ----------
         data : pandas.DataFrame, optional. Defaults to None.
             If None, then the training data is used as data.
-        quantity : _type_, optional
-            _description_, by default None
+       
         quantity : str, optional. Defaults to None
             The possible values of quantity include:
                 'CATE' : the estimator will evaluate the CATE;
@@ -240,10 +266,13 @@ class SLearner(BaseEstLearner):
         ----------
         x : np.array
             Treatment variables with shape (n, x_d)
+       
         wv : np.array
             Covariate variables with shape (n, wv_d)
+       
         y : np.array
             Outcome vevariablesctor with shape (n, y_d)
+        
         treat : int or list, optional
             If there is only one treament, then treat indicates the treatment
             group. If there are multiple treatment groups, then treat should
@@ -252,8 +281,10 @@ class SLearner(BaseEstLearner):
             discrete treatments, array(['run', 'read']) means the treat value of
             the first treatment is taken as 'run' and that of the second treatment
             is taken as 'read'.
+       
         control : int or list, optional
             See treat for more information
+      
         categories : str
 
         Returns
@@ -291,6 +322,7 @@ class SLearner(BaseEstLearner):
         ----------
         x : ndarray, shape (n, x_d)
             An array containing the information of the treatment variables
+      
         categories : str or list, optional
             by default 'auto'
 
@@ -339,10 +371,13 @@ class SLearner(BaseEstLearner):
         ----------
         x : ndarray
             Treatment variables.
+       
         wv : ndarray
             Covariate variables.
+      
         y : ndarray
             Outcome variables.
+        
         categories : str, optional. Defaults to 'auto'.
 
         Returns
@@ -430,43 +465,63 @@ class TLearner(BaseEstLearner):
     xt_model : estimator, optional
         The machine learning model for the treatment group data. Any valid xt_model
         should implement the fit() and predict_proba() methods.
+   
     x0_model : estimator, optional
         The machine learning model for the control group data. Any valid x0_model
         should implement the fit() and predict_proba() methods.
+    
     random_state : int. Defaults to 2022.
+    
     _is_fitted : bool. Defaults to False.
         True if the TLearner is fitted ortherwise False.
+   
     _y_d : int
+   
     transformer : OrdinalEncoder
+    
     categories : str
+    
     treatment : list of str, optional
         Names of the treatments.
+   
     outcome : list of str, optional
         Names of the outcomes.
+    
     adjustment : list of str, optional
         Names of the adjustment set.
+    
     covariate : list of str, optional
         Names of the covariates.
+    
     combined_treat : bool
         Whether use the combined treat technique when training the model.
+   
     _wv : ndarray with shape (n, w_d + v_d)
+   
     _w : ndarray with shape (n, w_d)
 
     Methods
     ----------
     fit(data, outcome, treatment, adjustment, covariate, treat, control, combined_treatment)
+   
     estimate(data, quantity=None)
+   
     _fit_combined_treat(x, wv, y, treat, control, categories, **kwargs)
         Fit function when combined_treat is set to True.
+    
     _comp_transformer(x, categories='auto')
         Transform the discrete treatment into one-hot vectors when combined_treat
         is set to True.
+    
     _fit_separate_treat(x, wv, y, categories)
         Fit function when combined_treat is set to False.
+    
     _prepare4est(data, outcome, treatment, adjustment, individual=None)
         Prepare (fit the model) for estimating various quantities including
         ATE, CATE, ITE, and CITE.
+    
     _prepare_combined_treat(wv)
+    
     _prepare_separate_treat(wv)
     """
 
@@ -485,7 +540,9 @@ class TLearner(BaseEstLearner):
             The base machine learning model for training TLearner. Any model
             should be some valid machine learning model with fit() and
             predict_proba() functions.
+        
         random_state : int
+        
         categories : str
         """
         self.xt_model = clone(model)
@@ -516,18 +573,25 @@ class TLearner(BaseEstLearner):
         ----------
         data : pandas.DataFrame
             Training dataset for training the estimator.
+       
         outcome : list of str, optional.
             List of names of the outcome features.
+       
         treatment : list of str, optional
             List of names of the treatment features.
+       
         adjustment : List of str, optional
             Lisf ot names of adjustment set ensuring the unconfoundness, by default None
+       
         covariate : List of str, optional
             Covariate features, by default None
+        
         treat : int, optional
             Label of the intended treatment group, by default None
+       
         control : int, optional
             Label of the intended control group, by default None
+        
         combined_treatment : bool, optional
             Only modify this parameter for multiple treatments, where multiple discrete
             treatments are combined to give a single new group of discrete treatment if
@@ -596,8 +660,7 @@ class TLearner(BaseEstLearner):
         ----------
         data : pandas.DataFrame, optional. Defaults to None.
             If None, then the training data is used as data.
-        quantity : _type_, optional
-            _description_, by default None
+       
         quantity : str, optional. Defaults to None
             The possible values of quantity include:
                 'CATE' : the estimator will evaluate the CATE;
@@ -646,10 +709,13 @@ class TLearner(BaseEstLearner):
         ----------
         x : np.array
             Treatment variables with shape (n, x_d)
+        
         wv : np.array
             Covariate variables with shape (n, wv_d)
+       
         y : np.array
             Outcome vevariablesctor with shape (n, y_d)
+        
         treat : int or ndarray, optional
             If there is only one treament, then treat indicates the treatment
             group. If there are multiple treatment groups, then treat should
@@ -658,8 +724,10 @@ class TLearner(BaseEstLearner):
             discrete treatments, array(['run', 'read']) means the treat value of
             the first treatment is taken as 'run' and that of the second treatment
             is taken as 'read'.
+        
         control : int or list, optional
             See treat for more information
+       
         categories : str
 
         Returns
@@ -696,6 +764,7 @@ class TLearner(BaseEstLearner):
         ----------
         x : ndarray, shape (n, x_d)
             An array containing the information of the treatment variables
+        
         categories : str or list, optional
             by default 'auto'
 
@@ -732,10 +801,13 @@ class TLearner(BaseEstLearner):
         ----------
         x : ndarray
             Treatment variables.
+       
         wv : ndarray
             Covariate variables.
+       
         y : ndarray
             Outcome variables.
+       
         group_categories : ndarray of ndarray
             Each ndarray in the group_categories is the classes of a single 
             treatment vector. For example, 
@@ -806,41 +878,58 @@ class XLearner(BaseEstLearner):
     ----------
     ft_model : estiamtor, optional
         Machine learning model for the treatment gropu in the step 1.
+    
     f0_model : estiamtor, optional
         Machine learning model for the control gropu in the step 1.
+    
     kt_model : estiamtor, optional
         Machine learning model for the treatment gropu in the step 2.
+    
     k0_model : estiamtor, optional
         Machine learning model for the control gropu in the step 2.
+    
     _is_fitted : bool
         True if the instance of XLearner is fitted otherwise False.
+    
     categories : str
+    
     treatment : list of str, optional
         Names of the treatments.
+    
     outcome : list of str, optional
         Names of the outcomes.
+   
     adjustment : list of str, optional
         Names of the adjustment set.
+    
     covariate : list of str, optional
         Names of the covariates.
+   
     combined_treat : bool
         Whether use the combined treat technique when training the model.
     
     Methods
     ----------
     fit(data, outcome, treatment, adjustment, covariate, treat, control, combined_treatment)
+   
     estimate(data, quantity=None)
+    
     _fit_combined_treat(x, wv, y, treat, control, categories, **kwargs)
         Fit function when combined_treat is set to True.
+   
     _comp_transformer(x, categories='auto')
         Transform the discrete treatment into one-hot vectors when combined_treat
         is set to True.
+    
     _fit_separate_treat(x, wv, y, categories)
         Fit function when combined_treat is set to False.
+    
     _prepare4est(data, outcome, treatment, adjustment, individual=None)
         Prepare (fit the model) for estimating various quantities including
         ATE, CATE, ITE, and CITE.
+   
     _prepare_combined_treat(wv)
+   
     _prepare_separate_treat(wv)
     """
 
@@ -858,7 +947,9 @@ class XLearner(BaseEstLearner):
             The base machine learning model for training TLearner. Any model
             should be some valid machine learning model with fit() and
             predict_proba() functions.
+      
         random_state : int
+     
         categories : str
         """
         self.ft_model = clone(model)
@@ -891,18 +982,25 @@ class XLearner(BaseEstLearner):
         ----------
         data : pandas.DataFrame
             Training dataset for training the estimator.
+       
         outcome : list of str, optional.
             List of names of the outcome features.
+      
         treatment : list of str, optional
             List of names of the treatment features.
+       
         adjustment : List of str, optional
             Lisf ot names of adjustment set ensuring the unconfoundness, by default None
+       
         covariate : List of str, optional
             Covariate features, by default None
+       
         treat : int, optional
             Label of the intended treatment group, by default None
+       
         control : int, optional
             Label of the intended control group, by default None
+      
         combined_treatment : bool, optional
             Only modify this parameter for multiple treatments, where multiple discrete
             treatments are combined to give a single new group of discrete treatment if
@@ -1011,10 +1109,13 @@ class XLearner(BaseEstLearner):
         ----------
         x : np.array
             Treatment variables with shape (n, x_d)
+       
         wv : np.array
             Covariate variables with shape (n, wv_d)
+       
         y : np.array
             Outcome vevariablesctor with shape (n, y_d)
+        
         treat : int or list, optional
             If there is only one treament, then treat indicates the treatment
             group. If there are multiple treatment groups, then treat should
@@ -1023,8 +1124,10 @@ class XLearner(BaseEstLearner):
             discrete treatments, array(['run', 'read']) means the treat value of
             the first treatment is taken as 'run' and that of the second treatment
             is taken as 'read'.
+        
         control : int or list, optional
             See treat for more information
+        
         categories : str
 
         Returns
@@ -1069,6 +1172,7 @@ class XLearner(BaseEstLearner):
         ----------
         x : ndarray, shape (n, x_d)
             An array containing the information of the treatment variables
+       
         categories : str or list, optional
             by default 'auto'
 
@@ -1106,10 +1210,13 @@ class XLearner(BaseEstLearner):
         ----------
         x : ndarray
             Treatment variables.
+       
         wv : ndarray
             Covariate variables.
+       
         y : ndarray
             Outcome variables.
+       
         group_categories : ndarray of ndarray
             Each ndarray in the group_categories is the classes of a single 
             treatment vector. For example, 
