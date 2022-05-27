@@ -151,6 +151,8 @@ class CEInterpreter:
         
         self._is_fitted = True
 
+        return self
+
     def interpret(self):
         assert self._is_fitted, 'The model is not fitted yet. Please use the fit method first.'
         
