@@ -243,13 +243,14 @@ class ApproxBound(BaseEstLearner):
             data, treat, control, y_upper, y_lower
         )
         upper, lower = normal
-
+        zero_ = np.zeros_like(lower)
+        
         if assump == 'no-assump' or assump is None:
             return (lower, upper)
         elif assump == 'non-negative':
-            return (0, upper)
+            return (zero_, upper)
         elif assump == 'non-positive':
-            return (lower, 0)
+            return (lower, zero_)
         elif assump == 'optimal':
             # TODO: need to update this for discrete treatment
             return (optim1, optim2)

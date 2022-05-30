@@ -1,11 +1,15 @@
 # TODO: add copyright of the implementation of sklearn tree
 import numbers
+import pandas
+
 from math import ceil
 from copy import deepcopy
 
 import numpy as np
 import pydotplus
 # from ctypes import memset, sizeof, c_double, memmove
+
+import sklearn
 
 from sklearn.utils import check_random_state
 from sklearn.utils import check_scalar
@@ -21,6 +25,7 @@ from sklearn.tree._tree import BestFirstTreeBuilder
 from sklearn.tree import plot_tree
 
 from ..utils import logging
+from ..utils import Version
 from ..utils._common import convert2array
 
 from ._tree.tree_criterion import PRegCriteria
@@ -29,6 +34,7 @@ from ..estimator_model._tree.tree_criterion import MSE
 
 logger = logging.get_logger(__name__)
 
+_is_sk10 = Version(sklearn.__version__) >= Version('1.0')
 
 CRITERIA = {
     "policy_reg": PRegCriteria,
@@ -99,7 +105,13 @@ class PolicyTree:
         Fit the model on data.
 
     estimate(data=None, quantity=None)
-        Estimate the causal effect of the treatment on the outcome in data.
+        Estimate the value of the optimal policy for the causal effects of the treatment
+        on the outcome in the data, i.e., return the value of the causal effects
+        when taking the optimal treatment.    
+
+    predict_ind(data=None,)
+        Estimate the optimal policy for the causal effects of the treatment
+        on the outcome in the data, i.e., return the index of the optimal treatment.
 
     apply(X)
         Return the index of the leaf that each sample is predicted as.
@@ -457,14 +469,25 @@ class PolicyTree:
 
         # Build tree step 3. Build the tree
         if max_leaf_nodes < 0:
-            builder = DepthFirstTreeBuilder(
-                splitter,
-                min_samples_split,
-                min_samples_leaf,
-                min_weight_leaf,
-                max_depth,
-                self.min_impurity_decrease,
-            )
+            if _is_sk10:
+                builder = DepthFirstTreeBuilder(
+                    splitter,
+                    min_samples_split,
+                    min_samples_leaf,
+                    min_weight_leaf,
+                    max_depth,
+                    self.min_impurity_decrease,
+                )
+            else:
+                builder = DepthFirstTreeBuilder(
+                    splitter,
+                    min_samples_split,
+                    min_samples_leaf,
+                    min_weight_leaf,
+                    max_depth,
+                    self.min_impurity_decrease,
+                    1e-7,
+                )
         else:
             builder = BestFirstTreeBuilder(
                 splitter,
@@ -526,15 +549,8 @@ class PolicyTree:
     def _prepare4est(self, data=None):
         assert self._is_fitted, 'The model is not fitted yet.'
 
-        if data is None:
-            v = self._v
-        else:
-            v = convert2array(data, self.covariate)[0]
-            if hasattr(self, 'cov_transformer'):
-                v = self.cov_transformer.transform(v)
-        
-        v = v.astype(np.float32)
-        
+        v = self._check_features(v=None, data=data)
+
         proba = self.tree_.predict(v)
         n_samples = v.shape[0]
 
@@ -549,21 +565,32 @@ class PolicyTree:
     def _prune_tree(self):
         raise NotImplemented()
 
-    def _check_features(self, data):
+    def _check_features(self, *, v=None, data=None):
         """Validate the training data on predict (probabilities)."""
+
+        if v is not None:
+            v = v.reshape(-1, 1) if v.ndim == 1 else v
+            assert v.shape[1] == self.n_features_in_
+            v = v.astype(np.float32)
+            
+            return v
+        
         if data is None:
             v = self._v
         else:
+            assert isinstance(data, pandas.DataFrame)
+
             v = convert2array(data, self.covariate)[0]
             if hasattr(self, 'cov_transformer'):
                 v = self.cov_transformer.transform(v)
 
             assert v.shape[1] == self.tree_.n_features
+
         v = v.astype(np.float32)
         
         return v
                 
-    def apply(self, data=None):
+    def apply(self, *, v=None, data=None):
         """Return the index of the leaf that each sample is predicted as.
 
         Parameters
@@ -583,12 +610,12 @@ class PolicyTree:
         """
         assert self._is_fitted, 'The model is not fitted yet.'
 
-        v = self._check_features(data=data)
+        v = self._check_features(v=v, data=data)
 
-        return self.tree_.apply(v)        
+        return self.tree_.apply(v)     
         
 
-    def decision_path(self, data=None):
+    def decision_path(self, *, v=None, data=None):
         """Return the decision path in the tree.
 
         Parameters
@@ -606,7 +633,7 @@ class PolicyTree:
         """
         assert self._is_fitted, 'The model is not fitted yet.'
 
-        v = self._check_features(data=data)
+        v = self._check_features(v=v, data=data)
 
         return self.tree_.decision_path(v)
 
@@ -626,9 +653,32 @@ class PolicyTree:
             Normalized total reduction of criteria by feature
             (Gini importance).
         """
-        assert self._is_fitted
+        assert self._is_fitted, 'The model is not fitted yet.'
 
         return self.tree_.compute_feature_importances()
+
+    def get_depth(self):
+        """Return the depth of the policy tree.
+        The depth of a tree is the maximum distance between the root
+        and any leaf.
+        Returns
+        -------
+        self.tree_.max_depth : int
+            The maximum depth of the tree.
+        """
+        assert self._is_fitted
+        return self.tree_.max_depth
+
+    def get_n_leaves(self):
+        """Return the number of leaves of the policy tree.
+        Returns
+        -------
+        self.tree_.n_leaves : int
+            Number of leaves.
+        """
+        assert self._is_fitted
+        return self.tree_.n_leaves
+
 
     def plot(
         self, *,
@@ -643,7 +693,7 @@ class PolicyTree:
         ax=None,
         fontsize=None
     ):
-        """Plot a decision tree.
+        """Plot a policy tree.
         The sample counts that are shown are weighted with any sample_weights that
         might be present.
         The visualization is fit automatically to the size of the axis.
@@ -651,10 +701,7 @@ class PolicyTree:
         the size of the rendering.
 
         Parameters
-        ----------
-        decision_tree : decision tree regressor or classifier
-            The decision tree to be plotted.
-        
+        ----------        
         max_depth : int, default=None
             The maximum depth of the representation. If None, the tree is fully
             generated.

@@ -157,8 +157,8 @@ class SLearner(BaseEstLearner):
             binary treatments:
                 treatment_1: x_1 | x_1 \in {'sleep', 'run'},
                 treatment_2: x_2 | x_2 \in {'study', 'work'},
-            then we can convert to these two binary classification tasks into
-            a single classification with 4 different classes:
+            then we can convert these two binary classification tasks into
+            a single classification task with 4 different classes:
                 treatment: x | x \in {0, 1, 2, 3},
             where, for example, 1 stands for ('sleep' and 'stuy').
 
@@ -173,8 +173,9 @@ class SLearner(BaseEstLearner):
             data, outcome, treatment,
             adjustment=adjustment,
             covariate=covariate,
-            combined_treat=combined_treatment,
         )
+        
+        self.combined_treat = combined_treatment
 
         # get numpy data
         y, x, w, v = convert2array(
@@ -603,8 +604,8 @@ class TLearner(BaseEstLearner):
             binary treatments:
                 treatment_1: x_1 | x_1 \in {'sleep', 'run'},
                 treatment_2: x_2 | x_2 \in {'study', 'work'},
-            then we can convert to these two binary classification tasks into
-            a single classification with 4 different classes:
+            then we can convert these two binary classification tasks into
+            a single classification task with 4 different classes:
                 treatment: x | x \in {0, 1, 2, 3},
             where, for example, 1 stands for ('sleep' and 'stuy').
         
@@ -614,12 +615,14 @@ class TLearner(BaseEstLearner):
         """
         assert adjustment is not None or covariate is not None, \
             'Need adjustment set or covariates to perform estimation.'
-        super().fit(data, outcome, treatment,
-                    adjustment=adjustment,
-                    covariate=covariate,
-                    combined_treat=combined_treatment,
-                    )
+        super().fit(
+            data, outcome, treatment,
+            adjustment=adjustment,
+            covariate=covariate,
+        )
 
+        self.combined_treat = combined_treatment
+        
         y, x, w, v = convert2array(
             data, outcome, treatment, adjustment, covariate
         )
@@ -1012,8 +1015,8 @@ class XLearner(BaseEstLearner):
             binary treatments:
                 treatment_1: x_1 | x_1 \in {'sleep', 'run'},
                 treatment_2: x_2 | x_2 \in {'study', 'work'},
-            then we can convert to these two binary classification tasks into
-            a single classification with 4 different classes:
+            then we can convert these two binary classification tasks into
+            a single classification task with 4 different classes:
                 treatment: x | x \in {0, 1, 2, 3},
             where, for example, 1 stands for ('sleep' and 'stuy').
 
@@ -1028,8 +1031,9 @@ class XLearner(BaseEstLearner):
             data, outcome, treatment,
             adjustment=adjustment,
             covariate=covariate,
-            combined_treat=combined_treatment,
         )
+
+        self.combined_treat = combined_treatment
 
         y, x, w, v = convert2array(
             data, outcome, treatment, adjustment, covariate

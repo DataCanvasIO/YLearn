@@ -404,7 +404,7 @@ class DML4CATE(BaseEstLearner):
        
         treat : float or ndarray, optional
             In the case of single discrete treatment, treat should be an int or
-            str in one of all possible treatment values which indicates the
+            str of one of all possible treatment values which indicates the
             value of the intended treatment;
             in the case of multiple discrete treatment, treat should be a list
             or a ndarray where treat[i] indicates the value of the i-th intended

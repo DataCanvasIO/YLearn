@@ -108,8 +108,8 @@ class NP2SLS(BaseEstLearner):
             covariate=covariate,
             adjustment=adjustment,
             instrument=instrument,
-            is_discrete_instrument=is_discrete_instrument
         )
+        self.is_discrete_instrument = is_discrete_instrument
 
         self._n = len(data)
 

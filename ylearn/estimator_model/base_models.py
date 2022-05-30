@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader
 
 from ylearn.utils import to_repr
 from .utils import BatchData
-
+# from ..utils._common import check_cols
 
 class BaseEstLearner:
     """
@@ -68,11 +68,14 @@ class BaseEstLearner:
     ):
         assert data is not None and isinstance(data, pd.DataFrame)
 
+        # check_cols(data, treatment, outcome)
+
         self.treatment = treatment
         self.outcome = outcome
-
+        
         for k, v in kwargs.items():
             setattr(self, k, v)
+            # check_cols(data, v)
 
         return self
     #

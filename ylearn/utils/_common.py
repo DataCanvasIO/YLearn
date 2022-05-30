@@ -21,7 +21,7 @@ def check_cols(data, *x,):
 
     for iter_ in x:
         if isinstance(iter_, str):
-            iter_ = set(iter_)
+            iter_ = {iter_}
 
         for i in iter_:
             assert i in all_cols, f'Nonexistent variable {i}.'
