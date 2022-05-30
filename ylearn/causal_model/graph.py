@@ -3,6 +3,7 @@ import numpy as np
 
 from copy import deepcopy
 from collections import defaultdict
+from ylearn.utils import to_repr
 from . import prob
 from .utils import (check_nodes, ancestors_of_iter, descendents_of_iter)
 
@@ -596,3 +597,11 @@ class CausalGraph:
             edge for edge in self.dag.out_edges(x, keys=True) if edge[2] == 0
         ]
         return self.remove_edges_from(removing_edges, new, observed=True)
+
+    def plot(self, **kwargs):
+        ng = nx.DiGraph(self.causation)
+        options = dict(with_labels=True, node_size=1000, **kwargs)
+        nx.draw(ng, **options)
+
+    def __repr__(self):
+        return to_repr(self)
