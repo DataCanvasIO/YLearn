@@ -185,7 +185,7 @@ def to_camel_case(snake_str):
     return ''.join(x.title() for x in components)
 
 
-def discard_none(**kwargs):
+def drop_none(**kwargs):
     r = {k: v for k, v in kwargs.items() if v is not None}
     return r
 

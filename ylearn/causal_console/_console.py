@@ -7,7 +7,7 @@ from ylearn import sklearn_ex as skex
 from ylearn.causal_discovery import DagDiscovery
 from ylearn.causal_model import CausalModel, CausalGraph
 from ylearn.estimator_model.base_models import BaseEstLearner
-from ylearn.utils import logging, view_pydot, infer_task_type, to_repr, discard_none
+from ylearn.utils import logging, view_pydot, infer_task_type, to_repr, drop_none
 from ._factory import ESTIMATOR_FACTORIES
 
 logger = logging.get_logger(__name__)
@@ -217,7 +217,7 @@ class CausalConsole:
                 adjustment=adjustment, covariate=covariate, instrument=instrument)
 
             logger.info(f'fit estimator for {x}  as {estimator}')
-            fit_kwargs = dict(**discard_none(adjustment=adjustment, covariate=covariate, instrument=instrument),
+            fit_kwargs = dict(**drop_none(adjustment=adjustment, covariate=covariate, instrument=instrument),
                               **kwargs)
             estimator.fit(data, outcome, x, **fit_kwargs)
             estimators[x] = estimator
