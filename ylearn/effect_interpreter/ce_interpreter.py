@@ -3,12 +3,11 @@
 # we can directly apply the fitted tree model to new test dataset and add support
 # for such method. In the later version, we may need to verify the correctness of
 # doing so and modify the method accordingly.
-from genericpath import sameopenfile
-from platform import node
+
 import numpy as np
 import pandas as pd
-from regex import F
 
+from sklearn.tree import plot_tree
 from sklearn.tree import DecisionTreeRegressor
 
 from ylearn.estimator_model.utils import convert2array
@@ -230,5 +229,95 @@ class CEInterpreter:
 
         return v
 
-    def plot(self,):
-        pass
+    def plot(
+        self, *,
+        max_depth=None,
+        class_names=None,
+        label='all',
+        filled=False,
+        node_ids=False,
+        proportion=False,
+        rounded=False,
+        precision=3,
+        ax=None,
+        fontsize=None
+    ):
+        """Plot a policy tree.
+        The sample counts that are shown are weighted with any sample_weights that
+        might be present.
+        The visualization is fit automatically to the size of the axis.
+        Use the ``figsize`` or ``dpi`` arguments of ``plt.figure``  to control
+        the size of the rendering.
+
+        Parameters
+        ----------        
+        max_depth : int, default=None
+            The maximum depth of the representation. If None, the tree is fully
+            generated.
+        
+        class_names : list of str or bool, default=None
+            Names of each of the target classes in ascending numerical order.
+            Only relevant for classification and not supported for multi-output.
+            If ``True``, shows a symbolic representation of the class name.
+        
+        label : {'all', 'root', 'none'}, default='all'
+            Whether to show informative labels for impurity, etc.
+            Options include 'all' to show at every node, 'root' to show only at
+            the top root node, or 'none' to not show at any node.
+        
+        filled : bool, default=False
+            When set to ``True``, paint nodes to indicate majority class for
+            classification, extremity of values for regression, or purity of node
+            for multi-output.
+        
+        impurity : bool, default=True
+            When set to ``True``, show the impurity at each node.
+        
+        node_ids : bool, default=False
+            When set to ``True``, show the ID number on each node.
+        
+        proportion : bool, default=False
+            When set to ``True``, change the display of 'values' and/or 'samples'
+            to be proportions and percentages respectively.
+        
+        rounded : bool, default=False
+            When set to ``True``, draw node boxes with rounded corners and use
+            Helvetica fonts instead of Times-Roman.
+        
+        precision : int, default=3
+            Number of digits of precision for floating point in the values of
+            impurity, threshold and value attributes of each node.
+        
+        ax : matplotlib axis, default=None
+            Axes to plot to. If None, use current axis. Any previous content
+            is cleared.
+        
+        fontsize : int, default=None
+            Size of text font. If None, determined automatically to fit figure.
+        
+        Returns
+        -------
+        annotations : list of artists
+            List containing the artists for the annotation boxes making up the
+            tree.
+        """
+        assert self._is_fitted
+
+        impurity = False
+        feature_names = self.covariate
+
+        return plot_tree(
+            self._tree_model,
+            max_depth=max_depth,
+            feature_names=feature_names,
+            class_names=class_names,
+            label=label,
+            filled=filled,
+            impurity=impurity,
+            node_ids=node_ids,
+            proportion=proportion,
+            rounded=rounded,
+            precision=precision,
+            ax=ax,
+            fontsize=fontsize,
+        )
