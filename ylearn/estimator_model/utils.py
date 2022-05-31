@@ -48,16 +48,20 @@ def get_tr_ctrl(tr_crtl, trans, treat=False, one_hot=False, discrete_treat=True)
     return tr_crtl
 
 
-def get_treat_control(treat_ctrl, num_treatments, treat=False):
+def get_treat_control(treat_ctrl, trans, treat=False):
+    n_treat = len(trans.categories_)
+
     if treat_ctrl is not None:
         if not isinstance(treat_ctrl, int):
-            assert len(treat_ctrl) == num_treatments
+            assert len(treat_ctrl) == n_treat
+        
         treat_ctrl = np.array(list(treat_ctrl))
+        treat_ctrl = trans.transform(treat_ctrl.reshape(1, -1))
     else:
         if treat:
-            treat_ctrl = np.ones((num_treatments, )).astype(int)
+            treat_ctrl = np.ones((1, n_treat)).astype(int)
         else:
-            treat_ctrl = np.zeros((num_treatments, )).astype(int)
+            treat_ctrl = np.zeros((1, n_treat)).astype(int)
 
     return treat_ctrl
 
