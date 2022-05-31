@@ -7,9 +7,11 @@ import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
+from ylearn.utils import drop_none
 
-from ylearn.utils import discard_none
 from ._base import BaseDiscovery
+
+_is_cuda_available = torch.cuda.is_available()
 
 
 def _update_random_state(random_state):
@@ -21,13 +23,16 @@ def _update_random_state(random_state):
 
 
 class L(nn.Module):
-    def __init__(self, num_linear, input_features, output_features):
+    def __init__(self, num_linear, input_features, output_features, dtype=None, device=None):
         super().__init__()
+
+        options = drop_none(dtype=dtype, device=device)
+
         self.num_linear = num_linear
         self.input_features = input_features
         self.output_features = output_features
-        self.weight = nn.Parameter(torch.Tensor(num_linear, input_features, output_features))
-        self.bias = nn.Parameter(torch.Tensor(num_linear, output_features))
+        self.weight = nn.Parameter(torch.empty((num_linear, input_features, output_features), **options))
+        self.bias = nn.Parameter(torch.empty((num_linear, output_features), **options))
         self.reset_parameters()
 
     @torch.no_grad()
@@ -46,10 +51,10 @@ class L(nn.Module):
 
 
 class A(nn.Module):
-    def __init__(self, dim):
+    def __init__(self, dim, dtype=None, device=None):
         super(A, self).__init__()
         self.layer_dim = dim
-        self.layers = [L(dim[0], dim[i + 1], dim[i + 2]) for i in range(len(dim) - 2)]
+        self.layers = [L(dim[0], dim[i + 1], dim[i + 2], dtype=dtype, device=device) for i in range(len(dim) - 2)]
         self.weights = [layer.weight for layer in self.layers]
 
     def forward(self, x):
@@ -59,15 +64,15 @@ class A(nn.Module):
 
 
 class DagNet(nn.Module):
-    def __init__(self, dims):
+    def __init__(self, dims, dtype=None, device=None):
         super().__init__()
         d = dims[0]
         self.dims = dims
-        self.a1 = nn.Linear(d, d * dims[1])
+        self.a1 = nn.Linear(d, d * dims[1], **drop_none(dtype=dtype, device=device))
         self.non_linear = False
         if len(dims) > 2:
             self.non_linear = True
-            self.an = A(dims)
+            self.an = A(dims, dtype=dtype, device=device)
 
     def forward(self, x):
         x = self.a1(x)
@@ -103,11 +108,12 @@ class DagNet(nn.Module):
 class DagDiscovery(BaseDiscovery):
     def __init__(self, hidden_layer_dim=None,
                  lambdaa: float = 0.01, h_tol: float = 1e-6, rho_max: float = 1e6,
-                 random_state=None):
+                 device=None, random_state=None):
         self.hidden_layer_dim = hidden_layer_dim
         self.lambdaa = lambdaa
         self.h_tol = h_tol
         self.rho_max = rho_max
+        self.device = device
         self.random_state = random_state
 
     @staticmethod
@@ -119,12 +125,12 @@ class DagDiscovery(BaseDiscovery):
     def _rho_h_update(self, model, optimizer, X, rho, alpha, h):
         h_new = None
         # X_torch = torch.from_numpy(X)
-        X_torch = torch.Tensor(X)
+        # X_torch = torch.tensor(X, dtype=torch.float32, device=self.device)
         while rho < self.rho_max:
             def closure():
                 optimizer.zero_grad()
-                X_hat = model(X_torch)
-                loss = self._squared_loss(X_hat, X_torch)
+                X_hat = model(X)
+                loss = self._squared_loss(X_hat, X)
                 h_val = model.h_func()
                 penalty = 0.5 * rho * h_val * h_val + alpha * h_val
                 l2_reg = 0.5 * self.lambdaa * model.l2_reg()
@@ -156,16 +162,22 @@ class DagDiscovery(BaseDiscovery):
         else:
             columns = None
 
+        device = self.device
+        if device is None or device == 'auto':
+            device = 'cuda' if _is_cuda_available else 'cpu'
+        dtype = torch.float32 if str(device) == 'cuda' else torch.float64
+        data_t = torch.tensor(data, dtype=dtype, device=self.device)
+
         d = data.shape[1]
         hidden = self.hidden_layer_dim if self.hidden_layer_dim is not None else []
-        model = DagNet(dims=[d] + hidden + [1])
+        model = DagNet(dims=[d] + hidden + [1], device=self.device)
         rho, alpha, h = 1.0, 0.0, np.inf
         for _ in range(epoch):
             optimizer = torch.optim.LBFGS(
                 model.parameters(),
-                **discard_none(lr=lr, max_iter=max_iter)
+                **drop_none(lr=lr, max_iter=max_iter)
             )
-            rho, alpha, h = self._rho_h_update(model, optimizer, data, rho, alpha, h)
+            rho, alpha, h = self._rho_h_update(model, optimizer, data_t, rho, alpha, h)
             W_est = model.get_W()
             if h <= self.h_tol or rho >= self.rho_max or np.isnan(W_est).any():
                 break
@@ -175,7 +187,7 @@ class DagDiscovery(BaseDiscovery):
             est = pd.DataFrame(est, columns=columns, index=columns)
 
         if return_dict:
-            est = self.matrix2dict(est, **discard_none(threshold=threshold))
+            est = self.matrix2dict(est, **drop_none(threshold=threshold))
         elif threshold is not None:
             est[np.abs(est) < threshold] = 0
 
