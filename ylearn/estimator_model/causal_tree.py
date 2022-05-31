@@ -285,8 +285,8 @@ class CausalTree(BaseEstLearner):
         n_treatments = len(self.transformer.categories_)
 
         # get new dataset with treat and controls
-        treat = get_treat_control(treat, n_treatments, True)
-        control = get_treat_control(control, n_treatments, treat=False)
+        treat = get_treat_control(treat, self.transformer, True)
+        control = get_treat_control(control, self.transformer, treat=False)
 
         self.treat = treat
         self.control = control

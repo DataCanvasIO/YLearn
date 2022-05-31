@@ -291,7 +291,7 @@ class PolicyTree:
         random_state = check_random_state(self.random_state)
 
         # Determine output settings
-        n_samples, self.n_features_in = v.shape  # dimension of the input
+        n_samples, self.n_features_in_ = v.shape  # dimension of the input
 
         # reshape ce if necessary
         if ce.ndim == 1:
@@ -375,16 +375,16 @@ class PolicyTree:
         # check max_features
         if isinstance(self.max_features, str):
             if self.max_features == 'sqrt':
-                max_features = max(1, int(np.sqrt(self.n_features_in)))
+                max_features = max(1, int(np.sqrt(self.n_features_in_)))
             elif self.max_features == 'log2':
-                max_features = max(1, int(np.log2(self.n_features_in)))
+                max_features = max(1, int(np.log2(self.n_features_in_)))
             else:
                 raise ValueError(
                     'Invalid value for max_features. Allowed string values'
                     f'Allowed string values are "sqrt" or "log2", but was given {self.max_features}.'
                 )
         elif self.max_features is None:
-            max_features = self.n_features_in
+            max_features = self.n_features_in_
         elif isinstance(self.max_features, numbers.Integral):
             check_scalar(
                 self.max_features,
@@ -405,7 +405,7 @@ class PolicyTree:
             )
             if self.max_features > 0.0:
                 max_features = max(
-                    1, int(self.max_features * self.n_features_in)
+                    1, int(self.max_features * self.n_features_in_)
                 )
             else:
                 max_features = 0
@@ -462,7 +462,7 @@ class PolicyTree:
 
         # Build tree step 3. Define the tree
         self.tree_ = Tree(
-            self.n_features_in,
+            self.n_features_in_,
             np.array([1] * self.n_outputs_, dtype=np.intp),
             self.n_outputs_,
         )
@@ -775,4 +775,4 @@ class PolicyTree:
 
     @property
     def n_features_(self):
-        return self.n_features_in
+        return self.n_features_in_
