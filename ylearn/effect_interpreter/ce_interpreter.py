@@ -199,7 +199,7 @@ class CEInterpreter:
                 value = v[sample_id, feature_id]
                 thre = threshold[node_id]
                 result_dict[f'sample_{sample_id}'] += f'decision node {node_id}: (covariate [{sample_id}, {feature_id}] = {value})' \
-                    f'{thre_sign} {thre} \n'
+                    f' {thre_sign} {thre} \n'
         
         return result_dict
 
@@ -222,7 +222,7 @@ class CEInterpreter:
             if hasattr(self, 'cov_transformer'):
                 v = self.cov_transformer.transform(v)
 
-            assert v.shape[1] == self._tree_model.n_features_
+            assert v.shape[1] == self._tree_model.n_features_in_
             v = v.reshape(-1, 1) if v.ndim == 1 else v
 
         v = v.astype(np.float32)
@@ -231,6 +231,7 @@ class CEInterpreter:
 
     def plot(
         self, *,
+        feature_names=None,
         max_depth=None,
         class_names=None,
         label='all',
@@ -304,7 +305,9 @@ class CEInterpreter:
         assert self._is_fitted
 
         impurity = False
-        feature_names = self.covariate
+
+        if feature_names == None:
+            feature_names = self.covariate
 
         return plot_tree(
             self._tree_model,
