@@ -34,20 +34,31 @@ class BaseDiscovery:
         assert matrix.ndim == 2 and matrix.shape[0] == matrix.shape[1]
         assert names is None or len(names) == matrix.shape[0]
 
+        matrix = matrix.copy()
+
         if names is None and isinstance(matrix, pd.DataFrame):
             names = matrix.columns.tolist()
+        if isinstance(matrix, pd.DataFrame):
+            matrix = matrix.values
 
-        r = OrderedDict()
+        for i in range(matrix.shape[0]):
+            for c in range(i + 1, matrix.shape[0]):
+                if abs(matrix[i, c]) < abs(matrix[c, i]):
+                    matrix[i, c] = 0.
+                else:
+                    matrix[c, i] = 0.
+
+        d = OrderedDict()
         idx = np.arange(matrix.shape[0])
         for i in range(matrix.shape[0]):
-            row = matrix.iloc[i] if hasattr(matrix, 'iloc') else matrix[i]
+            row = matrix[i]
             to = np.where(np.where(np.abs(row) > threshold, idx, -1) >= 0)[0]
             if names is None:
-                r[i] = to.tolist()
+                d[i] = to.tolist()
             else:
-                r[names[i]] = [names[t] for t in to]
+                d[names[i]] = [names[t] for t in to]
 
-        return r
+        return d
 
     @staticmethod
     def matrix2array(matrix, names=None, ):
@@ -67,9 +78,17 @@ class BaseDiscovery:
 
         r = []
         for row in range(matrix.shape[0]):
-            for col in range(matrix.shape[1]):
-                v = matrix.iloc[row, col] if hasattr(matrix, 'iloc') else matrix[row, col]
-                r.append([row, col, v])
+            for col in range(row + 1, matrix.shape[1]):
+                if hasattr(matrix, 'iloc'):
+                    v = matrix.iloc[row, col]
+                    vt = matrix.iloc[col, row]
+                else:
+                    v = matrix[row, col]
+                    vt = matrix[row, col]
+                if abs(v) >= abs(vt):
+                    r.append([row, col, v])
+                else:
+                    r.append([col, row, vt])
 
         if names is not None:
             r = [[names[row[0]], names[row[1]], row[2]] for row in r]
