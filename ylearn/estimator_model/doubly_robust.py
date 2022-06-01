@@ -416,6 +416,10 @@ class DoublyRobust(BaseEstLearner):
 
         return x
 
+    def effect_nji(self, data=None):
+        y_nji = self._prepare4est(data=data, all_tr=True)
+        return y_nji
+
     def _prepare4est(self, data=None, all_tr=False, treat=None):
         if not all((self.x_hat_dict['is_fitted'][0],
                    self.y_hat_dict['is_fitted'][0],

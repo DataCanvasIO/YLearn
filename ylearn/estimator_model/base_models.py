@@ -78,6 +78,10 @@ class BaseEstLearner:
             # check_cols(data, v)
 
         return self
+
+    def effect_nji(self, *args, **kwargs):
+        pass
+    
     #
     # def _prepare_(
     #     self,

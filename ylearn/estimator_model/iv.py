@@ -1,4 +1,6 @@
 from copy import deepcopy
+from tabnanny import check
+from matplotlib.pyplot import axis
 
 import numpy as np
 
@@ -117,7 +119,8 @@ class NP2SLS(BaseEstLearner):
         y, x, z, w, v = convert2array(
             data, outcome, treatment, instrument, adjustment, covariate
         )
-
+        self._y_d = y.shape[1]
+        
         if self.is_discrete_treatment:
             self.treatment_transformer = OrdinalEncoder()
             self.treatment_transformer.fit(x)
@@ -203,7 +206,7 @@ class NP2SLS(BaseEstLearner):
             treat = self.treat
         if hasattr(self, 'control') and control is None:
             control = self.control
-        
+
         yt, y0 = self._prepare4est(
             data=data,
             treat=treat,
@@ -221,6 +224,41 @@ class NP2SLS(BaseEstLearner):
         else:
             return yt
 
+    def effect_nji(self, data=None):
+        if self.is_discrete_treatment:
+            v, w, x, n = self._check_data(data=data)
+            x_d = len(self.treatment_transformer.categories_[0])
+            y_nji = np.full((n, self._y_d, x_d), np.nan)
+            
+            for treat in range(x_d):
+                xt = np.repeat(np.array([[treat]]), n, axis=0)
+                xt = self._x_basis_func.fit_transform(xt)
+                
+                xv_t = nd_kron(xt, v) if v is not None else xt
+                xvw_t = get_wv(xv_t, w, np.ones((n, 1)))
+                y_pred = self.y_model.predict(xvw_t).reshape(-1, self._y_d)
+                
+                y_nji[:, :, treat] = y_pred
+            
+            y_ctrl = y_nji[:, :, 0].reshape(n, -1, 1).repeat(x_d, aixs=2)
+        else:
+            yt, y0 = self._prepare4est(data=data, marginal_effect=False)
+
+            if yt.ndim == 1:
+                yt = yt.reshape(-1, 1)
+                y0 = y0.reshape(-1, 1)
+            
+            n, y_d = yt.shape
+            y_nji = np.full(n, y_d, 2)
+
+            y_nji[:, :, 0] = y0
+            y_nji[:, :, 1] = yt
+            y_ctrl = y0.reshape(n, -1, 1).repeat(2, axis=2)
+        
+        y_nji = y_nji - y_ctrl
+        
+        return y_nji
+
     def _prepare4est(
         self,
         data,
@@ -228,18 +266,7 @@ class NP2SLS(BaseEstLearner):
         control,
         marginal_effect,
     ):
-        if data is None:
-            v = self._v_transformed
-            w = self._w
-            x = None
-            n = self._n
-        else:
-            x, w, v = convert2array(
-                data, self.treatment, self.adjustment, self.covariate
-            )
-            v = self._v_basis_func.fit_transform(v) if v is not None else None
-
-            n = len(data)
+        v, w, x, n = self._check_data(data=data)
 
         if x is None:
             if self.is_discrete_treatment:
@@ -274,6 +301,22 @@ class NP2SLS(BaseEstLearner):
         y0 = self.y_model.predict(xvw_0)
 
         return yt, y0
+
+    def _check_data(self, data):
+        if data is None:
+            v = self._v_transformed
+            w = self._w
+            x = None
+            n = self._n
+        else:
+            x, w, v = convert2array(
+                data, self.treatment, self.adjustment, self.covariate
+            )
+            v = self._v_basis_func.fit_transform(v) if v is not None else None
+
+            n = len(data)
+
+        return v, w, x, n
 
     def get_basis_func(self, degree, func, para, **kwargs):
         if func == 'Poly':

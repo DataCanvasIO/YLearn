@@ -499,6 +499,9 @@ class DML4CATE(BaseEstLearner):
 
         return x
 
+    def effect_nji(self, data=None):
+        return self._prepare4est(data=data)
+
     def _prepare4est(self, data=None, *args, **kwargs):
         """Prepare for the estimation of causal quantities.
 

@@ -1,3 +1,4 @@
+from webbrowser import Elinks
 import numpy as np
 
 from sklearn import clone
@@ -252,6 +253,23 @@ class SLearner(BaseEstLearner):
         else:
             return effect
 
+    def effect_nji(self, data=None):
+        y_nji = self._prepare4est(data=data)
+        
+        if y_nji.ndim == 3:
+            n, y_d, x_d = y_nji.shape
+        elif y_nji.ndim == 2:
+            n, y_d = y_nji.shape
+            x_d = 1
+        else:
+            n, y_d, x_d = y_nji.shape[0], 1, 1
+        
+        y_nji = y_nji.reshape(n, y_d, x_d)
+        zeros_ = np.zeros((n, y_d, 1))
+        y_nji = np.concatenate((zeros_, y_nji), axis=2)
+        
+        return y_nji
+        
     def _fit_combined_treat(
         self,
         x, wv, y,
@@ -680,6 +698,23 @@ class TLearner(BaseEstLearner):
         else:
             return effect
 
+    def effect_nji(self, data=None):
+        y_nji = self._prepare4est(data=data)
+        
+        if y_nji.ndim == 3:
+            n, y_d, x_d = y_nji.shape
+        elif y_nji.ndim == 2:
+            n, y_d = y_nji.shape
+            x_d = 1
+        else:
+            n, y_d, x_d = y_nji.shape[0], 1, 1
+        
+        y_nji = y_nji.reshape(n, y_d, x_d)
+        zeros_ = np.zeros((n, y_d, 1))
+        y_nji = np.concatenate((zeros_, y_nji), axis=2)
+        
+        return y_nji
+
     def _prepare4est(self, data=None):
         if not self._is_fitted:
             raise Exception('The estimator has not been fitted yet.')
@@ -1097,6 +1132,23 @@ class XLearner(BaseEstLearner):
             return np.mean(effect, axis=0)
         else:
             return effect
+
+    def effect_nji(self, data=None):
+        y_nji = self._prepare4est(data=data)
+        
+        if y_nji.ndim == 3:
+            n, y_d, x_d = y_nji.shape
+        elif y_nji.ndim == 2:
+            n, y_d = y_nji.shape
+            x_d = 1
+        else:
+            n, y_d, x_d = y_nji.shape[0], 1, 1
+        
+        y_nji = y_nji.reshape(n, y_d, x_d)
+        zeros_ = np.zeros((n, y_d, 1))
+        y_nji = np.concatenate((zeros_, y_nji), axis=2)
+        
+        return y_nji
 
     def _fit_combined_treat(
         self,
