@@ -1,5 +1,6 @@
 import math
 
+import numpy as np
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder
 
@@ -124,15 +125,20 @@ class CausalConsole:
                  discovery_model=None,  # notears_linear, ...
                  estimator='auto',  # auto, dml, dr, ml or metaleaner, iv, div, ...
                  estimator_options=None,  # dict or None
+                 scorer=None,  # auto, rloss, or None
+                 scorer_options=None,  # dict or None
                  random_state=None):
         assert isinstance(estimator, (str, BaseEstLearner))
         if isinstance(estimator, str):
             assert estimator == 'auto' or estimator in ESTIMATOR_FACTORIES.keys()
+        assert scorer is None or scorer in {'auto', 'rloss'}
 
         self.identify_method = identify_method
         self.discovery_model = discovery_model
         self.estimator = estimator
         self.estimator_options = estimator_options
+        self.scorer = scorer
+        self.scorer_options = scorer_options
         self.random_state = random_state
 
         # fitted
@@ -150,6 +156,7 @@ class CausalConsole:
         self.y_encoder_ = None
         self.preprocessor_ = None
         self.estimators_ = None
+        self.scorers_ = None
         # ...
 
     # def fit(self, X, y, warm_start=False):
@@ -211,16 +218,28 @@ class CausalConsole:
         data[columns] = data_t
 
         estimators = {}
+        scorers = {} if self.scorer is not None else None
         for x in treatment:
             estimator = self._create_estimator(
                 data, outcome, treatment=x,
                 adjustment=adjustment, covariate=covariate, instrument=instrument)
 
-            logger.info(f'fit estimator for {x}  as {estimator}')
+            logger.info(f'fit estimator for {x} with {estimator}')
             fit_kwargs = dict(**drop_none(adjustment=adjustment, covariate=covariate, instrument=instrument),
                               **kwargs)
             estimator.fit(data, outcome, x, **fit_kwargs)
             estimators[x] = estimator
+
+            if self.scorer is not None:
+                scorer = self._create_scorer(
+                    data, outcome, treatment=x,
+                    adjustment=adjustment, covariate=covariate, instrument=instrument
+                )
+                logger.info(f'fit scorer for {x} with {scorer}')
+                scorer.fit(data, outcome, x,
+                           **drop_none(adjustment=adjustment, covariate=covariate, instrument=instrument)
+                           )
+                scorers[x] = scorer
 
         self.feature_names_in_ = feature_names
         self.outcome_ = outcome
@@ -230,8 +249,11 @@ class CausalConsole:
         self.instrument_ = instrument
 
         self.estimators_ = estimators
+        self.scorers_ = scorers
         self.y_encoder_ = y_encoder
         self.preprocessor_ = preprocessor
+
+        return self
 
     @staticmethod
     def _discovery(data, outcome, random_state):
@@ -365,6 +387,23 @@ class CausalConsole:
                             random_state=self.random_state)
         return estimator
 
+    def _create_scorer(self, data, outcome, *,
+                       treatment=None, adjustment=None, covariate=None, instrument=None):
+        scorer = self.scorer
+        if scorer == 'auto':
+            scorer = 'rloss'
+
+        x_task, _ = infer_task_type(data[treatment])
+        options = self.scorer_options if self.scorer_options is not None else {}
+        factory = ESTIMATOR_FACTORIES[scorer](**options)
+        scorer = factory(data, outcome, y_task=self.task, x_task=x_task,
+                         treatment=treatment,
+                         adjustment=adjustment,
+                         covariate=covariate,
+                         instrument=instrument,
+                         random_state=self.random_state)
+        return scorer
+
     def causal_graph(self):
         raise NotImplemented()
 
@@ -417,8 +456,19 @@ class CausalConsole:
     def whatif(self, data, new_value, treatment):
         raise NotImplemented()
 
-    def score(self, Xtest):
-        raise NotImplemented()
+    def score(self, Xtest=None):
+        assert Xtest is None  # fixme
+
+        if self.scorers_ is None:
+            raise ValueError(f'scorer was disabled. setup scorer and fit the {type(self).__init__} pls.')
+
+        sa = []
+        for x, scorer in self.scorers_.items():
+            est = self.estimators_[x]
+            sa.append(scorer.score(est))
+        score = np.mean(sa)
+
+        return score
 
     # def plot_heterogeneity_tree(self, Xtest, feature_index, *,
     #                             max_depth=3, min_samples_leaf=2, min_impurity_decrease=1e-4,

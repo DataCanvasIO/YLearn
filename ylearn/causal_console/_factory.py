@@ -244,3 +244,23 @@ class DeepIVFactory(BaseEstimatorFactory):
             is_discrete_treatment=x_task != const.TASK_REGRESSION,
             random_state=random_state,
         )
+
+
+@register()
+class RLossFactory(BaseEstimatorFactory):
+    def __init__(self, y_model='rf', x_model='rf'):
+        self.y_model = y_model
+        self.x_model = x_model
+
+    def __call__(self, data, outcome, treatment, y_task, x_task,
+                 adjustment=None, covariate=None, instrument=None, random_state=None):
+        from ylearn.estimator_model.effect_score import RLoss
+
+        return RLoss(
+            y_model=self._model(data, task=y_task, estimator=self.y_model, random_state=random_state),
+            x_model=self._model(data, task=x_task, estimator=self.x_model, random_state=random_state),
+            cf_fold=self._cf_fold(data),
+            # is_discrete_outcome=y_task != const.TASK_REGRESSION,
+            is_discrete_treatment=x_task != const.TASK_REGRESSION,
+            random_state=random_state,
+        )
