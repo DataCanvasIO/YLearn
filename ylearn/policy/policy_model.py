@@ -80,7 +80,7 @@ class PolicyTree:
 
     max_features_ : int
         The inferred value of max_features.
-    
+
     n_features_in_ : int
         Number of features seen during fit().
 
@@ -184,7 +184,7 @@ class PolicyTree:
             - If float, then `min_samples_leaf` is a fraction and
             `ceil(min_samples_leaf * n_samples)` are the minimum
             number of samples for each node.
-        
+
         min_weight_fraction_leaf : float, default=0.0
             The minimum weighted fraction of the sum total of weights (of all
             the input samples) required to be at a leaf node. Samples have
@@ -202,7 +202,7 @@ class PolicyTree:
 
         random_state : int
             Controls the randomness of the estimator.
-        
+
         max_leaf_nodes : int, default to None
             Grow a tree with ``max_leaf_nodes`` in best-first fashion.
             Best nodes are defined as relative reduction in impurity.
@@ -224,7 +224,7 @@ class PolicyTree:
             Value for pruning the tree. #TODO: not implemented yet.
         """
         self._is_fitted = False
-        
+
         self.criterion = criterion
         self.splitter = splitter
         self.max_depth = max_depth
@@ -245,6 +245,7 @@ class PolicyTree:
         effect_array=None,
         est_model=None,
         sample_weight=None,
+        **kwargs,
     ):
         # TODO: consider possibility for generalizing continuous treatment
         """Fit the model on data.
@@ -268,7 +269,7 @@ class PolicyTree:
         """
         ce, v = convert2array(data, effect, covariate)
         self.covariate = covariate
-        
+
         if effect_array is not None:
             ce = effect_array
         else:
@@ -276,17 +277,20 @@ class PolicyTree:
                 assert est_model is not None, \
                     'The causal effect is not provided and no estimator model is'
                 'provided to estimate it from the data.'
+
+                assert est_model._is_fitted
+
                 assert est_model.covariate == covariate
 
                 if hasattr(est_model, 'covariate_transformer'):
                     self.cov_transformer = est_model.covariate_transformer
                     v = self.cov_transformer.transform(v)
 
-                ce = est_model.estimate(data)
-                assert ce.ndim == 2 or ce.ndim == 1
+                ce = est_model.estimate(data, **kwargs)
+                ce = self._check_ce(ce)
 
         self._v = v
-        
+
         # check random state
         random_state = check_random_state(self.random_state)
 
@@ -446,7 +450,7 @@ class PolicyTree:
 
         # Build tree step 2. Define splitter
         splitter = self.splitter
-        
+
         if not isinstance(self.splitter, Splitter):
             splitter = SPLITTERS[self.splitter](
                 criterion,
@@ -561,9 +565,26 @@ class PolicyTree:
                 return proba[:, :, 0]
         else:
             pass
-        
+
     def _prune_tree(self):
         raise NotImplemented()
+
+    def _check_ce(self, ce):
+        if ce.dim == 1:
+            ce = ce.reshape(-1, 1)
+        else:
+            n, _yx_d = ce.shape[0], ce.shape[1]
+            if ce.ndim == 3:
+                assert _yx_d == 1, f'Expect effect array with shape {(n, ce.shape[2])}, but was given {(n, _yx_d, ce.shape[2])}'
+
+                ce = ce.reshape(n, -1)
+            elif ce.ndim == 2:
+                pass
+            else:
+                raise ValueError(
+                    f'Expect effect array with shape (num_samples, num_treatments) but was given {ce.shape}')
+
+        return ce
 
     def _check_features(self, *, v=None, data=None):
         """Validate the training data on predict (probabilities)."""
@@ -572,9 +593,9 @@ class PolicyTree:
             v = v.reshape(-1, 1) if v.ndim == 1 else v
             assert v.shape[1] == self.n_features_in_
             v = v.astype(np.float32)
-            
+
             return v
-        
+
         if data is None:
             v = self._v
         else:
@@ -587,9 +608,9 @@ class PolicyTree:
             assert v.shape[1] == self.tree_.n_features
 
         v = v.astype(np.float32)
-        
+
         return v
-                
+
     def apply(self, *, v=None, data=None):
         """Return the index of the leaf that each sample is predicted as.
 
@@ -612,8 +633,7 @@ class PolicyTree:
 
         v = self._check_features(v=v, data=data)
 
-        return self.tree_.apply(v)     
-        
+        return self.tree_.apply(v)
 
     def decision_path(self, *, v=None, data=None):
         """Return the decision path in the tree.
@@ -624,7 +644,7 @@ class PolicyTree:
             The input samples. The data must contains columns of the covariates
             used for training the model. If None, the training data will be
             passed as input samples , by default None
-        
+
         Returns
         -------
         indicator : sparse matrix of shape (n_samples, n_nodes)
@@ -679,7 +699,6 @@ class PolicyTree:
         assert self._is_fitted
         return self.tree_.n_leaves
 
-
     def plot(
         self, *,
         max_depth=None,
@@ -705,47 +724,47 @@ class PolicyTree:
         max_depth : int, default=None
             The maximum depth of the representation. If None, the tree is fully
             generated.
-        
+
         class_names : list of str or bool, default=None
             Names of each of the target classes in ascending numerical order.
             Only relevant for classification and not supported for multi-output.
             If ``True``, shows a symbolic representation of the class name.
-        
+
         label : {'all', 'root', 'none'}, default='all'
             Whether to show informative labels for impurity, etc.
             Options include 'all' to show at every node, 'root' to show only at
             the top root node, or 'none' to not show at any node.
-        
+
         filled : bool, default=False
             When set to ``True``, paint nodes to indicate majority class for
             classification, extremity of values for regression, or purity of node
             for multi-output.
-        
+
         impurity : bool, default=True
             When set to ``True``, show the impurity at each node.
-        
+
         node_ids : bool, default=False
             When set to ``True``, show the ID number on each node.
-        
+
         proportion : bool, default=False
             When set to ``True``, change the display of 'values' and/or 'samples'
             to be proportions and percentages respectively.
-        
+
         rounded : bool, default=False
             When set to ``True``, draw node boxes with rounded corners and use
             Helvetica fonts instead of Times-Roman.
-        
+
         precision : int, default=3
             Number of digits of precision for floating point in the values of
             impurity, threshold and value attributes of each node.
-        
+
         ax : matplotlib axis, default=None
             Axes to plot to. If None, use current axis. Any previous content
             is cleared.
-        
+
         fontsize : int, default=None
             Size of text font. If None, determined automatically to fit figure.
-        
+
         Returns
         -------
         annotations : list of artists
