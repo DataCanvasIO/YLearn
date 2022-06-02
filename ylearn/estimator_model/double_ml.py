@@ -1,5 +1,6 @@
 from copy import deepcopy
 from collections import defaultdict
+import xdrlib
 
 import numpy as np
 
@@ -499,8 +500,16 @@ class DML4CATE(BaseEstLearner):
 
         return x
 
-    def effect_nji(self, data=None):
-        return self._prepare4est(data=data)
+    def effect_nji(self, data=None, control=0):
+        y_nji = self._prepare4est(data=data)
+        n, x_d = y_nji.shape[0], y_nji.shape[2]
+        
+        if self.is_discrete_treatment:
+            temp_y = y_nji[:, :, 0].reshape(n, -1, 1)
+            temp_y = np.repeat(temp_y, x_d, axis=2)
+            y_nji = y_nji - temp_y
+        
+        return y_nji
 
     def _prepare4est(self, data=None, *args, **kwargs):
         """Prepare for the estimation of causal quantities.

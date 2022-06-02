@@ -982,7 +982,7 @@ class XLearner(BaseEstLearner):
         Parameters
         ----------
         model : estimator, optional
-            The base machine learning model for training TLearner. Any model
+            The base machine learning model for training XLearner. Any model
             should be some valid machine learning model with fit() and
             predict_proba() functions.
       
