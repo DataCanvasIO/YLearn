@@ -38,7 +38,6 @@ _is_sk10 = Version(sklearn.__version__) >= Version('1.0')
 
 CRITERIA = {
     "policy_reg": PRegCriteria,
-    "policy_clf": None,
     'policy_test': MSE,
     'policy_test1': PRegCriteria1
 }
@@ -260,8 +259,8 @@ class PolicyTree:
         effect : str or list of str
             Names of the causal effects vectors.
 
-        effect_array : ndarray
-            ndarray of ausal effects.
+        effect_array : ndarray of shape (n, n_treatments)
+            ndarray of causal effects.
 
         Returns
         ----------
@@ -280,13 +279,15 @@ class PolicyTree:
 
                 assert est_model._is_fitted
 
-                assert est_model.covariate == covariate
+                # assert est_model.covariate == covariate
+                self.covariate = est_model.covariate
+                v = convert2array(data, self.covariate)[0]
 
-                if hasattr(est_model, 'covariate_transformer'):
+                if hasattr(est_model, 'covariate_transformer') and est_model.covariate_transformer is not None:
                     self.cov_transformer = est_model.covariate_transformer
                     v = self.cov_transformer.transform(v)
 
-                ce = est_model.estimate(data, **kwargs)
+                ce = est_model.effect_nji(data)
                 ce = self._check_ce(ce)
 
         self._v = v
@@ -445,7 +446,7 @@ class PolicyTree:
             criterion = deepcopy(self.criterion)
 
         logger.info(
-            f'Start building the causal tree with criterion {type(criterion).__name__}'
+            f'Start building the policy tree with criterion {type(criterion).__name__}'
         )
 
         # Build tree step 2. Define splitter
@@ -461,7 +462,7 @@ class PolicyTree:
             )
 
         logger.info(
-            f'Building the causal tree with splitter {type(splitter).__name__}'
+            f'Building the policy tree with splitter {type(splitter).__name__}'
         )
 
         # Build tree step 3. Define the tree
@@ -504,7 +505,7 @@ class PolicyTree:
             )
 
         logger.info(
-            f'Building the causal tree with builder {type(builder).__name__}'
+            f'Building the policy tree with builder {type(builder).__name__}'
         )
 
         builder.build(self.tree_, v, ce, sample_weight)
@@ -558,7 +559,7 @@ class PolicyTree:
         proba = self.tree_.predict(v)
         n_samples = v.shape[0]
 
-        if self.criterion == 'policy_reg':
+        if self.criterion == 'policy_reg' or self.criterion == 'policy_test1':
             if self.n_outputs_ == 1:
                 return proba[:, 0]
             else:
@@ -570,7 +571,7 @@ class PolicyTree:
         raise NotImplemented()
 
     def _check_ce(self, ce):
-        if ce.dim == 1:
+        if ce.ndim == 1:
             ce = ce.reshape(-1, 1)
         else:
             n, _yx_d = ce.shape[0], ce.shape[1]
@@ -702,6 +703,7 @@ class PolicyTree:
     def plot(
         self, *,
         max_depth=None,
+        feature_names=None,
         class_names=None,
         label='all',
         filled=False,
@@ -774,7 +776,7 @@ class PolicyTree:
         assert self._is_fitted
 
         impurity = False
-        feature_names = self.covariate
+        feature_names = self.covariate if feature_names is None else feature_names
 
         return plot_tree(
             self,
