@@ -19,7 +19,7 @@ from libc.stdio cimport printf
 cdef double eps = 1e-5
 cdef double alpha = 1e10
 
-cdef class PRegCriteria(RegressionCriterion):
+cdef class PRegCriteria1(RegressionCriterion):
     cdef double node_impurity(self) nogil:
         """Evaluate the impurity of the current node, i.e. the impurity of
         samples[start:end]. Specifically, we directly choose the max value of
@@ -83,7 +83,7 @@ cdef class PRegCriteria(RegressionCriterion):
         impurity_right[0] = alpha - max_sum_right / self.weighted_n_right
 
 
-cdef class PRegCriteria1(RegressionCriterion):
+cdef class PRegCriteria(RegressionCriterion):
     cdef double node_impurity(self) nogil:
         """Evaluate the impurity of the current node, i.e. the impurity of
         samples[start:end]. Specifically, we directly choose the max value of

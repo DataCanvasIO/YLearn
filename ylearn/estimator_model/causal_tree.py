@@ -38,6 +38,7 @@ SPLITTERS = {"best": BestSplitter, "random": RandomSplitter}
 EPS = 1e-5
 
 class CausalTree(BaseEstLearner):
+    # TODO: add support for multi-output causal tree
     """
     A class for estimating causal effect with decision tree.
 
@@ -582,6 +583,14 @@ class CausalTree(BaseEstLearner):
         wv = wv.astype(np.float32)
         
         return wv
+
+    def effect_nji(self, data=None):
+        y_nji = self._prepare4est(data=data)
+        n, y_d = y_nji.shape
+        y_nji = y_nji.reshape(n, y_d, -1)
+        zeros_ = np.zeros((n, y_d, 1))
+        y_nji = np.concatenate((zeros_, y_nji), axis=2)
+        return y_nji
 
     def _prepare4est(self, data=None):
         wv = self._check_features(wv=None, data=data)

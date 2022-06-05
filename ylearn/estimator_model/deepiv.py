@@ -47,13 +47,13 @@ class MixtureDensityNetwork(nn.Module):
         ----------
         in_d : int
             Dimension of a single data point.
-        
+
         out_d : int
             Dimension of the gaussian distribution.
-        
+
         hidden_d : int
             Number of neurons in the hidden layer.
-        
+
         num_gaussian : int
             Number of gaussian distributions to be mixed.
         """
@@ -100,11 +100,11 @@ class MixtureDensityNetwork(nn.Module):
         pi : tensor
             Mixing coefficient with the shape (b, num_gaussian) and each
             component of pi is in the range [0, 1].
-        
+
         mu : tensor
             Mean of each mixing component with the shape
             (b, num_gaussian, out_d).
-        
+
         sigma : tensor
             Variance with the shape (b, num_gaussian, out_d) and each
             component of sigma is large than 0.
@@ -141,15 +141,15 @@ class MDNWrapper:
     ----------
     loss_fn(pi, mu, sigma, y)
         Calculate the loss used for training the mdn.
-    
+
     fit(X, y, device='cuda', lr=0.01, epoch=1000,
         optimizer='SGD', batch_size=128)
         Train the mdn model with data (X, y).
-    
+
     predict(X, y)
         Calculate the probability P(y|X) with the trained mixture density
         network.
-    
+
     sample()
         Generate samples with the mixture density network.
     """
@@ -184,15 +184,15 @@ class MDNWrapper:
             Has shape (b, num_gaussian) where b is the batch size and
             num_gaussian is the number of mixiing gaussian distributions. The
             mixing coefficient of gaussian distributions.
-       
+
         mu : tensor
             Shape (b, num_gaussian, out_d) where out_d is the dimension of
             each mixed gaussian distribution.
-       
+
         sigma : tensor
             Has shape (b, num_gaussian, out_d). The variance of the gaussian
             distributions.
-       
+
         y : tensor
             Has shape (b, out_d).
 
@@ -223,24 +223,24 @@ class MDNWrapper:
         X : tensor
             Has shape (b, in_d) where b is the batch size or the number of data
             points and in_d is the dimension of each data point.
-        
+
         y : tensor
             Has shape (b, out_d) where out_d is the dimension of each y.
-       
+
         device : str, optional. Defaults to 'cuda'.
-        
+
         lr : float, optional. Defaults to 0.01.
             Learning rate.
-       
+
         epoch : int, optional. Defaults to 1000.
             The number of epochs used for training.
-        
+
         optimizer : str, optional. Defaults to 'SGD'.
             Currently including SGD and Adam The type of optimizer used for
             training.
-        
+
         batch_size: int, optional. Defaults to 128.
-       
+
         optim_config : other parameters for various optimizers.
         """
         self.model = self.model.to(device)
@@ -280,7 +280,7 @@ class MDNWrapper:
         X : tensor
             Has shape (b, in_d) where b is the batch size and in_d is the
             dimension of each data point
-       
+
         y : tensor
             Has shape (b, out_d).
 
@@ -309,7 +309,7 @@ class MDNWrapper:
         ----------
         X : tensor
             Shape (b, in_d) where b is the batch size.
-       
+
         sample_num : tuple of int
             Eg., (5, ) means generating (5*b) samples.
 
@@ -529,54 +529,54 @@ class DeepIV(BaseEstLearner):
     Attributes
     ----------
     x_net_kwargs : dict
-    
+
     y_net_kwargs : dict
-    
+
     _x_net_init : Net
         The model for the treatment.
-    
+
     _y_net_init : Net
         The model for the outcome.
-    
+
     x_net : NetWrapper, optional
         Wrapped treatment model.
-    
+
     y_net : NetWrapper, optional
         Wrapped outcome model.
-    
+
     is_discrete_instrument : bool
         True if the instrument is discrete.
-    
+
     randome_state : int
-    
+
     is_discrete_treatment : bool
-    
+
     is_discrete_outcome : bool
-    
+
     categories : str, optional. Defaults to 'auto'
-   
+
     x_transformer : OneHotEncoder, optional
         Transformer of the treatment.
-   
+
     _z_transformer : OneHotEncoder, optional
         Transformer of the instrument
-  
+
     y_transformer : OneHotEncoder, optional
         Transformer of the outcome
- 
+
     w : ndarray with shape (n, w_d)
         Adjustment variables in the training data where n is the number of
         examples and w_d is the number of adjustment and covaraite.
-  
+
     _y_d : ndarray
         Shapes of the outcome variables in the training data.
-   
+
     _x_d : ndarray
         Shapes of the treatment variables in the training data.
-   
+
     _w_d : ndarray
         Shapes of the adjustment variables in the training data.
-   
+
     _z_d : ndarray
         Shapes of the instrumental variables in the training data.
 
@@ -586,18 +586,19 @@ class DeepIV(BaseEstLearner):
         approx_grad=True, sample_n=None, x_net_config=None, 
         y_net_config=None, **kwargs)
         Fit the instance of DeepIV.
-    
+
     estimate(data=None, treat=None, control=None, quantity='CATE', marginal_effect=False,
              *args, **kwargs,)
         Estimate the causal effect.
-    
+
     _gen_x_model(x_model, *args, **kwargs)
-    
+
     _gen_y_model(y_model, *args, **kwargs)
-    
+
     _prepare4est(data, treat=None, control=None, marginal_effect=False)
-    
+
     """
+
     def __init__(
         self,
         x_net=None,
@@ -617,27 +618,27 @@ class DeepIV(BaseEstLearner):
         x_net : Net
             Representation of the mixture density network for continuous
             treatment or an usual classification net for discrete treatment.
-       
+
         y_net :  Net
             Representation of the outcome network.
-       
+
         x_hidden_d : int, optional. Defaults to None
             Dimension of the hidden layer of the default x_net of DeepIV.
-      
+
         y_hidden_d : int, optional. Defaults to None
             Dimension of the hidden layer of the default y_net of DeepIV.
-       
+
         num_gaussian : int, optional. Defaults to 5.
             Number of gaussians when using the mixture density network.
-      
+
         is_discrete_treatment : bool, optional. Defaults to False.
-      
+
         is_discrete_outcome : bool, optional. Defaults to False.
-     
+
         is_discrete_instrument : bool, optional. Defaults to False.
-     
+
         categories : str, optional. Defaults to 'auto'
-      
+
         random_state : int, optional. Defaults to 2022.
         """
         self.x_net_kwargs = {}
@@ -778,6 +779,42 @@ class DeepIV(BaseEstLearner):
 
         self._is_fitted = True
         return self
+
+    def effect_nji(self, data=None):
+        if not hasattr(self, 'x_net') or not hasattr(self, 'y_net'):
+            raise Exception('The estimator is not fitted yet.')
+        
+        if data is None:
+            w = self.w
+        else:
+            w = convert2tensor(
+                convert2array(data, self.adjustment)[0]
+            )[0]
+
+        n = w.shape[0]
+        ones = torch.eye(n, self._x_d)
+
+        y_nji = torch.full((n, self._y_d, self._x_d))
+
+        if self.is_discrete_treatment:
+            for treat in range(self._x_d):
+                treat_id = (torch.ones(n, ) * treat).int()
+
+                xt = ones.index_select(dim=0, index=treat_id)
+                y_pred = self.y_net.predict(xt, w)
+                y_nji[:, :, treat] = y_pred.reshape(n, self._y_d)
+
+            y_ctrl = y_nji[:, :, 0].reshape(n, -1, 1).repeat((1, 1, self._x_d))
+        else:
+            xt = ones * 1
+            x0 = ones * 0
+            y_nji[:, :, 0] = self.y_net.predict(x0, w)
+            y_nji[:, :, 1] = self.y_net.predict(xt, w)
+            y_ctrl = y_nji[:, :, 0].reshape(n, -1, 1).repeat((1, 1, 2))
+        
+        y_nji = y_nji - y_ctrl
+        
+        return y_nji
 
     def _prepare4est(
         self,

@@ -2,6 +2,7 @@ from ..policy.policy_model import PolicyTree
 
 from ..utils._common import convert2array
 
+
 class PolicyInterpreter:
     """
     Attributes
@@ -13,7 +14,7 @@ class PolicyInterpreter:
 
     max_features_ : int
         The inferred value of max_features.
-    
+
     n_features_in_ : int
         Number of features seen during fit().
 
@@ -111,7 +112,7 @@ class PolicyInterpreter:
             - If float, then `min_samples_leaf` is a fraction and
             `ceil(min_samples_leaf * n_samples)` are the minimum
             number of samples for each node.
-        
+
         min_weight_fraction_leaf : float, default=0.0
             The minimum weighted fraction of the sum total of weights (of all
             the input samples) required to be at a leaf node. Samples have
@@ -129,7 +130,7 @@ class PolicyInterpreter:
 
         random_state : int
             Controls the randomness of the estimator.
-        
+
         max_leaf_nodes : int, default to None
             Grow a tree with ``max_leaf_nodes`` in best-first fashion.
             Best nodes are defined as relative reduction in impurity.
@@ -151,9 +152,7 @@ class PolicyInterpreter:
             Value for pruning the tree. #TODO: not implemented yet.
         """
         self._is_fitted = False
-        self.treatment = None
-        self.outcome = None
-        
+
         self.criterion = criterion
         self.splitter = splitter
         self.max_depth = max_depth
@@ -170,7 +169,10 @@ class PolicyInterpreter:
         self,
         data,
         est_model,
-        **kwargs
+        *,
+        covariate=None,
+        effect=None,
+        effect_array=None,
     ):
         """Fit the PolicyInterpreter model to interpret the policy for the causal
         effect estimated by the est_model on data.
@@ -185,22 +187,21 @@ class PolicyInterpreter:
             est_model should be any valid estimator model of ylearn which was 
             already fitted and can estimate the CATE.
         """
-        covariate = est_model.covariate
-        outcome = est_model.outcome
+        covariate = est_model.covariate if covariate is None else covariate
+        # outcome = est_model.outcome
 
         assert covariate is not None, 'Need covariate to interpret the causal effect.'
-        assert est_model._is_fitted
 
-        v, y = convert2array(data, covariate, outcome)
-        n, _y_d = y.shape
-        self.v = v
-        assert _y_d == 1
+        if est_model is not None:
+            assert est_model._is_fitted
+        
+        self.covariate = covariate
 
-        causal_effect = est_model.estimate(data=data, quantity=None, **kwargs)
-        if causal_effect.ndim == 3:
-            causal_effect.reshape(n, -1)
+        # y = convert2array(data, outcome)[0]
+        # n, _y_d = y.shape
+        # assert _y_d == 1
 
-        self._tree = PolicyTree(
+        self._tree_model = PolicyTree(
             criterion=self.criterion,
             splitter=self.splitter,
             max_depth=self.max_depth,
@@ -213,18 +214,148 @@ class PolicyInterpreter:
             ccp_alpha=self.ccp_alpha,
             min_weight_fraction_leaf=self.min_weight_fraction_leaf,
         )
-        
-        self._tree.fit(
+
+        self._tree_model.fit(
             data=data,
             covariate=covariate,
-            effect_array=causal_effect,
+            effect=effect,
+            effect_array=effect_array,
+            est_model=est_model
         )
-        
+
         self._is_fitted = True
 
         return self
-        
-    def interpret(self):
+
+    def interpret(self, data=None):
         assert self._is_fitted, 'The model is not fitted yet. Please use the fit method first.'
+
+        v = self._tree_model._check_features(v=None, data=data)
+
+        policy_pred = self._tree_model.predict_opt_effect(data=data)
+        policy_value = policy_pred.max(1)
+        policy_ind = policy_pred.argmax(1)
+        node_indicator = self._tree_model.decision_path(v=v)
+        leaf_id = self._tree_model.apply(v=v)
+        feature = self._tree_model.tree_.feature
+        threshold = self._tree_model.tree_.threshold
+
+        result_dict = {}
         
-        raise NotImplemented()
+        for sample_id, sample in enumerate(v):
+            result_dict[f'sample_{sample_id}'] = ''
+            node_index = node_indicator.indices[
+                node_indicator.indptr[sample_id]: node_indicator.indptr[sample_id + 1]
+            ]
+
+            for node_id in node_index:
+                if leaf_id[sample_id] == node_id:
+                    continue
+
+                if v[sample_id, feature[node_id]] <= threshold[node_id]:
+                    thre_sign = '<='
+                else:
+                    thre_sign = '>'
+
+                feature_id = feature[node_id]
+                value = v[sample_id, feature_id]
+                thre = threshold[node_id]
+                result_dict[f'sample_{sample_id}'] += f'decision node {node_id}: (covariate [{sample_id}, {feature_id}] = {value})' \
+                    f' {thre_sign} {thre} \n'
+
+            result_dict[f'sample_{sample_id}'] += f'The recommended policy is treatment {policy_ind[sample_id]} with value {policy_value[sample_id]}'
+            
+        return result_dict
+
+    def plot(
+        self, *,
+        feature_names=None,
+        max_depth=None,
+        class_names=None,
+        label='all',
+        filled=False,
+        node_ids=False,
+        proportion=False,
+        rounded=False,
+        precision=3,
+        ax=None,
+        fontsize=None
+    ):
+        """Plot a policy tree.
+        The sample counts that are shown are weighted with any sample_weights that
+        might be present.
+        The visualization is fit automatically to the size of the axis.
+        Use the ``figsize`` or ``dpi`` arguments of ``plt.figure``  to control
+        the size of the rendering.
+
+        Parameters
+        ----------        
+        max_depth : int, default=None
+            The maximum depth of the representation. If None, the tree is fully
+            generated.
+        
+        class_names : list of str or bool, default=None
+            Names of each of the target classes in ascending numerical order.
+            Only relevant for classification and not supported for multi-output.
+            If ``True``, shows a symbolic representation of the class name.
+        
+        label : {'all', 'root', 'none'}, default='all'
+            Whether to show informative labels for impurity, etc.
+            Options include 'all' to show at every node, 'root' to show only at
+            the top root node, or 'none' to not show at any node.
+        
+        filled : bool, default=False
+            When set to ``True``, paint nodes to indicate majority class for
+            classification, extremity of values for regression, or purity of node
+            for multi-output.
+        
+        impurity : bool, default=True
+            When set to ``True``, show the impurity at each node.
+        
+        node_ids : bool, default=False
+            When set to ``True``, show the ID number on each node.
+        
+        proportion : bool, default=False
+            When set to ``True``, change the display of 'values' and/or 'samples'
+            to be proportions and percentages respectively.
+        
+        rounded : bool, default=False
+            When set to ``True``, draw node boxes with rounded corners and use
+            Helvetica fonts instead of Times-Roman.
+        
+        precision : int, default=3
+            Number of digits of precision for floating point in the values of
+            impurity, threshold and value attributes of each node.
+        
+        ax : matplotlib axis, default=None
+            Axes to plot to. If None, use current axis. Any previous content
+            is cleared.
+        
+        fontsize : int, default=None
+            Size of text font. If None, determined automatically to fit figure.
+        
+        Returns
+        -------
+        annotations : list of artists
+            List containing the artists for the annotation boxes making up the
+            tree.
+        """
+        assert self._is_fitted
+
+
+        if feature_names == None:
+            feature_names = self.covariate
+
+        return self._tree_model.plot(
+            max_depth=max_depth,
+            feature_names=feature_names,
+            class_names=class_names,
+            label=label,
+            filled=filled,
+            node_ids=node_ids,
+            proportion=proportion,
+            rounded=rounded,
+            precision=precision,
+            ax=ax,
+            fontsize=fontsize,
+        )
