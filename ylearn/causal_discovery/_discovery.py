@@ -7,8 +7,8 @@ import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
-from ylearn.utils import drop_none
 
+from ylearn.utils import drop_none
 from ._base import BaseDiscovery
 
 _is_cuda_available = torch.cuda.is_available()
@@ -170,7 +170,7 @@ class DagDiscovery(BaseDiscovery):
 
         d = data.shape[1]
         hidden = self.hidden_layer_dim if self.hidden_layer_dim is not None else []
-        model = DagNet(dims=[d] + hidden + [1], device=self.device)
+        model = DagNet(dims=[d] + hidden + [1], dtype=dtype, device=self.device)
         rho, alpha, h = 1.0, 0.0, np.inf
         for _ in range(epoch):
             optimizer = torch.optim.LBFGS(
