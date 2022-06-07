@@ -1,6 +1,5 @@
 from copy import deepcopy
 from collections import defaultdict
-import xdrlib
 
 import numpy as np
 

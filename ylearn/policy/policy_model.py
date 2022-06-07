@@ -6,7 +6,7 @@ from math import ceil
 from copy import deepcopy
 
 import numpy as np
-import pydotplus
+# import pydotplus
 # from ctypes import memset, sizeof, c_double, memmove
 
 import sklearn
