@@ -83,6 +83,7 @@ class SLearner(BaseEstLearner):
         self,
         model,
         random_state=2022,
+        is_discrete_treatment=True,
         categories='auto',
         *args,
         **kwargs
@@ -99,11 +100,14 @@ class SLearner(BaseEstLearner):
        
         categories : str
         """
+        assert is_discrete_treatment is True
+
         self.model = clone(model)
         self._is_fitted = False
 
         super().__init__(
             random_state=random_state,
+            is_discrete_treatment=is_discrete_treatment,
             categories=categories,
             *args,
             **kwargs,
@@ -547,6 +551,7 @@ class TLearner(BaseEstLearner):
         self,
         model,
         random_state=2022,
+        is_discrete_treatment=True,
         categories='auto',
         **kwargs
     ):
@@ -563,12 +568,15 @@ class TLearner(BaseEstLearner):
         
         categories : str
         """
+        assert is_discrete_treatment is True
+
         self.xt_model = clone(model)
         self.x0_model = clone(model)
         self._is_fitted = False
 
         super().__init__(
             random_state=random_state,
+            is_discrete_treatment=is_discrete_treatment,
             categories=categories,
             **kwargs
         )
@@ -974,6 +982,7 @@ class XLearner(BaseEstLearner):
         self,
         model,
         random_state=2022,
+        is_discrete_treatment=True,
         categories='auto',
         **kwargs
     ):
@@ -989,6 +998,8 @@ class XLearner(BaseEstLearner):
      
         categories : str
         """
+        assert is_discrete_treatment is True
+
         self.ft_model = clone(model)
         self.f0_model = clone(model)
         self.kt_model = clone(model)
@@ -997,6 +1008,7 @@ class XLearner(BaseEstLearner):
 
         super().__init__(
             random_state=random_state,
+            is_discrete_treatment=is_discrete_treatment,
             categories=categories,
             **kwargs
         )
