@@ -1,4 +1,3 @@
-from webbrowser import Elinks
 import numpy as np
 
 from sklearn import clone
@@ -804,7 +803,7 @@ class TLearner(BaseEstLearner):
             An array containing the information of the treatment variables
         
         categories : str or list, optional
-            by default 'auto'
+            by default 'auto
 
         Returns
         -------
