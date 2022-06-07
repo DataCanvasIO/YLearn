@@ -323,7 +323,7 @@ class SLearner(BaseEstLearner):
         # group_categories = self.transformer.categories_
         # n_treatments = len(group_categories)
 
-        x = self._comp_transormer(x, categories=categories)
+        x = self._comp_transformer(x, categories=categories)
 
         self._x_d = x.shape[1]
         self.treat = treat
@@ -338,7 +338,7 @@ class SLearner(BaseEstLearner):
 
         return self
 
-    def _comp_transormer(self, x, categories='auto'):
+    def _comp_transformer(self, x, categories='auto'):
         """Transform the discrete treatment into one-hot vectors.
 
         Parameters
@@ -425,14 +425,14 @@ class SLearner(BaseEstLearner):
         n = wv.shape[0]
         self.treat = get_tr_ctrl(
             self.treat,
-            self._comp_transormer,
+            self._comp_transformer,
             treat=True,
             one_hot=False,
             discrete_treat=True
         )
         self.control = get_tr_ctrl(
             self.control,
-            self._comp_transormer,
+            self._comp_transformer,
             treat=False,
             one_hot=False,
             discrete_treat=True,
@@ -790,18 +790,18 @@ class TLearner(BaseEstLearner):
         instance of TLearner
         """
         # specify the treat and control label
-        x = self._comp_transormer(x)
+        x = self._comp_transformer(x)
         
         treat = get_tr_ctrl(
             treat,
-            self._comp_transormer,
+            self._comp_transformer,
             treat=True,
             one_hot=False,
             discrete_treat=True,
         )
         control = get_tr_ctrl(
             control,
-            self._comp_transormer,
+            self._comp_transformer,
             treat=False,
             one_hot=False, discrete_treat=True,
         )
@@ -823,7 +823,7 @@ class TLearner(BaseEstLearner):
 
         return self
 
-    def _comp_transormer(self, x):
+    def _comp_transformer(self, x):
         """Transform the discrete treatment into one-hot vectors.
 
         Parameters
@@ -1220,18 +1220,18 @@ class XLearner(BaseEstLearner):
         -------
         instance of XfLearner
         """
-        x = self._comp_transormer(x)
+        x = self._comp_transformer(x)
         
         treat = get_tr_ctrl(
             treat,
-            self._comp_transormer,
+            self._comp_transformer,
             treat=True,
             one_hot=False,
             discrete_treat=True
         )
         control = get_tr_ctrl(
             control,
-            self._comp_transormer,
+            self._comp_transformer,
             treat=False,
             one_hot=False,
             discrete_treat=True,
@@ -1263,7 +1263,7 @@ class XLearner(BaseEstLearner):
 
         return self
 
-    def _comp_transormer(self, x):
+    def _comp_transformer(self, x):
         """Transform the discrete treatment into one-hot vectors.
 
         Parameters
