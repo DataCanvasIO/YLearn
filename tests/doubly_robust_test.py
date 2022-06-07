@@ -12,15 +12,7 @@ _test_settings = {
                                 GradientBoostingRegressor(n_estimators=100, max_depth=100),
                                 GradientBoostingRegressor(n_estimators=100, max_depth=100),
                                 ),
-    _dgp.generate_data_x2b_y1: (RandomForestClassifier(n_estimators=100, max_depth=100),
-                                GradientBoostingRegressor(n_estimators=100, max_depth=100),
-                                GradientBoostingRegressor(n_estimators=100, max_depth=100),
-                                ),
     _dgp.generate_data_x1b_y2: (RandomForestClassifier(n_estimators=100, max_depth=100),
-                                LinearRegression(),
-                                LinearRegression(),
-                                ),
-    _dgp.generate_data_x2b_y2: (RandomForestClassifier(n_estimators=100, max_depth=100),
                                 LinearRegression(),
                                 LinearRegression(),
                                 ),
@@ -30,18 +22,17 @@ _test_settings = {
                                 ),
 }
 
-
-# _test_settings_to_be_fix = {
-#     # data_generator: (x_model,y_model,yx_model)
-#     _dgp.generate_data_x2b_y1: (RandomForestClassifier(n_estimators=100, max_depth=100),
-#                                 GradientBoostingRegressor(n_estimators=100, max_depth=100),
-#                                 GradientBoostingRegressor(n_estimators=100, max_depth=100),
-#                                 ),
-#     _dgp.generate_data_x2b_y2: (RandomForestClassifier(n_estimators=100, max_depth=100),
-#                                 LinearRegression(),
-#                                 LinearRegression(),
-#                                 ),
-# }
+_test_settings_x2b = {
+    # data_generator: (x_model,y_model,yx_model)
+    _dgp.generate_data_x2b_y1: (RandomForestClassifier(n_estimators=100, max_depth=100),
+                                GradientBoostingRegressor(n_estimators=100, max_depth=100),
+                                GradientBoostingRegressor(n_estimators=100, max_depth=100),
+                                ),
+    _dgp.generate_data_x2b_y2: (RandomForestClassifier(n_estimators=100, max_depth=100),
+                                LinearRegression(),
+                                LinearRegression(),
+                                ),
+}
 
 
 @pytest.mark.parametrize('dg', _test_settings.keys())
@@ -50,10 +41,20 @@ def test_doubly_robust(dg):
     dr = DoublyRobust(x_model=x_model, y_model=y_model, yx_model=yx_model, cf_fold=1, random_state=2022, )
     validate_leaner(dg, dr)
 
-#
-# @pytest.mark.parametrize('dg', _test_settings_to_be_fix.keys())
-# # @pytest.mark.xfail(reason='to be fixed')
-# def test_doubly_robust_to_be_fix(dg):
-#     x_model, y_model, yx_model = _test_settings_to_be_fix[dg]
-#     dr = DoublyRobust(x_model=x_model, y_model=y_model, yx_model=yx_model, cf_fold=1, random_state=2022, )
-#     validate_leaner(dg, dr, check_fitted=False, check_effect=False)
+
+@pytest.mark.parametrize('dg', _test_settings.keys())
+def test_doubly_robust_with_treat(dg):
+    x_model, y_model, yx_model = _test_settings[dg]
+    dr = DoublyRobust(x_model=x_model, y_model=y_model, yx_model=yx_model, cf_fold=1, random_state=2022, )
+    validate_leaner(dg, dr,
+                    fit_kwargs=dict(treat=1, control=0),
+                    )
+
+
+@pytest.mark.parametrize('dg', _test_settings_x2b.keys())
+def test_doubly_robust_x2b(dg):
+    x_model, y_model, yx_model = _test_settings_x2b[dg]
+    dr = DoublyRobust(x_model=x_model, y_model=y_model, yx_model=yx_model, cf_fold=1, random_state=2022, )
+    validate_leaner(dg, dr,
+                    fit_kwargs=dict(treat=[1, 1], control=[0, 0]),
+                    )
