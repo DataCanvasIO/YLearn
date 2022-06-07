@@ -31,7 +31,7 @@ def get_wv(*wv):
     return np.concatenate([w for w in wv if w is not None], axis=1)
 
 
-def get_tr_ctrl(tr_crtl, trans, treat=False, one_hot=False, discrete_treat=True):
+def get_tr_ctrl(tr_crtl, trans, *, treat=False, one_hot=False, discrete_treat=True):
     if tr_crtl is None or not discrete_treat:
         tr_crtl = 1 if treat else 0
     else:

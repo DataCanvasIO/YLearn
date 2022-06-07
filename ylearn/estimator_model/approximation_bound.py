@@ -314,8 +314,18 @@ class ApproxBound(BaseEstLearner):
         # x_d = self._x_d
         x_prob = self.x_prob
 
-        treat = get_tr_ctrl(treat, self.comp_transormer, treat=True)
-        control = get_tr_ctrl(control, self.comp_transormer, treat=False)
+        treat = get_tr_ctrl(
+            treat,
+            self.comp_transormer,
+            treat=True,
+            one_hot=False,
+            discrete_treat=True
+        )
+        control = get_tr_ctrl(
+            control,
+            self.comp_transormer,
+            treat=False,
+        )
 
         if self.covariate is None:
             n = 1

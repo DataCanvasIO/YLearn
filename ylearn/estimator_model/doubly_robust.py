@@ -444,7 +444,13 @@ class DoublyRobust(BaseEstLearner):
             if treat is None:
                 return y_pred_nji[:, :, self.treat]
             else:
-                treat = get_tr_ctrl(treat, self.comp_transormer, True)
+                treat = get_tr_ctrl(
+                    treat,
+                    self.comp_transormer,
+                    treat=True,
+                    one_hot=False,
+                    discrete_treat=True,
+                )
                 return y_pred_nji[:, :, treat]
 
 
@@ -489,8 +495,20 @@ class DoublyRobust(BaseEstLearner):
         final_result = defaultdict(list)
         final_result['is_fitted'].append(False)
 
-        control = get_tr_ctrl(control, self.comp_transormer, False)
-        treat = get_tr_ctrl(treat, self.comp_transormer, True)
+        control = get_tr_ctrl(
+            control,
+            self.comp_transormer,
+            treat=False,
+            one_hot=False,
+            discrete_treat=True,
+        )
+        treat = get_tr_ctrl(
+            treat,
+            self.comp_transormer,
+            treat=True,
+            one_hot=False,
+            discrete_treat=True,
+        )
         self.treat = treat
         self.control = control
 

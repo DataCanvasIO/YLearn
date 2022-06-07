@@ -437,9 +437,19 @@ class DML4CATE(BaseEstLearner):
             control = self.control
 
         dis_tr = self.is_discrete_treatment
-        treat = get_tr_ctrl(treat, self.comp_transormer, True, False, dis_tr)
+        treat = get_tr_ctrl(
+            treat,
+            self.comp_transormer,
+            treat=True,
+            one_hot=False,
+            discrete_treat=dis_tr,
+        )
         control = get_tr_ctrl(
-            control, self.comp_transormer, False, False, dis_tr
+            control,
+            self.comp_transormer,
+            treat=False,
+            one_hot=False,
+            discrete_treat=dis_tr,
         )
         self.treat = treat
 
