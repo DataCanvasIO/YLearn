@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
@@ -50,12 +51,13 @@ class BaseEstLearner:
         self.is_discrete_treatment = is_discrete_treatment
         self.is_discrete_outcome = is_discrete_outcome
         self.categories = categories
-        
+
         self._is_fitted = _is_fitted
-        
+
         # fitted
         self.treatment = None
         self.outcome = None
+        self.treats_ = None
 
     def fit(
         self,
@@ -69,19 +71,29 @@ class BaseEstLearner:
         assert data is not None and isinstance(data, pd.DataFrame)
 
         # check_cols(data, treatment, outcome)
+        if isinstance(treatment, str):
+            treatment = [treatment]
 
         self.treatment = treatment
         self.outcome = outcome
-        
+
         for k, v in kwargs.items():
             setattr(self, k, v)
             # check_cols(data, v)
+
+        if data is not None and self.is_discrete_treatment:
+            treats = {}
+            for t in treatment:
+                treats[t] = np.sort(data[t].unique()).tolist()
+        else:
+            treats = None
+        self.treats_ = treats
 
         return self
 
     def effect_nji(self, *args, **kwargs):
         pass
-    
+
     #
     # def _prepare_(
     #     self,
