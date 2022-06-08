@@ -198,6 +198,7 @@ class DoublyRobust(BaseEstLearner):
         super().__init__(
             random_state=random_state,
             categories=categories,
+            is_discrete_treatment=True,
         )
 
     def fit(
