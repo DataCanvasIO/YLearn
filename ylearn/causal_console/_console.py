@@ -416,7 +416,7 @@ class CausalConsole:
             m = {}
             fmt = partial(_format, line_limit=1, line_width=20)
             label_y = f'Outcome({self.outcome_})'
-            label_x = f'Treatments({fmt(self.outcome_)})'
+            label_x = f'Treatments({fmt(self.treatment_)})'
 
             if self.adjustment_ is not None and len(self.adjustment_) > 0:
                 label_w = f'Adjustments({fmt(self.adjustment_)})'
