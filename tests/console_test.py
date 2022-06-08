@@ -1,6 +1,8 @@
+import numpy as np
+import pytest
+
 from ylearn.causal_console import CausalConsole
 from . import _dgp
-import pytest
 
 
 def _validate_it(cc, test_data):
@@ -36,6 +38,30 @@ def test_identify_treatment():
     cc.fit(data, outcome[0], treatment=None, adjustment=adjustment, covariate=covariate)
 
     _validate_it(cc, test_data)
+
+
+def test_whatif_discrete():
+    data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x2b_y1()
+    cc = CausalConsole()
+    cc.fit(data, outcome[0], treatment=treatment, adjustment=adjustment, covariate=covariate)
+
+    new_value = np.ones_like(test_data[treatment[0]])
+    new_y = cc.whatif(test_data, new_value, treatment[0])
+    assert new_y is not None
+    print(new_y.shape, new_y)
+
+
+def test_whatif_continuous():
+    data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x1m_y1()
+    data[treatment] = data[treatment].astype('float32')
+    test_data[treatment] = test_data[treatment].astype('float32')
+    cc = CausalConsole()
+    cc.fit(data, outcome[0], treatment=treatment, adjustment=adjustment, covariate=covariate)
+
+    new_value = np.ones_like(test_data[treatment[0]])
+    new_y = cc.whatif(test_data, new_value, treatment[0])
+    assert new_y is not None
+    print(new_y.shape, new_y)
 
 
 @pytest.mark.xfail(reason='to be fixed')
