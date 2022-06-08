@@ -64,6 +64,28 @@ def test_whatif_continuous():
     print(new_y.shape, new_y)
 
 
+def test_policy_tree():
+    data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x1m_y1()
+    data[treatment] = data[treatment].astype('float32')
+    test_data[treatment] = test_data[treatment].astype('float32')
+    cc = CausalConsole()
+    cc.fit(data, outcome[0], treatment=treatment, adjustment=adjustment, covariate=covariate)
+
+    ptree = cc.policy_tree(test_data)
+    assert ptree is not None
+
+
+def test_policy_interpreter():
+    data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x1m_y1()
+    data[treatment] = data[treatment].astype('float32')
+    test_data[treatment] = test_data[treatment].astype('float32')
+    cc = CausalConsole()
+    cc.fit(data, outcome[0], treatment=treatment, adjustment=adjustment, covariate=covariate)
+
+    pi = cc.policy_interpreter(test_data)
+    assert pi is not None
+
+
 @pytest.mark.xfail(reason='to be fixed')
 def test_discovery_treatment():
     data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x2b_y1()
