@@ -12,3 +12,5 @@ from .ensemble import EnsembleEstModels
 from .iv import NP2SLS
 from .meta_learner import SLearner, TLearner, XLearner
 from .propensity_score import InversePbWeighting, PropensityScore
+from ._permuted import PermutedDoublyRobust
+from ._permuted import PermutedSLearner, PermutedTLearner, PermutedXLearner

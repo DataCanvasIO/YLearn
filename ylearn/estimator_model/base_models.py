@@ -84,7 +84,7 @@ class BaseEstLearner:
         if data is not None and self.is_discrete_treatment:
             treats = {}
             for t in treatment:
-                treats[t] = np.sort(data[t].unique()).tolist()
+                treats[t] = tuple(np.sort(data[t].unique()).tolist())
         else:
             treats = None
         self.treats_ = treats

@@ -453,8 +453,49 @@ class CausalConsole:
             dfs.append(s)
         return pd.concat(dfs, axis=1)
 
-    def whatif(self, data, new_value, treatment):
-        raise NotImplemented()
+    def whatif(self, data, new_value, treatment=None):
+        assert data is not None and new_value is not None
+        assert treatment is None or isinstance(treatment, str)
+        if isinstance(treatment, str):
+            assert treatment in self.treatment_
+        if treatment is None:
+            treatment = self.treatment_[0]
+
+        estimator = self.estimators_[treatment]
+        if estimator.is_discrete_treatment:
+            return self._whatif_discrete(data, new_value, treatment, estimator)
+        else:
+            return self._whatif_continuous(data, new_value, treatment, estimator)
+
+    def _whatif_discrete(self, data, new_value, treatment, estimator):
+        y_old = data[self.outcome_]
+        old_value = data[treatment]
+
+        df = pd.DataFrame(dict(c=old_value, t=new_value), index=old_value.index)
+        df['tc'] = df[['t', 'c']].apply(tuple, axis=1)
+        tc_pairs = df['tc'].unique().tolist()
+        effect = []
+        for t, c in tc_pairs:
+            tc_rows = df[df['tc'] == (t, c)]
+            if t == c:
+                eff = np.zeros((len(tc_rows),))
+            else:
+                data_rows = data.loc[tc_rows.index]
+                eff = estimator.estimate(data_rows, treat=t, control=c)
+            effect.append(pd.DataFrame(dict(e=eff.ravel()), index=tc_rows.index))
+        effect = pd.concat(effect, axis=0)
+        assert len(effect) == len(df)
+        df['e'] = effect['e']  # align indices
+
+        y_new = y_old + df['e']
+        return y_new
+
+    def _whatif_continuous(self, data, new_value, treatment, estimator):
+        y_old = data[self.outcome_]
+        old_value = data[treatment]
+        effect = estimator.estimate(data, treat=new_value, control=old_value)
+        y_new = y_old + effect.ravel()
+        return y_new
 
     def score(self, Xtest=None):
         assert Xtest is None  # fixme
