@@ -3,6 +3,7 @@ User Guide
 
 .. toctree::
     intro
+    quick_start
     api
     causal_model
     est
