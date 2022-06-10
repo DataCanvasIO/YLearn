@@ -1,4 +1,5 @@
 import math
+from functools import partial
 
 import numpy as np
 import pandas as pd
@@ -7,7 +8,9 @@ from sklearn.preprocessing import LabelEncoder
 from ylearn import sklearn_ex as skex
 from ylearn.causal_discovery import DagDiscovery
 from ylearn.causal_model import CausalModel, CausalGraph
+from ylearn.effect_interpreter.policy_interpreter import PolicyInterpreter
 from ylearn.estimator_model.base_models import BaseEstLearner
+from ylearn.policy.policy_model import PolicyTree
 from ylearn.utils import logging, view_pydot, infer_task_type, to_repr, drop_none
 from ._factory import ESTIMATOR_FACTORIES
 
@@ -405,20 +408,28 @@ class CausalConsole:
         return scorer
 
     def causal_graph(self):
-        raise NotImplemented()
+        causation = self.causation_matrix_
+        if causation is not None:
+            threshold = causation.values.diagonal().max()
+            m = DagDiscovery().matrix2dict(causation, threshold=threshold)
+        else:
+            m = {}
+            fmt = partial(_format, line_limit=1, line_width=20)
+            label_y = f'Outcome({self.outcome_})'
+            label_x = f'Treatments({fmt(self.treatment_)})'
 
-    def plot_graph(self):
-        import pydot
+            if self.adjustment_ is not None and len(self.adjustment_) > 0:
+                label_w = f'Adjustments({fmt(self.adjustment_)})'
+                m[label_w] = [label_x, label_y]
+            if self.covariate_ is not None and len(self.covariate_) > 0:
+                label_v = f'Covariates({fmt(self.covariate_)})'
+                m[label_v] = [label_x, label_y]
+            if self.instrument_ is not None and len(self.instrument_) > 0:
+                label_z = f'Instruments({fmt(self.instrument_)})'
+                m[label_z] = [label_x, ]
 
-        values = dict(WLIST=self.adjustment_, VLIST=self.covariate_, XLIST=self.treatment_,
-                      YLIST=self.outcome_, ZLIST=self.instrument_)
-        dot_string = GRAPH_STRING_BASE if self.instrument_ is None else GRAPH_STRING_IV
-        for k, v in values.items():
-            if dot_string.find(k) >= 0:
-                width = 40 if k == 'ZLIST' else 64
-                dot_string = dot_string.replace(k, _format(v, line_width=width))
-        graph = pydot.graph_from_dot_data(dot_string)[0]
-        view_pydot(graph, prog='fdp')
+        cg = CausalGraph(m)
+        return cg
 
     def causal_effect(self):
         return self.cohort_causal_effect(None)
@@ -511,14 +522,53 @@ class CausalConsole:
 
         return score
 
+    def policy_tree(self, Xtest, treatment=None, **tree_options):
+        if treatment is None:
+            treatment = self.treatment_[0]
+        estimator = self.estimators_[treatment]
+
+        tree_options = dict(criterion='policy_reg', **tree_options)
+        ptree = PolicyTree(**tree_options)
+        ptree.fit(Xtest, covariate=self.covariate_, est_model=estimator)
+
+        return ptree
+
+    def policy_interpreter(self, data, treatment=None, **options):
+        if treatment is None:
+            treatment = self.treatment_[0]
+        estimator = self.estimators_[treatment]
+
+        pi = PolicyInterpreter(**options)
+        pi.fit(data, estimator)
+
+        return pi
+
+    def plot_policy_tree(self, Xtest, treatment=None, treat=None, control=None, **tree_options):
+        ptree = self.policy_tree(Xtest, treatment=treatment, treat=treat, control=control, **tree_options)
+        ptree.plot()
+
+    def plot_policy_interpreter(self, data, treatment=None, options=None, **kwargs):
+        pi = self.policy_interpreter(data, treatment=treatment, options=options)
+        pi.plot(**kwargs)
+
+    def plot_causal_graph(self):
+        import pydot
+
+        values = dict(WLIST=self.adjustment_, VLIST=self.covariate_, XLIST=self.treatment_,
+                      YLIST=self.outcome_, ZLIST=self.instrument_)
+        dot_string = GRAPH_STRING_BASE if self.instrument_ is None else GRAPH_STRING_IV
+        for k, v in values.items():
+            if dot_string.find(k) >= 0:
+                width = 40 if k == 'ZLIST' else 64
+                dot_string = dot_string.replace(k, _format(v, line_width=width))
+        graph = pydot.graph_from_dot_data(dot_string)[0]
+        view_pydot(graph, prog='fdp')
+
     # def plot_heterogeneity_tree(self, Xtest, feature_index, *,
     #                             max_depth=3, min_samples_leaf=2, min_impurity_decrease=1e-4,
     #                             include_model_uncertainty=False,
     #                             alpha=0.05):
     def plot_heterogeneity_tree(self, Xtest, treatment=None, **tree_options):
-        raise NotImplemented()
-
-    def plot_policy_tree(self, Xtest, treatment=None, **tree_options):
         raise NotImplemented()
 
     # # ??
