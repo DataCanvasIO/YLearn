@@ -5,10 +5,3 @@ User Guide
     intro
     quick_start
     api
-    causal_model
-    est
-    causal_discovery
-    interpreter
-    policy
-    console
-    ref

@@ -8,7 +8,13 @@ Welcome to YLearn's documentation!
 
 .. toctree::
     sub/sub
-
+    sub/causal_model
+    sub/est
+    sub/causal_discovery
+    sub/interpreter
+    sub/policy
+    sub/console
+    sub/ref
 
 
 Indices and tables
