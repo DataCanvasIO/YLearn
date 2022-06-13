@@ -86,11 +86,11 @@ class DRFactory(BaseEstimatorFactory):
 
     def __call__(self, data, outcome, treatment, y_task, x_task,
                  adjustment=None, covariate=None, instrument=None, random_state=None):
-        from ylearn.estimator_model.doubly_robust import DoublyRobust
+        from ylearn.estimator_model import PermutedDoublyRobust
 
         assert adjustment is not None
 
-        return DoublyRobust(
+        return PermutedDoublyRobust(
             y_model=self._model(data, task=y_task, estimator=self.y_model, random_state=random_state),
             x_model=self._model(data, task=x_task, estimator=self.x_model, random_state=random_state),
             yx_model=self._model(data, task=const.TASK_REGRESSION, estimator=self.yx_model, random_state=random_state),
@@ -110,12 +110,12 @@ class MetaLeanerFactory(BaseEstimatorFactory):
 
     def __call__(self, data, outcome, treatment, y_task, x_task,
                  adjustment=None, covariate=None, instrument=None, random_state=None):
-        from ylearn.estimator_model.meta_learner import SLearner, TLearner, XLearner
+        from ylearn.estimator_model import PermutedSLearner, PermutedTLearner, PermutedXLearner
 
         assert adjustment is not None
 
         tag = self.leaner.strip().lower()[0]
-        learners = dict(s=SLearner, t=TLearner, x=XLearner)
+        learners = dict(s=PermutedSLearner, t=PermutedTLearner, x=PermutedXLearner)
         est_cls = learners[tag]
         return est_cls(
             model=self._model(data, task=y_task, estimator=self.model, random_state=random_state),

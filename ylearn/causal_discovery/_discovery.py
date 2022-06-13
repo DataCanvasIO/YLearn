@@ -8,18 +8,10 @@ import pandas as pd
 import torch
 import torch.nn as nn
 
-from ylearn.utils import drop_none
+from ylearn.utils import drop_none, set_random_state
 from ._base import BaseDiscovery
 
 _is_cuda_available = torch.cuda.is_available()
-
-
-def _update_random_state(random_state):
-    if random_state is not None:
-        seed = random_state if isinstance(random_state, int) \
-            else random_state.randint(0, 65535)
-        np.random.seed(seed)
-        torch.random.manual_seed(seed)
 
 
 class L(nn.Module):
@@ -154,7 +146,7 @@ class DagDiscovery(BaseDiscovery):
                  **kwargs):
         assert isinstance(data, (np.ndarray, pd.DataFrame))
 
-        _update_random_state(self.random_state)
+        set_random_state(self.random_state)
 
         if isinstance(data, pd.DataFrame):
             columns = data.columns.tolist()
