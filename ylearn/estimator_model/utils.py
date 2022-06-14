@@ -1,3 +1,4 @@
+from cProfile import label
 import math
 
 import numpy as np
@@ -54,7 +55,7 @@ def get_treat_control(treat_ctrl, trans, treat=False):
     if treat_ctrl is not None:
         if not isinstance(treat_ctrl, int):
             assert len(treat_ctrl) == n_treat
-        
+
         treat_ctrl = np.array(list(treat_ctrl))
         treat_ctrl = trans.transform(treat_ctrl.reshape(1, -1))
     else:
@@ -64,16 +65,6 @@ def get_treat_control(treat_ctrl, trans, treat=False):
             treat_ctrl = np.zeros((1, n_treat)).astype(int)
 
     return treat_ctrl
-
-
-def get_groups(target, a, *arrays):
-    arrays = list(arrays)
-    label = np.all(a == target, axis=1)
-
-    for i, array in enumerate(arrays):
-        arrays[i] = array[label]
-
-    return arrays
 
 
 def shapes(*tensors, all_dim=False):
@@ -117,6 +108,22 @@ def convert2tensor(*arrays):
 
 def convert4onehot(x):
     return np.dot(x, np.arange(0, x.shape[1]).T)
+
+
+def get_groups(target, a, one_hot, *arrays):
+    arrays = list(arrays)
+    
+    if one_hot:
+        a = convert4onehot(a)
+        label = (a == target)
+    # label = np.all(a == target, axis=1)
+    else:
+        label = np.all(a == target, axis=1)
+
+    for i, array in enumerate(arrays):
+        arrays[i] = array[label]
+
+    return arrays
 
 
 def convert2array(data, *S, tensor=False):

@@ -351,8 +351,8 @@ class ApproxBound(BaseEstLearner):
                 n = y.shape[0]
                 x_prob = self.x_model.predict_proba(v)
 
-        y_treat = get_groups(treat, x.reshape(-1, 1), y)[0]
-        y_ctrl = get_groups(control, x.reshape(-1, 1), y)[0]
+        y_treat = get_groups(treat, x.reshape(-1, 1), False, y)[0]
+        y_ctrl = get_groups(control, x.reshape(-1, 1), False, y)[0]
         y_tr_max, y_tr_min = y_treat.max(axis=0), y_treat.min(axis=0)
         y_ctrl_max, y_ctrl_min = y_ctrl.max(axis=0), y_ctrl.min(axis=0)
 
