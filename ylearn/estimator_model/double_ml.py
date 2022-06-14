@@ -712,5 +712,5 @@ class DML4CATE(BaseEstLearner):
             f'_fit_2nd_stage: fitting yx_model {type(self.yx_model).__name__}')
         yx_model.fit(x_prime, y_prime)
 
-    def __repr__(self) -> str:
-        return f'Double Machine Learning Estimator'
+    # def __repr__(self) -> str:
+    #     return f'Double Machine Learning Estimator'
