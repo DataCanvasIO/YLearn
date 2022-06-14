@@ -43,9 +43,9 @@ class BaseEstimatorFactory:
     @staticmethod
     def _cf_fold(data):
         size = data.shape[0]
-        if size < 1000:
+        if size < 3000:
             return 1
-        elif size < 5000:
+        elif size < 10000:
             return 3
         else:
             return 5
@@ -64,7 +64,7 @@ class DMLFactory(BaseEstimatorFactory):
     def __call__(self, data, outcome, treatment, y_task, x_task,
                  adjustment=None, covariate=None, instrument=None, random_state=None):
         from ylearn.estimator_model.double_ml import DML4CATE
-        assert adjustment is not None
+        # assert adjustment is not None
         assert covariate is not None
 
         return DML4CATE(
@@ -102,7 +102,7 @@ class DRFactory(BaseEstimatorFactory):
 @register()
 @register(name='ml')
 class MetaLeanerFactory(BaseEstimatorFactory):
-    def __init__(self, leaner='tleaner', model='gb'):
+    def __init__(self, leaner='sleaner', model='gb'):
         assert leaner.strip().lower()[0] in {'s', 't', 'x'}
 
         self.leaner = leaner
@@ -112,7 +112,7 @@ class MetaLeanerFactory(BaseEstimatorFactory):
                  adjustment=None, covariate=None, instrument=None, random_state=None):
         from ylearn.estimator_model import PermutedSLearner, PermutedTLearner, PermutedXLearner
 
-        assert adjustment is not None
+        # assert adjustment is not None
 
         tag = self.leaner.strip().lower()[0]
         learners = dict(s=PermutedSLearner, t=PermutedTLearner, x=PermutedXLearner)

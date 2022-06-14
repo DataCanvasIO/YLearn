@@ -281,6 +281,7 @@ class CausalConsole:
             if treatment_count_limit is None:
                 treatment_count_limit = self._get_default_treatment_count_limit(data, outcome)
             treatment = identifier.identify_treatment(data, outcome, treatment_count_limit)
+            logger.info(f'identified treatment: {treatment}')
 
         treatment = _to_list(treatment, name='treatment')
         adjustment = _to_list(adjustment, name='adjustment')
@@ -295,6 +296,9 @@ class CausalConsole:
             if identifier is None:
                 identifier = self._create_identifier()
             adjustment, covariate, instrument = identifier.identify_aci(data, outcome, treatment)
+            logger.info(f'identified adjustment: {adjustment}')
+            logger.info(f'identified covariate: {covariate}')
+            logger.info(f'identified instrument: {instrument}')
 
         self.identifier_ = identifier
         return treatment, adjustment, covariate, instrument
@@ -381,6 +385,7 @@ class CausalConsole:
         if Xtest is not None and self.preprocessor_ is not None:
             columns = _join_list(self.adjustment_, self.covariate_, self.instrument_)
             assert len(columns) > 0
+            Xtest = Xtest.copy()
             Xtest[columns] = self.preprocessor_.transform(Xtest[columns])
 
         dfs = []
@@ -401,6 +406,7 @@ class CausalConsole:
         if Xtest is not None and self.preprocessor_ is not None:
             columns = _join_list(self.adjustment_, self.covariate_, self.instrument_)
             assert len(columns) > 0
+            Xtest = Xtest.copy()
             Xtest[columns] = self.preprocessor_.transform(Xtest[columns])
 
         dfs = []
@@ -461,7 +467,7 @@ class CausalConsole:
         assert Xtest is None  # fixme
 
         if self.scorers_ is None:
-            raise ValueError(f'scorer was disabled. setup scorer and fit the {type(self).__init__} pls.')
+            raise ValueError(f'scorer was disabled. setup scorer and fit the {type(self).__name__} pls.')
 
         sa = []
         for x, scorer in self.scorers_.items():

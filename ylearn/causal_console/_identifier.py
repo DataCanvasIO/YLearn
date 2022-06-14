@@ -40,7 +40,7 @@ class DefaultIdentifier(Identifier):
         return treatment
 
     def identify_aci(self, data, outcome, treatment):
-        adjustment, instrument = [], []
+        adjustment, instrument = None, None
 
         covariate = [c for c in data.columns.tolist() if c != outcome and c not in treatment]
 
@@ -92,7 +92,7 @@ class IdentifierWithDiscovery(Identifier):
         return treatment
 
     def identify_aci(self, data, outcome, treatment):
-        adjustment, covariate = [], []
+        adjustment, covariate = None, None
 
         if self.causation_matrix_ is None:
             self.causation_matrix_ = self._discovery(data, outcome)
