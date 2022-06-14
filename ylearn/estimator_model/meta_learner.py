@@ -851,6 +851,12 @@ class TLearner(BaseEstLearner):
             for i, x_i in enumerate(x):
                 x_[i] = self.label_dict[tuple(x_i)]
 
+        if not hasattr(self, 'oh_transformer'):
+            self.oh_transformer = OneHotEncoder()
+            self.oh_transformer.fit(x)
+
+        x = self.oh_transformer.transform(x).toarray()
+
         return x
 
     def _fit_separate_treat(
@@ -1290,6 +1296,12 @@ class XLearner(BaseEstLearner):
 
             for i, x_i in enumerate(x):
                 x_[i] = self.label_dict[tuple(x_i)]
+
+        if not hasattr(self, 'oh_transformer'):
+            self.oh_transformer = OneHotEncoder()
+            self.oh_transformer.fit(x)
+
+        x = self.oh_transformer.transform(x).toarray()
 
         return x
 
