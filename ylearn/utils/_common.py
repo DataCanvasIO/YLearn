@@ -15,7 +15,20 @@ class const:
     TASK_MULTILABEL = 'multilabel'
 
 
-def check_cols(data, *x,):
+def set_random_state(random_state):
+    if random_state is not None:
+        seed = random_state if isinstance(random_state, int) \
+            else random_state.randint(0, 65535)
+        np.random.seed(seed)
+
+        try:
+            import torch
+            torch.random.manual_seed(seed)
+        except:
+            pass
+
+
+def check_cols(data, *x, ):
     x = filter(None, x)
     all_cols = data.columns
 

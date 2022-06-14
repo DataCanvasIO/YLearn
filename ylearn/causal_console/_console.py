@@ -7,14 +7,18 @@ from sklearn.preprocessing import LabelEncoder
 
 from ylearn import sklearn_ex as skex
 from ylearn.causal_discovery import DagDiscovery
-from ylearn.causal_model import CausalModel, CausalGraph
+from ylearn.causal_model import CausalGraph
 from ylearn.effect_interpreter.policy_interpreter import PolicyInterpreter
 from ylearn.estimator_model.base_models import BaseEstLearner
 from ylearn.policy.policy_model import PolicyTree
-from ylearn.utils import logging, view_pydot, infer_task_type, to_repr, drop_none
+from ylearn.utils import const, logging, view_pydot, infer_task_type, to_repr, drop_none, set_random_state
 from ._factory import ESTIMATOR_FACTORIES
+from ._identifier import DefaultIdentifier, IdentifierWithDiscovery, _is_number
 
 logger = logging.get_logger(__name__)
+
+DEFAULT_TREATMENT_COUNT_LIMIT_PERCENT = 0.1
+DEFAULT_TREATMENT_COUNT_LIMIT_BOUND = 5
 
 GRAPH_STRING_BASE = """
  digraph G {
@@ -113,19 +117,12 @@ def _format(v, line_width=64, line_limit=3):
     return r
 
 
-def _is_number(dtype):
-    return dtype.kind in {'i', 'f'}
-
-
 class CausalConsole:
-    # def __init__(self, feature_inds, categorical, heterogeneity_inds=None, feature_names=None, classification=False,
-    #              upper_bound_on_cat_expansion=5, nuisance_models='linear', heterogeneity_model='linear', *,
-    #              categories='auto', n_jobs=-1, verbose=0, cv=5, mc_iters=3, skip_cat_limit_checks=False,
-    #              random_state=None):
     def __init__(self,
                  task=None,  # str, default infer from outcome
-                 identify_method='auto',  # discovery, feature_importances, ...
+                 identify='auto',  # discovery, feature_importances, ...
                  discovery_model=None,  # notears_linear, ...
+                 discovery_options=None,  # dict or None
                  estimator='auto',  # auto, dml, dr, ml or metaleaner, iv, div, ...
                  estimator_options=None,  # dict or None
                  scorer=None,  # auto, rloss, or None
@@ -136,8 +133,9 @@ class CausalConsole:
             assert estimator == 'auto' or estimator in ESTIMATOR_FACTORIES.keys()
         assert scorer is None or scorer in {'auto', 'rloss'}
 
-        self.identify_method = identify_method
+        self.identify = identify
         self.discovery_model = discovery_model
+        self.discovery_options = discovery_options
         self.estimator = estimator
         self.estimator_options = estimator_options
         self.scorer = scorer
@@ -153,25 +151,20 @@ class CausalConsole:
         self.covariate_ = None
         self.instrument_ = None
 
-        self.causation_matrix_ = None  # if discovery_model='discovery'
-
         #
+        self.identifier_ = None
         self.y_encoder_ = None
         self.preprocessor_ = None
         self.estimators_ = None
         self.scorers_ = None
-        # ...
 
-    # def fit(self, X, y, warm_start=False):
     def fit(self, data,
             outcome,  # required, str, one
             *,
-            treatment=None,  # str list or int, one or more
-            adjustment=None,  # feature names, default infer by feature importances
-            covariate=None,  # ??
-            instrument=None,  # ??
-            # treat=None,
-            # control=None,
+            treatment=None,  # str list, one or more, default inferred from feature importances
+            adjustment=None,  # str list, one or more, default None
+            covariate=None,  # str list, one or more, default None
+            instrument=None,  # str list, one or more, default None
             treatment_count_limit=None,
             copy=True,
             **kwargs
@@ -185,8 +178,13 @@ class CausalConsole:
 
         """
         assert isinstance(data, pd.DataFrame)
+
         feature_names = [c for c in data.columns.tolist()]
 
+        assert outcome is not None and isinstance(outcome, str) and len(outcome) > 0
+        assert outcome in feature_names
+
+        set_random_state(self.random_state)
         if copy:
             data = data.copy()
 
@@ -259,29 +257,30 @@ class CausalConsole:
         return self
 
     @staticmethod
-    def _discovery(data, outcome, random_state):
-        logger.info('discovery causation')
+    def _get_default_treatment_count_limit(data, outcome):
+        return min(math.ceil(data.shape[1] * DEFAULT_TREATMENT_COUNT_LIMIT_PERCENT),
+                   DEFAULT_TREATMENT_COUNT_LIMIT_BOUND)
 
-        X = data.copy()
-        y = X.pop(outcome)
+    def _get_default_estimator(self, data, outcome, x_task, options, *,
+                               treatment, adjustment=None, covariate=None, instrument=None):
+        if instrument is not None and len(instrument) > 0:
+            estimator = 'iv'
+        elif x_task in {const.TASK_BINARY, const.TASK_MULTICLASS}:
+            estimator = 'ml'
+        else:
+            estimator = 'dml'
 
-        if not _is_number(y.dtype):
-            y = LabelEncoder().fit_transform(y)
+        return estimator, options
 
-        preprocessor = skex.general_preprocessor()
-        X = preprocessor.fit_transform(X, y)
-        X[outcome] = y
-
-        dd = DagDiscovery(random_state=random_state)
-        return dd(data)
-
-    def _identify(
-            self, data, outcome, *,
-            treatment=None, adjustment=None, covariate=None, instrument=None,
-            treatment_count_limit=None):
-
+    def _identify(self, data, outcome, *,
+                  treatment=None, adjustment=None, covariate=None, instrument=None,
+                  treatment_count_limit=None):
+        identifier = None
         if treatment is None:
-            treatment = self._identify_treatment(data, outcome, treatment_count_limit)
+            identifier = self._create_identifier()
+            if treatment_count_limit is None:
+                treatment_count_limit = self._get_default_treatment_count_limit(data, outcome)
+            treatment = identifier.identify_treatment(data, outcome, treatment_count_limit)
 
         treatment = _to_list(treatment, name='treatment')
         adjustment = _to_list(adjustment, name='adjustment')
@@ -293,93 +292,35 @@ class CausalConsole:
         _safe_remove(instrument, treatment)
 
         if all(map(lambda a: a is None or len(a) == 0, (adjustment, covariate, instrument))):
-            adjustment, covariate, instrument = self._identify_aci(data, outcome, treatment)
+            if identifier is None:
+                identifier = self._create_identifier()
+            adjustment, covariate, instrument = identifier.identify_aci(data, outcome, treatment)
 
+        self.identifier_ = identifier
         return treatment, adjustment, covariate, instrument
 
-    def _identify_aci(self, data, outcome, treatment):
-        adjustment, covariate, instrument = [], [], []
-
-        if self.identify_method == 'discovery':
-            if self.causation_matrix_ is None:
-                self.causation_matrix_ = self._discovery(data, outcome, self.random_state)
-            causation = self.causation_matrix_
-            threshold = causation.values.diagonal().max()
-            m = DagDiscovery().matrix2dict(causation, threshold=threshold)
-            cg = CausalGraph(m)
-            cm = CausalModel(cg)
-            try:
-                instrument = cm.get_iv(treatment[0], outcome)  # fixme
-                instrument = [c for c in instrument if c != outcome and c not in treatment]
-            except Exception as e:
-                logger.warn(e)
-
-            if len(instrument) == 0:
-                ids = cm.identify(treatment, outcome, identify_method=('backdoor', 'simple'))
-                covariate = list(set(ids['backdoor'][0]))
-            else:
-                covariate = [c for c in data.columns.tolist()
-                             if c != outcome and c not in treatment and c not in instrument]
+    def _create_identifier(self):
+        if self.identify == 'discovery':
+            options = self.discovery_options if self.discovery_options is not None else {}
+            return IdentifierWithDiscovery(self.task, self.random_state, **options)
         else:
-            covariate = [c for c in data.columns.tolist() if c != outcome and c not in treatment]
-
-        return adjustment, covariate, instrument
-
-    def _identify_treatment(self, data, outcome, adjustment=None, covariate=None, instrument=None,
-                            count_limit=None):
-        excludes = _join_list(adjustment, covariate, instrument)
-
-        if count_limit is None:
-            count_limit = min(math.ceil(data.shape[1] * 0.1), 5)
-
-        if self.identify_method == 'discovery':
-            fn = self._identify_treatment_by_discovery
-        else:
-            fn = self._identify_treatment_by_importance
-
-        return fn(data, outcome, count_limit=count_limit, excludes=excludes)
-
-    def _identify_treatment_by_discovery(self, data, outcome, count_limit, excludes=None):
-        causation = self._discovery(data, outcome, self.random_state)
-        assert isinstance(causation, pd.DataFrame) and outcome in causation.columns.tolist()
-
-        treatment = causation[outcome].abs().sort_values(ascending=False)
-        treatment = [i for i in treatment.index if treatment[i] > 0]
-        if excludes is not None:
-            treatment = [t for t in treatment if t not in excludes]
-
-        if len(treatment) > count_limit:
-            treatment = treatment[:count_limit]
-
-        self.causation_matrix_ = causation
-
-        return treatment
-
-    def _identify_treatment_by_importance(self, data, outcome, count_limit, excludes=None):
-        X = data.copy()
-        y = X.pop(outcome)
-
-        if excludes is not None and len(excludes) > 0:
-            X = X[[c for c in X.columns.tolist() if c not in excludes]]
-
-        tf = skex.FeatureImportancesSelectionTransformer(
-            task=self.task, strategy='number', number=count_limit, data_clean=False)
-        tf.fit(X, y)
-        treatment = tf.selected_features_
-
-        return treatment
+            return DefaultIdentifier(self.task)
 
     def _create_estimator(self, data, outcome, *,
-                          treatment=None, adjustment=None, covariate=None, instrument=None):
-        estimator = self.estimator
-        if estimator == 'auto':
-            if instrument is not None and len(instrument) > 0:
-                estimator = 'iv'
-            else:
-                estimator = 'dml' if covariate is not None else 'ml'  # FIXME, check treatment is category or not
-
+                          treatment, adjustment=None, covariate=None, instrument=None):
         x_task, _ = infer_task_type(data[treatment])
+
+        estimator = self.estimator
         options = self.estimator_options if self.estimator_options is not None else {}
+        if estimator == 'auto':
+            estimator, options = self._get_default_estimator(
+                data, outcome, x_task, options,
+                treatment=treatment,
+                adjustment=adjustment,
+                covariate=covariate,
+                instrument=instrument,
+            )
+
         factory = ESTIMATOR_FACTORIES[estimator](**options)
 
         estimator = factory(data, outcome, y_task=self.task, x_task=x_task,
@@ -408,7 +349,9 @@ class CausalConsole:
         return scorer
 
     def causal_graph(self):
-        causation = self.causation_matrix_
+        causation = self.identifier_.causation_matrix_ \
+            if isinstance(self.identifier_, IdentifierWithDiscovery) else None
+
         if causation is not None:
             threshold = causation.values.diagonal().max()
             m = DagDiscovery().matrix2dict(causation, threshold=threshold)
@@ -431,18 +374,21 @@ class CausalConsole:
         cg = CausalGraph(m)
         return cg
 
-    def causal_effect(self):
-        return self.cohort_causal_effect(None)
+    def causal_effect(self, treat=None, control=None):
+        return self.cohort_causal_effect(None, treat=treat, control=control)
 
-    def cohort_causal_effect(self, Xtest):
+    def cohort_causal_effect(self, Xtest, treat=None, control=None):
         if Xtest is not None and self.preprocessor_ is not None:
             columns = _join_list(self.adjustment_, self.covariate_, self.instrument_)
             assert len(columns) > 0
             Xtest[columns] = self.preprocessor_.transform(Xtest[columns])
 
         dfs = []
-        for x, est in self.estimators_.items():
-            effect = est.estimate(data=Xtest)
+        for i, x in enumerate(self.treatment_):
+            est = self.estimators_[x]
+            treat_i = treat[i] if treat is not None else None
+            control_i = control[i] if control is not None else None
+            effect = est.estimate(data=Xtest, treat=treat_i, control=control_i)
             s = pd.Series(dict(mean=effect.mean(),
                                min=effect.min(),
                                max=effect.max(),
@@ -451,15 +397,18 @@ class CausalConsole:
             dfs.append(s)
         return pd.concat(dfs, axis=1).T
 
-    def local_causal_effect(self, Xtest):
+    def local_causal_effect(self, Xtest, treat=None, control=None):
         if Xtest is not None and self.preprocessor_ is not None:
             columns = _join_list(self.adjustment_, self.covariate_, self.instrument_)
             assert len(columns) > 0
             Xtest[columns] = self.preprocessor_.transform(Xtest[columns])
 
         dfs = []
-        for x, est in self.estimators_.items():
-            effect = est.estimate(data=Xtest)
+        for i, x in enumerate(self.treatment_):
+            est = self.estimators_[x]
+            treat_i = treat[i] if treat is not None else None
+            control_i = control[i] if control is not None else None
+            effect = est.estimate(data=Xtest, treat=treat_i, control=control_i)
             s = pd.Series(effect.ravel(), name=x)
             dfs.append(s)
         return pd.concat(dfs, axis=1)
