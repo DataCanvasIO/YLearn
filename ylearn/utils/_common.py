@@ -103,7 +103,7 @@ def unique(y):
     return uniques
 
 
-def infer_task_type(y, excludes=None):
+def infer_task_type(y, *, dropna=True, excludes=None, regression_exponent=0.382):
     assert excludes is None or isinstance(excludes, (list, tuple, set))
 
     if len(y.shape) > 1 and y.shape[-1] > 1:
@@ -112,29 +112,33 @@ def infer_task_type(y, excludes=None):
         return task, labels
 
     uniques = unique(y)
-    if uniques.__contains__(np.nan):
+    if dropna and uniques.__contains__(np.nan):
         uniques.remove(np.nan)
     if excludes is not None and len(excludes) > 0:
         uniques -= set(excludes)
     n_unique = len(uniques)
     labels = []
 
-    if n_unique == 2:
-        task = const.TASK_BINARY  # TASK_BINARY
+    if n_unique == 0:
+        raise ValueError('Could not infer task type from empty "y"')
+    elif n_unique == 1:
+        raise ValueError(f'Could not infer task type from unique "{uniques}"')
+    elif n_unique == 2:
+        task = const.TASK_BINARY
         labels = sorted(uniques)
-    else:
-        if str(y.dtype).find('float') >= 0:
+    elif y.dtype.kind == 'f':
+        task = const.TASK_REGRESSION
+    elif y.dtype.kind == 'i':
+        n_sample = len(y)
+        if n_unique > n_sample ** regression_exponent:
             task = const.TASK_REGRESSION
         else:
-            if n_unique > 1000:
-                if str(y.dtype).find('int') >= 0:
-                    task = const.TASK_REGRESSION
-                else:
-                    raise ValueError('The number of classes exceeds 1000, please confirm whether '
-                                     'your predict target is correct ')
-            else:
-                task = const.TASK_MULTICLASS
-                labels = sorted(uniques)
+            task = const.TASK_MULTICLASS
+            labels = sorted(uniques)
+    else:
+        task = const.TASK_MULTICLASS
+        labels = sorted(uniques)
+
     return task, labels
 
 
