@@ -1,4 +1,5 @@
 from dis import dis
+from attr import has
 import numpy as np
 
 from sklearn import clone
@@ -669,22 +670,22 @@ class TLearner(BaseEstLearner):
         else:
             categories = list(self.categories)
 
-        self.transformer = OrdinalEncoder(categories=categories)
-        self.transformer.fit(x)
-        x = self.transformer.transform(x)
+        # self.transformer = OrdinalEncoder(categories=categories)
+        # self.transformer.fit(x)
+        # x = self.transformer.transform(x)
 
-        self.group_categories = self.transformer.categories_
+        # self.group_categories = self.transformer.categories_
         wv = get_wv(w, v)
         self._wv = wv
         self._w = w
 
         if combined_treatment:
             return self._fit_combined_treat(
-                x, wv, y, treat, control, **kwargs
+                x, wv, y, treat, control, categories, **kwargs
             )
         else:
             return self._fit_separate_treat(
-                x, wv, y, **kwargs
+                x, wv, y, categories, **kwargs
             )
 
     def estimate(
@@ -755,6 +756,7 @@ class TLearner(BaseEstLearner):
         x, wv, y,
         treat,
         control,
+        categories,
         **kwargs
     ):
         """Fit function which is used when multiple treatments are combined to
@@ -790,7 +792,7 @@ class TLearner(BaseEstLearner):
         instance of TLearner
         """
         # specify the treat and control label
-        x = self._comp_transformer(x)
+        x = self._comp_transformer(x, categories=categories)
         
         treat = get_tr_ctrl(
             treat,
@@ -810,8 +812,8 @@ class TLearner(BaseEstLearner):
         self.treat = treat
         self.control = control
 
-        wv_treat, y_treat = get_groups(treat, x, wv, y)
-        wv_control, y_control = get_groups(control, x, wv, y)
+        wv_treat, y_treat = get_groups(treat, x, True, wv, y)
+        wv_control, y_control = get_groups(control, x, True, wv, y)
 
         y_treat = y_treat.squeeze()
         y_control = y_control.squeeze()
@@ -823,7 +825,7 @@ class TLearner(BaseEstLearner):
 
         return self
 
-    def _comp_transformer(self, x):
+    def _comp_transformer(self, x, categories='auto'):
         """Transform the discrete treatment into one-hot vectors.
 
         Parameters
@@ -840,16 +842,25 @@ class TLearner(BaseEstLearner):
             The transformed one-hot vectors
         """
         if x.shape[1] > 1:
-            if not self._is_fitted:
+            # if not self._is_fitted:
+            if not hasattr(self, 'ord_transformer'):
+                self.ord_transformer = OrdinalEncoder(categories=categories)
+                self.ord_transformer.fit(x)
+
+                self.group_categories = self.ord_transformer.categories_
+                
+
                 labels = [np.arange(len(c)) for c in self.group_categories]
                 labels = cartesian(labels)
+                categories = [np.arange(len(labels))]
 
                 self.label_dict = {tuple(k): i for i, k in enumerate(labels)}
+            
+            x_transformed = self.ord_transformer.transform(x).astype(int)
+            x = np.full((x.shape[0], 1), np.NaN)
 
-            x_ = np.full((x.shape[0], 1), np.NaN)
-
-            for i, x_i in enumerate(x):
-                x_[i] = self.label_dict[tuple(x_i)]
+            for i, x_i in enumerate(x_transformed):
+                x[i] = self.label_dict[tuple(x_i)]
 
         if not hasattr(self, 'oh_transformer'):
             self.oh_transformer = OneHotEncoder()
@@ -862,6 +873,7 @@ class TLearner(BaseEstLearner):
     def _fit_separate_treat(
         self,
         x, wv, y,
+        categories,
         **kwargs
     ):
         """Fit function which is used when multiple treatments are treated separately,
@@ -891,14 +903,19 @@ class TLearner(BaseEstLearner):
         -------
         instance of TLearner
         """
-        # TODO: the current implementation is astoundingly stupid
+        self.transformer = OrdinalEncoder(categories=categories)
+        self.transformer.fit(x)
+        x = self.transformer.transform(x)
+
+        self.group_categories = self.transformer.categories_
+                
         self._fitted_dict_separa = defaultdict(list)
         waited_treat = [np.arange(len(i)) for i in self.group_categories]
         treat_arrays = cartesian(waited_treat)
 
         for treat in treat_arrays:
             model = clone(self.xt_model)
-            _wv, _y = get_groups(treat, x, wv, y)
+            _wv, _y = get_groups(treat, x, False, wv, y)
             _y = _y.squeeze()
 
             model.fit(_wv, _y, **kwargs)
@@ -1117,22 +1134,22 @@ class XLearner(BaseEstLearner):
         else:
             categories = list(self.categories)
 
-        self.transformer = OrdinalEncoder(categories=categories)
-        self.transformer.fit(x)
-        x = self.transformer.transform(x)
+        # self.transformer = OrdinalEncoder(categories=categories)
+        # self.transformer.fit(x)
+        # x = self.transformer.transform(x)
 
-        self.group_categories = self.transformer.categories_
+        # self.group_categories = self.transformer.categories_
         wv = get_wv(w, v)
         self._wv = wv
         self._w = w
 
         if combined_treatment:
             return self._fit_combined_treat(
-                x, wv, y, treat, control, **kwargs
+                x, wv, y, treat, control, categories, **kwargs
             )
         else:
             return self._fit_separate_treat(
-                x, wv, y, **kwargs
+                x, wv, y, categories,**kwargs
             )
 
     def _prepare4est(self, data=None, rho=0.5, *args, **kwargs):
@@ -1192,6 +1209,7 @@ class XLearner(BaseEstLearner):
         x, wv, y,
         treat,
         control,
+        categories,
         **kwargs
     ):
         """Fit function which is used when multiple treatments are combined to
@@ -1226,7 +1244,7 @@ class XLearner(BaseEstLearner):
         -------
         instance of XfLearner
         """
-        x = self._comp_transformer(x)
+        x = self._comp_transformer(x, categories)
         
         treat = get_tr_ctrl(
             treat,
@@ -1247,8 +1265,8 @@ class XLearner(BaseEstLearner):
 
         # Step 1
         # TODO: modify the generation of group ids for efficiency
-        wv_treat, y_treat = get_groups(treat, x, wv, y)
-        wv_control, y_control = get_groups(control, x, wv, y)
+        wv_treat, y_treat = get_groups(treat, x, True, wv, y)
+        wv_control, y_control = get_groups(control, x, True, wv, y)
 
         y_treat = y_treat.squeeze()
         y_control = y_control.squeeze()
@@ -1269,7 +1287,7 @@ class XLearner(BaseEstLearner):
 
         return self
 
-    def _comp_transformer(self, x):
+    def _comp_transformer(self, x, categories='auto'):
         """Transform the discrete treatment into one-hot vectors.
 
         Parameters
@@ -1286,16 +1304,25 @@ class XLearner(BaseEstLearner):
             The transformed one-hot vectors
         """
         if x.shape[1] > 1:
-            if not self._is_fitted:
+            # if not self._is_fitted:
+            if not hasattr(self, 'ord_transformer'):
+                self.ord_transformer = OrdinalEncoder(categories=categories)
+                self.ord_transformer.fit(x)
+
+                self.group_categories = self.ord_transformer.categories_
+                
+
                 labels = [np.arange(len(c)) for c in self.group_categories]
                 labels = cartesian(labels)
+                categories = [np.arange(len(labels))]
 
                 self.label_dict = {tuple(k): i for i, k in enumerate(labels)}
+            
+            x_transformed = self.ord_transformer.transform(x).astype(int)
+            x = np.full((x.shape[0], 1), np.NaN)
 
-            x_ = np.full((x.shape[0], 1), np.NaN)
-
-            for i, x_i in enumerate(x):
-                x_[i] = self.label_dict[tuple(x_i)]
+            for i, x_i in enumerate(x_transformed):
+                x[i] = self.label_dict[tuple(x_i)]
 
         if not hasattr(self, 'oh_transformer'):
             self.oh_transformer = OneHotEncoder()
@@ -1309,6 +1336,7 @@ class XLearner(BaseEstLearner):
     def _fit_separate_treat(
         self,
         x, wv, y,
+        categories,
         *args,
         **kwargs
     ):
@@ -1338,18 +1366,24 @@ class XLearner(BaseEstLearner):
         -------
         instance of XLearner
         """
+        self.transformer = OrdinalEncoder(categories=categories)
+        self.transformer.fit(x)
+        x = self.transformer.transform(x)
+        
+        self.group_categories = self.transformer.categories_
+        
         self._fitted_dict_separa = defaultdict(list)
         waited_treat = [np.arange(len(i)) for i in self.group_categories]
         treat_arrays = cartesian(waited_treat)
 
         f0_model = clone(self.f0_model)
-        _wv_control, _y_control = get_groups(treat_arrays[0], x, wv, y)
+        _wv_control, _y_control = get_groups(treat_arrays[0], x, False, wv, y)
         _y_control = _y_control.squeeze()
         f0_model.fit(_wv_control, _y_control)
 
         for treat in treat_arrays[1:]:
             ft_model = clone(self.ft_model)
-            _wv, _y = get_groups(treat, x, wv, y)
+            _wv, _y = get_groups(treat, x, False, wv, y)
             _y = _y.squeeze()
 
             # Step 1
