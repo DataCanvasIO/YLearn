@@ -1,5 +1,6 @@
+***************************************
 Overview of YLearn and Causal Inference
-=======================================
+***************************************
 
 Machine learning has made great achievements in recent years. 
 The areas in which machine learning succeeds are mainly for prediction, 
@@ -25,16 +26,24 @@ YLearn, equiped with many techniques developed in recent literatures, is impleme
 inference pipeline from causal discovery to causal estimand estimation with the help of machine learning. This is 
 more promising especially when there are abundant observational data. 
 
+Concepts in YLearn and their related problem settings
+=====================================================
 There are three main concepts in YLearn correspondig to the causal inference pipeline.
 
-1. *Causal Discovery*: Discovering the causal relationships in the observational data.
-2. *Causal Model*: Representing the causal relationships in the form of ``CausalGraph`` and doing other related operations such as identification with ``CausalModel``.
-3. *Estimator Model*: Estimating the causal estimand with vairous techniques.
+1. *Causal Discovery*. Discovering the causal relationships in the observational data.
+
+2. *Causal Model*. Representing the causal relationships in the form of ``CausalGraph`` and doing other related operations such as identification with ``CausalModel``.
+
+3. *Estimator Model*. Estimating the causal estimand with vairous techniques.
+
+4. *Policy Model*. 
+
+5. *Interpreters*.
 
 All APIs are introduced in :ref:`api`.
 
 Examples of Scenarios for Causal Inference
-------------------------------------------
+==========================================
 
 example 1
 ^^^^^^^^^

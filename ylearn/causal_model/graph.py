@@ -10,12 +10,12 @@ from .utils import (check_nodes, ancestors_of_iter, descendents_of_iter)
 
 class CausalGraph:
     """
-    The class for building a causal graphical model.
+    A class for representing DAGs of causal structures.
 
     Attributes
     ----------
     causation : dict
-        Data structure of the causal graph where values are parents of the
+        Descriptions of the causal structures where values are parents of the
         corresponding keys.
     
     dag : nx.MultiDiGraph
@@ -104,14 +104,20 @@ class CausalGraph:
         Parameters
         ----------
         causation : dict
-            Data structure of the causation
+            Descriptions of the causal structures where values are parents of the
+            corresponding keys.        
+        dag : nx.MultiGraph, optional
+            A konw graph structure represented. If provided, dag must represent
+            the causal structures stored in causation. Defaults to None.
         
-        graph : nx.MultiGraph, optional
-            The causal graph. Defaults to None.
-        
-        latent_confounding_arcs : set or list, optional
-            Unobserved bidirected edges. Defaults to None. Each element is a
-            tuple containing 2 elements.
+        latent_confounding_arcs : set or list of tuple of two str, optional
+            Two elements in the tuple are names of nodes in the graph where there
+            exists an latent confounding arcs between them. Semi-Markovian graphs
+            with unobserved confounders can be converted to a graph without
+            unobserved variables, where one can add bi-directed latent confounding
+            arcs to represent these relations. For example, the causal graph X <- U -> Y,
+            where U is an unobserved confounder of X and Y, can be converted
+            equivalently to X <-->Y where <--> is a latent confounding arc.
         """
         self.causation = defaultdict(list, causation)
         self.ava_nodes = self.causation.keys()
@@ -212,7 +218,7 @@ class CausalGraph:
         Returns
         ----------
         set of str
-            Ancestors of nodes x of the graph
+            Ancestors of nodes in x in the graph
         """
         g = self.observed_dag
 
@@ -249,7 +255,7 @@ class CausalGraph:
 
         Parameters
         ----------
-        x : str, optional 
+        x : str 
             Name of the node x.
         
         only_observed : bool, optional
@@ -259,7 +265,7 @@ class CausalGraph:
         Returns
         -------
         list
-            Parents of the node x.
+            Parents of the node x in the graph
         """
         if only_observed:
             return self.causation[x]
@@ -458,7 +464,7 @@ class CausalGraph:
         Parameters
         ----------
         edge : tuple
-            2 elements.
+            2 elements denote the start and end of the edge, respectively        
         
         observed : bool
             If not observed, remove the unobserved latent confounding arcs.

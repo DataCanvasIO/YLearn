@@ -102,6 +102,7 @@ class CausalModel:
         Parameters
         ----------
         causal_graph : CausalGraph
+            An instance of CausalGraph which encodes the causal structures.
         
         data : DataFrame (for now)
         """
@@ -358,6 +359,14 @@ class CausalModel:
             The data set for causal effect to be estimated. If None, use the data
             which is used for discovering causal graph.
         
+        treatment : set or list, optional. Default to None
+            Names of the treatment. If None, the treatment used for backdoor adjustment
+            will be taken as the treatment.
+            
+        outcome : set or list, optional. Default to None
+            Names of the outcome. If None, the treatment used for backdoor adjustment
+            will be taken as the outcome.
+        
         adjustment : set or list, optional. Default to None
             Names of the adjustment set. If None, the ajustment set is given by
             the simplest backdoor set found by CausalModel.
@@ -590,6 +599,8 @@ class CausalModel:
                 simple: directly return the parent set of treatment
                 minimal: return the minimal backdoor adjustment set
                 all: return all valid backdoor adjustment set.
+        print_info : bool
+            If True, print the identified results.
 
         Raises
         ----------
@@ -788,7 +799,7 @@ class CausalModel:
         Parameters
         ----------
         path : list
-            A list containing the path.
+            A list describing the path.
 
         Returns
         ----------
@@ -810,7 +821,8 @@ class CausalModel:
         return True
 
     def is_frontdoor_set(self, set_, treatment, outcome):
-        """True is the given set is a valid frontdoor adjustment set.
+        """Determine if the given set is a valid frontdoor adjustment set for the
+        causal effect of treatment on outcome.
 
         Parameters
         ----------
@@ -823,8 +835,8 @@ class CausalModel:
         Returns
         ----------
         Bool
-            True if the given set is a valid frontdoor adjustment set for
-            corresponding treatemtns and outcomes.
+            True if the given set is a valid frontdoor adjustment set for causal effects
+            of treatemtns on outcomes.
         """
         ava_nodes = self.causal_graph.causation.keys()
         check_nodes(ava_nodes, set_, set(treatment), set(outcome))
@@ -853,10 +865,10 @@ class CausalModel:
         Parameters
         ----------
         treatment : set of str or str
-            Contain only one element.
+            Name of the treatment. Should contain only one element.
         
         outcome : set of str or str
-            Contain only one element.
+            Name of the outcome. Should contain only one element.
 
         Returns
         ----------

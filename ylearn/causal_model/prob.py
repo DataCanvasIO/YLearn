@@ -3,8 +3,8 @@ from IPython.display import Latex
 
 class Prob:
     r"""
-    Probability distribution. For an example probability expression
-    \sum_{w}P(v|y)[P(w|z)P(x|y)P(u)], we will clarify below the meanings
+    Probability distribution, e.g., the probability expression
+    \sum_{w}P(v|y)[P(w|z)P(x|y)P(u)]. We will clarify below the meanings
     of our variables.
 
 

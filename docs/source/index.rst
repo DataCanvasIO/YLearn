@@ -7,6 +7,8 @@ Welcome to YLearn's documentation!
 ==================================
 
 .. toctree::
+    :maxdepth: 2
+
     sub/sub
     sub/causal_model
     sub/est
