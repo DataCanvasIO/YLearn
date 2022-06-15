@@ -92,7 +92,7 @@ class BaseEstLearner:
         return self
 
     def effect_nji(self, *args, **kwargs):
-        pass
+        raise NotImplementedError()
 
     #
     # def _prepare_(

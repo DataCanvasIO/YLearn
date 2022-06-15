@@ -43,9 +43,9 @@ class BaseEstimatorFactory:
     @staticmethod
     def _cf_fold(data):
         size = data.shape[0]
-        if size < 1000:
+        if size < 3000:
             return 1
-        elif size < 5000:
+        elif size < 10000:
             return 3
         else:
             return 5
@@ -64,7 +64,7 @@ class DMLFactory(BaseEstimatorFactory):
     def __call__(self, data, outcome, treatment, y_task, x_task,
                  adjustment=None, covariate=None, instrument=None, random_state=None):
         from ylearn.estimator_model.double_ml import DML4CATE
-        assert adjustment is not None
+        # assert adjustment is not None
         assert covariate is not None
 
         return DML4CATE(
@@ -88,7 +88,8 @@ class DRFactory(BaseEstimatorFactory):
                  adjustment=None, covariate=None, instrument=None, random_state=None):
         from ylearn.estimator_model import PermutedDoublyRobust
 
-        assert adjustment is not None
+        # assert adjustment is not None
+        assert x_task != const.TASK_REGRESSION, 'DoublyRobust support discrete treatment only.'
 
         return PermutedDoublyRobust(
             y_model=self._model(data, task=y_task, estimator=self.y_model, random_state=random_state),
@@ -112,7 +113,8 @@ class MetaLeanerFactory(BaseEstimatorFactory):
                  adjustment=None, covariate=None, instrument=None, random_state=None):
         from ylearn.estimator_model import PermutedSLearner, PermutedTLearner, PermutedXLearner
 
-        assert adjustment is not None
+        # assert adjustment is not None
+        assert x_task != const.TASK_REGRESSION, 'MetaLearner support discrete treatment only.'
 
         tag = self.leaner.strip().lower()[0]
         learners = dict(s=PermutedSLearner, t=PermutedTLearner, x=PermutedXLearner)
@@ -120,7 +122,7 @@ class MetaLeanerFactory(BaseEstimatorFactory):
         return est_cls(
             model=self._model(data, task=y_task, estimator=self.model, random_state=random_state),
             is_discrete_outcome=y_task != const.TASK_REGRESSION,
-            # is_discrete_treatment=x_task != const.TASK_REGRESSION,
+            is_discrete_treatment=x_task != const.TASK_REGRESSION,
             random_state=random_state,
             # combined_treatment=False,
         )

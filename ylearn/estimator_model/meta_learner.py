@@ -479,8 +479,8 @@ class SLearner(BaseEstLearner):
 
         return f_nji.squeeze()
 
-    def __repr__(self) -> str:
-        return f'SLearner'
+    # def __repr__(self) -> str:
+    #     return f'SLearner'
 
 
 class TLearner(BaseEstLearner):
@@ -943,8 +943,8 @@ class TLearner(BaseEstLearner):
 
         return f_nji.squeeze()
 
-    def __repr__(self) -> str:
-        return f'TLearner'
+    # def __repr__(self) -> str:
+    #     return f'TLearner'
 
 
 class XLearner(BaseEstLearner):
@@ -1426,5 +1426,5 @@ class XLearner(BaseEstLearner):
 
         return f_nji.squeeze()
 
-    def __repr__(self) -> str:
-        return f'XLearner'
+    # def __repr__(self) -> str:
+    #     return f'XLearner'

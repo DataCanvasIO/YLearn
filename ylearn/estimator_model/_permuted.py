@@ -129,6 +129,13 @@ class PermutedLearner(BaseEstLearner):
             effect = effect * sign
         return effect
 
+    def effect_nji(self, data=None, treat=None, control=None, **kwargs):
+        learner, sign = self._get_learner(treat, control)
+        effect = learner.effect_nji(data, **kwargs)
+        if sign < 0:
+            effect = effect * sign
+        return effect
+
     @staticmethod
     def _get_job_options(n_jobs=None):
         return dict(n_jobs=n_jobs, prefer='processes')

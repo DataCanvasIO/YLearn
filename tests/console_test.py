@@ -66,8 +66,8 @@ def test_whatif_continuous():
 
 def test_policy_tree():
     data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x1m_y1()
-    data[treatment] = data[treatment].astype('float32')
-    test_data[treatment] = test_data[treatment].astype('float32')
+    # data[treatment] = data[treatment].astype('float32')
+    # test_data[treatment] = test_data[treatment].astype('float32')
     cc = CausalConsole()
     cc.fit(data, outcome[0], treatment=treatment, adjustment=adjustment, covariate=covariate)
 
@@ -77,8 +77,8 @@ def test_policy_tree():
 
 def test_policy_interpreter():
     data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x1m_y1()
-    data[treatment] = data[treatment].astype('float32')
-    test_data[treatment] = test_data[treatment].astype('float32')
+    # data[treatment] = data[treatment].astype('float32')
+    # test_data[treatment] = test_data[treatment].astype('float32')
     cc = CausalConsole()
     cc.fit(data, outcome[0], treatment=treatment, adjustment=adjustment, covariate=covariate)
 
