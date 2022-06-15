@@ -88,7 +88,8 @@ class DRFactory(BaseEstimatorFactory):
                  adjustment=None, covariate=None, instrument=None, random_state=None):
         from ylearn.estimator_model import PermutedDoublyRobust
 
-        assert adjustment is not None
+        # assert adjustment is not None
+        assert x_task != const.TASK_REGRESSION, 'DoublyRobust support discrete treatment only.'
 
         return PermutedDoublyRobust(
             y_model=self._model(data, task=y_task, estimator=self.y_model, random_state=random_state),
@@ -102,7 +103,7 @@ class DRFactory(BaseEstimatorFactory):
 @register()
 @register(name='ml')
 class MetaLeanerFactory(BaseEstimatorFactory):
-    def __init__(self, leaner='sleaner', model='gb'):
+    def __init__(self, leaner='tleaner', model='gb'):
         assert leaner.strip().lower()[0] in {'s', 't', 'x'}
 
         self.leaner = leaner
@@ -113,6 +114,7 @@ class MetaLeanerFactory(BaseEstimatorFactory):
         from ylearn.estimator_model import PermutedSLearner, PermutedTLearner, PermutedXLearner
 
         # assert adjustment is not None
+        assert x_task != const.TASK_REGRESSION, 'MetaLearner support discrete treatment only.'
 
         tag = self.leaner.strip().lower()[0]
         learners = dict(s=PermutedSLearner, t=PermutedTLearner, x=PermutedXLearner)
@@ -120,7 +122,7 @@ class MetaLeanerFactory(BaseEstimatorFactory):
         return est_cls(
             model=self._model(data, task=y_task, estimator=self.model, random_state=random_state),
             is_discrete_outcome=y_task != const.TASK_REGRESSION,
-            # is_discrete_treatment=x_task != const.TASK_REGRESSION,
+            is_discrete_treatment=x_task != const.TASK_REGRESSION,
             random_state=random_state,
             # combined_treatment=False,
         )

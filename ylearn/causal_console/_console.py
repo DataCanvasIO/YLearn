@@ -143,6 +143,7 @@ class CausalConsole:
         self.random_state = random_state
 
         # fitted
+        self._is_fitted = False,
         self.feature_names_in_ = None
         self.task = task
         self.treatment_ = None
@@ -253,6 +254,7 @@ class CausalConsole:
         self.scorers_ = scorers
         self.y_encoder_ = y_encoder
         self.preprocessor_ = preprocessor
+        self._is_fitted = True
 
         return self
 
@@ -352,6 +354,22 @@ class CausalConsole:
                          random_state=self.random_state)
         return scorer
 
+    def _preprocess(self, test_data):
+        assert self._is_fitted
+
+        if test_data is not None:
+            test_data = test_data.copy()
+
+            if self.preprocessor_ is not None:
+                columns = _join_list(self.adjustment_, self.covariate_, self.instrument_)
+                assert len(columns) > 0
+                test_data[columns] = self.preprocessor_.transform(test_data[columns])
+
+            if self.y_encoder_ is not None and self.outcome_ in test_data.columns.tolist():
+                test_data[self.outcome_] = self.y_encoder_.transform(test_data[self.outcome_])
+
+        return test_data
+
     def causal_graph(self):
         causation = self.identifier_.causation_matrix_ \
             if isinstance(self.identifier_, IdentifierWithDiscovery) else None
@@ -382,12 +400,7 @@ class CausalConsole:
         return self.cohort_causal_effect(None, treat=treat, control=control)
 
     def cohort_causal_effect(self, Xtest, treat=None, control=None):
-        if Xtest is not None and self.preprocessor_ is not None:
-            columns = _join_list(self.adjustment_, self.covariate_, self.instrument_)
-            assert len(columns) > 0
-            Xtest = Xtest.copy()
-            Xtest[columns] = self.preprocessor_.transform(Xtest[columns])
-
+        Xtest = self._preprocess(Xtest)
         dfs = []
         for i, x in enumerate(self.treatment_):
             est = self.estimators_[x]
@@ -403,12 +416,7 @@ class CausalConsole:
         return pd.concat(dfs, axis=1).T
 
     def local_causal_effect(self, Xtest, treat=None, control=None):
-        if Xtest is not None and self.preprocessor_ is not None:
-            columns = _join_list(self.adjustment_, self.covariate_, self.instrument_)
-            assert len(columns) > 0
-            Xtest = Xtest.copy()
-            Xtest[columns] = self.preprocessor_.transform(Xtest[columns])
-
+        Xtest = self._preprocess(Xtest)
         dfs = []
         for i, x in enumerate(self.treatment_):
             est = self.estimators_[x]
@@ -477,11 +485,12 @@ class CausalConsole:
 
         return score
 
-    def policy_tree(self, Xtest, treatment=None, **tree_options):
+    def policy_tree(self, Xtest, treatment=None, treat=None, control=None, **tree_options):
         if treatment is None:
             treatment = self.treatment_[0]
         estimator = self.estimators_[treatment]
 
+        Xtest = self._preprocess(Xtest)
         tree_options = dict(criterion='policy_reg', **tree_options)
         ptree = PolicyTree(**tree_options)
         ptree.fit(Xtest, covariate=self.covariate_, est_model=estimator)
@@ -493,6 +502,7 @@ class CausalConsole:
             treatment = self.treatment_[0]
         estimator = self.estimators_[treatment]
 
+        data = self._preprocess(data)
         pi = PolicyInterpreter(**options)
         pi.fit(data, estimator)
 
@@ -503,7 +513,9 @@ class CausalConsole:
         ptree.plot()
 
     def plot_policy_interpreter(self, data, treatment=None, options=None, **kwargs):
-        pi = self.policy_interpreter(data, treatment=treatment, options=options)
+        if options is None:
+            options = {}
+        pi = self.policy_interpreter(data, treatment=treatment, **options)
         pi.plot(**kwargs)
 
     def plot_causal_graph(self):
