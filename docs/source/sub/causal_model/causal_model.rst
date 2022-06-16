@@ -7,10 +7,10 @@ Causal Model
 :class:`CausalModel` is a core object for performing :ref:`identification` and finding
 Instrumental Variables. 
 
-Before introducing the causal model, we should clarify the **Interventions** first.
+Before introducing the causal model, we should clarify the definition of **Interventions** first.
 Interventions would be to take the whole population and give every one some operation. 
 [Pearl]_ defined the :math:`do`-operator to describe such operations. Probabilistic models can not serve 
-to predict the effect of interventions which leads to the need for causal model. 
+to predict the effect of interventions that leads to the need for causal model. 
 
 The formal definition of **causal model** is due to [Pearl]_. A causal model is a triple
 
@@ -43,8 +43,8 @@ such that
 
 .. math::
 
-    V_1 = \theta_1 I + U_1\\
-    V_2 = \phi V_1 + \theta_2 J + U_2.
+    V_1 = F_1(I, U_1) = \theta_1 I + U_1\\
+    V_2 = F_2(V_1, J, U_2, ) = \phi V_1 + \theta_2 J + U_2.
 
 Note that every causal model can be associated with a DAG and encodes necessary information of the causal relationships between variables.
 YLearn uses :class:`CausalModel` to represent a causal model and support many operations related to the causal
@@ -56,9 +56,9 @@ Identification
 ==============
 
 To characterize the effect of the intervention, one needs to consider the **causal effect** which is a 
-causal estimand including the :math:`do`-operator. The action which converts the causal effect into corresponding 
-statistical estimands is called :ref:`identification` in YLearn and is implemented in :class:`CausalModel`. Note that not 
-all causal effect can be converted to statistical estimands. We refer such causal effects as not identifiable.
+causal estimand including the :math:`do`-operator. The action that converts the causal effect into corresponding 
+statistical estimands is called :ref:`identification` and is implemented in :class:`CausalModel` in YLearn. Note that not 
+all causal effects can be converted to statistical estimands. We refer to such causal effects as not identifiable.
 
 .. topic:: Backdoor adjustment
 
@@ -233,7 +233,7 @@ Class Structures
         :param iterable treatment: Name(s) of the treatment.
         :param iterable outcome: Name(s) of the outcome.
 
-        :returns: A valid instrumental variable set which will be an empty one if
+        :returns: A valid instrumental variable set that will be an empty one if
                 there is no such set.
         :rtype: set
 
