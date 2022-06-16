@@ -4,7 +4,7 @@ from itertools import product
 import pandas as pd
 from joblib import delayed, Parallel
 
-from .base_models import BaseEstLearner
+from .base_models import BaseEstModel
 from .doubly_robust import DoublyRobust
 from .meta_learner import SLearner, TLearner, XLearner
 
@@ -15,9 +15,9 @@ def _copy_and_fit(learner, data, outcome, treatment, treat, control, **kwargs):
     return learner
 
 
-class PermutedLearner(BaseEstLearner):
+class PermutedLearner(BaseEstModel):
     def __init__(self, learner):
-        assert isinstance(learner, BaseEstLearner) and learner.is_discrete_treatment
+        assert isinstance(learner, BaseEstModel) and learner.is_discrete_treatment
         assert not learner._is_fitted
 
         super().__init__(random_state=learner.random_state,

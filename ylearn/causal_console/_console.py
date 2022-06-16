@@ -9,7 +9,7 @@ from ylearn import sklearn_ex as skex
 from ylearn.causal_discovery import DagDiscovery
 from ylearn.causal_model import CausalGraph
 from ylearn.effect_interpreter.policy_interpreter import PolicyInterpreter
-from ylearn.estimator_model.base_models import BaseEstLearner
+from ylearn.estimator_model.base_models import BaseEstModel
 from ylearn.policy.policy_model import PolicyTree
 from ylearn.utils import const, logging, view_pydot, infer_task_type, to_repr, drop_none, set_random_state
 from ._factory import ESTIMATOR_FACTORIES
@@ -128,7 +128,7 @@ class CausalConsole:
                  scorer=None,  # auto, rloss, or None
                  scorer_options=None,  # dict or None
                  random_state=None):
-        assert isinstance(estimator, (str, BaseEstLearner))
+        assert isinstance(estimator, (str, BaseEstModel))
         if isinstance(estimator, str):
             assert estimator == 'auto' or estimator in ESTIMATOR_FACTORIES.keys()
         assert scorer is None or scorer in {'auto', 'rloss'}

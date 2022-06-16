@@ -10,7 +10,7 @@ from ylearn.utils import to_repr
 from .utils import BatchData
 # from ..utils._common import check_cols
 
-class BaseEstLearner:
+class BaseEstModel:
     """
     Base class for various estimation learner.
 

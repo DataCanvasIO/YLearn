@@ -6,11 +6,11 @@ from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import (OneHotEncoder, OrdinalEncoder,
                                    PolynomialFeatures)
 
-from .base_models import BaseEstLearner
+from .base_models import BaseEstModel
 from .utils import (convert2array, nd_kron, get_wv)
 
 
-# class TwoSLS(BaseEstLearner):
+# class TwoSLS(BaseEstModel):
 #     # TODO: simply import the 2SLS from StatsModel can finish this
 #     def __init__(
 #         self,
@@ -36,7 +36,7 @@ from .utils import (convert2array, nd_kron, get_wv)
 #         pass
 
 
-class NP2SLS(BaseEstLearner):
+class NP2SLS(BaseEstModel):
     r"""
     See Instrumental variable estimation of nonparametric models
     (https://eml.berkeley.edu/~powell/npiv.pdf) for reference.

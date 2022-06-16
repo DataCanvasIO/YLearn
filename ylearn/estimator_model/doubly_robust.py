@@ -1,7 +1,6 @@
 
 from copy import deepcopy
 from collections import defaultdict
-from attr import has
 
 import numpy as np
 
@@ -11,7 +10,7 @@ from sklearn.model_selection import KFold
 
 
 from . import propensity_score
-from .base_models import BaseEstLearner
+from .base_models import BaseEstModel
 from .utils import (convert2array, get_wv, convert4onehot,
                     cartesian, get_tr_ctrl)
 
@@ -40,7 +39,7 @@ class _YModelWrapper:
         return y_nji
 
 
-class DoublyRobust(BaseEstLearner):
+class DoublyRobust(BaseEstModel):
     # TODO: consider combined treatment when dealing with multiple treatment case
     r"""
     The doubly robust estimator has 3 steps
@@ -600,7 +599,7 @@ class DoublyRobust(BaseEstLearner):
         return _YModelWrapper(y_model=y_model, x_d=self._x_d, y_d=self._y_d)
 
 
-class _DoublyRobustOld(BaseEstLearner):
+class _DoublyRobustOld(BaseEstModel):
     r"""
     The doubly robust estimator has 3 steps
     (see https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3070495/pdf/kwq439.pdf

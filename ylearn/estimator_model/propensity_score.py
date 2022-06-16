@@ -4,7 +4,7 @@ import torch.nn as nn
 
 from sklearn import linear_model
 
-from .base_models import BaseEstLearner
+from .base_models import BaseEstModel
 # TODO: consider treatments other than binary treatment.
 
 
@@ -86,7 +86,7 @@ class PropensityScore:
         return self.predict(pre_data, adjustment)
 
 
-class InversePbWeighting(BaseEstLearner):
+class InversePbWeighting(BaseEstModel):
     r"""
     Inverse Probability Weighting. The identification equation is defined as
         E[y|do(x)] = E[I(X=x)y / P(x|W)],

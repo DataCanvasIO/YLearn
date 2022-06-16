@@ -6,12 +6,12 @@ from sklearn import clone
 from sklearn.preprocessing import OrdinalEncoder, OneHotEncoder
 from collections import defaultdict
 
-from .base_models import BaseEstLearner
+from .base_models import BaseEstModel
 from .utils import (convert2array, get_groups,
                     get_treat_control, get_wv, cartesian, get_tr_ctrl)
 
 
-class SLearner(BaseEstLearner):
+class SLearner(BaseEstModel):
     """
     SLearn uses one machine learning model to compute the causal effects.
     Specifically, we fit a model to predict outcome (y) from treatment (x) and
@@ -483,7 +483,7 @@ class SLearner(BaseEstLearner):
     #     return f'SLearner'
 
 
-class TLearner(BaseEstLearner):
+class TLearner(BaseEstModel):
     """
     TLearner uses two machine learning models to estimate the causal
     effect. Specifically, we
@@ -947,7 +947,7 @@ class TLearner(BaseEstLearner):
     #     return f'TLearner'
 
 
-class XLearner(BaseEstLearner):
+class XLearner(BaseEstModel):
     """
     The XLearner is composed of 3 steps:
         1. Train two different models for the control group and treated group

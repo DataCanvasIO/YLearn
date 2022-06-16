@@ -24,7 +24,7 @@ from torch import svd
 
 from ..utils import logging, Version
 from .utils import (convert2array, get_wv, get_treat_control)
-from .base_models import BaseEstLearner
+from .base_models import BaseEstModel
 from ._tree.tree_criterion import CMSE, MSE, HonestCMSE
 # import pyximport
 # pyximport.install(setup_args={"script_args": ["--verbose"]})
@@ -37,7 +37,7 @@ SPLITTERS = {"best": BestSplitter, "random": RandomSplitter}
 
 EPS = 1e-5
 
-class CausalTree(BaseEstLearner):
+class CausalTree(BaseEstModel):
     # TODO: add support for multi-output causal tree
     """
     A class for estimating causal effect with decision tree.

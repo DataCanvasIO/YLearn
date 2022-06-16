@@ -8,7 +8,7 @@ from sklearn.preprocessing import OneHotEncoder, OrdinalEncoder
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import KFold
 
-from .base_models import BaseEstLearner
+from .base_models import BaseEstModel
 from .utils import (convert2array, convert4onehot, nd_kron,
                     get_wv, cartesian, get_tr_ctrl)
 from ylearn.utils import logging
@@ -16,7 +16,7 @@ from ylearn.utils import logging
 logger = logging.get_logger(__name__)
 
 #
-# class DoubleML(BaseEstLearner):
+# class DoubleML(BaseEstModel):
 #     r"""
 #     Double machine learning has two stages:
 #     In stage I, we
@@ -79,7 +79,7 @@ logger = logging.get_logger(__name__)
 #         raise NotImplementedError
 
 
-class DML4CATE(BaseEstLearner):
+class DML4CATE(BaseEstModel):
     r"""Double machine learning for estimating CATE.
     # TODO: convert the einstein notations in this section to the usual ones.
     # TODO: expand fij to higher orders of v.

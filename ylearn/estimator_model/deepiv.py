@@ -20,7 +20,7 @@ from torch.distributions import Categorical, Normal, MixtureSameFamily,\
 
 from .utils import BatchData, convert2array, convert2tensor, \
     shapes, DiscreteOBatchData, DiscreteIOBatchData, DiscreteIBatchData
-from .base_models import BaseEstLearner, MLModel
+from .base_models import BaseEstModel, MLModel
 
 # We first build the mixture density network.
 
@@ -513,7 +513,7 @@ class NetWrapper:
 # treatment nets.
 
 
-class DeepIV(BaseEstLearner):
+class DeepIV(BaseEstModel):
     r"""Training of a DeepIV model g(x, w) is composed of 2 stages:
             1. In the first stage, we train a neural network to estimate the
             distribution of the treatment x given the instrument z and

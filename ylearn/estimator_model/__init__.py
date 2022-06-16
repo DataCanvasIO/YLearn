@@ -2,7 +2,7 @@
 #     propensity_score
 
 from .approximation_bound import ApproxBound
-from .base_models import BaseEstLearner
+from .base_models import BaseEstModel
 from .causal_tree import CausalTree
 from .deepiv import DeepIV
 from .double_ml import DML4CATE

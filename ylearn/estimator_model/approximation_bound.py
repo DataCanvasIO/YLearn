@@ -2,12 +2,12 @@ import numpy as np
 from sklearn.preprocessing import OneHotEncoder, OrdinalEncoder
 
 
-from .base_models import BaseEstLearner
+from .base_models import BaseEstModel
 from .utils import (convert2array, get_wv, convert4onehot,
                     get_tr_ctrl, cartesian, get_groups)
 
 
-class ApproxBound(BaseEstLearner):
+class ApproxBound(BaseEstModel):
     """
     A model used for estimating the upper and lower bounds of the causal effects.
     
@@ -69,7 +69,7 @@ class ApproxBound(BaseEstLearner):
             Please set this as None if you are using multiple treatmens.
         
         x_model : estimator, optional. Default to None
-            Any valide x_model should implement the fit() and predict_proba() methods.
+            Models for predicting the probabilities of treatment. Any valide x_model should implement the fit() and predict_proba() methods.
         
         random_state : int, optional. Defaults to 2022.
         
@@ -210,7 +210,7 @@ class ApproxBound(BaseEstLearner):
             The lower bound of the outcome.
         
         assump : str, optional.  Defaults to 'no-assump'.
-            Should be one of
+            Options for the returned bounds. Should be one of
                 1. no-assump: calculate the no assumption bound whose result
                     will always contain 0.
                 2. non-negative: The treatment is always positive.
@@ -232,7 +232,7 @@ class ApproxBound(BaseEstLearner):
             Raise Exception if the model is not fitted.
         
         Exception
-            Raise Exception if the assump is not set correctly.
+            Raise Exception if the assump is not given correctly.
         """
         if not self._is_fitted:
             raise Exception(
@@ -261,7 +261,7 @@ class ApproxBound(BaseEstLearner):
             )
 
     def comp_transormer(self, x, categories='auto'):
-        """Transform the discrete treatment into one-hot vectors.
+        """Transform the discrete treatment into one-hot vectors properly.
 
         Parameters
         ----------
