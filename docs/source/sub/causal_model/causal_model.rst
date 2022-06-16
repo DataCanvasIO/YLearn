@@ -203,7 +203,7 @@ Class Structures
         :param str outcome: Name of the outcome.
 
         :returns: True if the given set is a valid frontdoor adjustment set for causal effects
-                of treatemtns on outcomes.
+                of treatments on outcomes.
         :rtype: bool
 
     .. py:method:: get_frontdoor_set(treatment, outcome, adjust='simple')

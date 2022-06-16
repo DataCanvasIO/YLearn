@@ -12,13 +12,20 @@ from .utils import (convert2array, get_groups,
 
 
 class SLearner(BaseEstModel):
-    """
+    r"""
     SLearn uses one machine learning model to compute the causal effects.
     Specifically, we fit a model to predict outcome (y) from treatment (x) and
     adjustment (w):
-        y = f(x, w)
-    and the causal effect is calculated as
-        causal_effect = f(x=1, w) - f(x=0, w).
+
+    .. math::
+
+        y = f(x, w).
+
+    The causal effect is then calculated as
+
+    .. math::
+
+        \text{causal_effect} = f(x=1, w) - f(x=0, w).
 
     Attributes
     ----------
@@ -243,10 +250,13 @@ class SLearner(BaseEstModel):
             If None, then the training data is used as data.
        
         quantity : str, optional. Defaults to None
-            The possible values of quantity include:
-                'CATE' : the estimator will evaluate the CATE;
-                'ATE' : the estimator will evaluate the ATE;
-                None : the estimator will evaluate the ITE or CITE.
+            Option for returned estimation result. The possible values of quantity include:
+                
+                1. *'CATE'* : the estimator will evaluate the CATE;
+                
+                2. *'ATE'* : the estimator will evaluate the ATE;
+                
+                3. *None* : the estimator will evaluate the ITE or CITE.
         
         Returns
         -------

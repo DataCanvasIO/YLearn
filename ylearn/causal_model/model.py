@@ -836,7 +836,7 @@ class CausalModel:
         ----------
         Bool
             True if the given set is a valid frontdoor adjustment set for causal effects
-            of treatemtns on outcomes.
+            of treatments on outcomes.
         """
         ava_nodes = self.causal_graph.causation.keys()
         check_nodes(ava_nodes, set_, set(treatment), set(outcome))

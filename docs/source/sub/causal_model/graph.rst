@@ -59,7 +59,7 @@ structures include:
 
 :math:`X` and :math:`Y` are statistically dependent.
 
-In YLearn, one can use the :class:`CausalGraph` to represent causal structures by firt giving a python dict where
+In YLearn, one can use the :class:`CausalGraph` to represent causal structures by first giving a python dict where
 each key in this dict is a child of all elements in the corresponding dict value, which usually should be a list 
 of str.
 
