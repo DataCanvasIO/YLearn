@@ -28,7 +28,7 @@ more promising especially when there are abundant observational data.
 
 Concepts in YLearn and their related problem settings
 =====================================================
-There are three main concepts in YLearn correspondig to the causal inference pipeline.
+There are three main concepts in YLearn corresponding to the causal inference pipeline.
 
 1. *Causal Discovery*. Discovering the causal relationships in the observational data.
 

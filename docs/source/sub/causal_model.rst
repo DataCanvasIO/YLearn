@@ -12,7 +12,7 @@ Causal Model: The Representation of Causal Structures
 
 For a set of variables :math:`V`, its **causal structure** can be represented by a directed acylic 
 graph (DAG), where each node corresponds to an element of :math:`V` while each direct functional 
-relationship among the correspondig variables can be represented by a link in the DAG. A causal
+relationship among the corresponding variables can be represented by a link in the DAG. A causal
 structure guides the precise specification of how each variable is influenced by its parents in the
 DAG. For an instance, :math:`X \leftarrow W \rightarrow Y` denotes that :math:`W` is a parent, thus 
 also a common cause, of :math:`X` and :math:`Y`. More specifically, for two distinct variables :math:`V_i` 
@@ -44,7 +44,7 @@ for some causal structure, the causal estimands, e.g., the average treatment eff
 be directly estimated from the data due to the counterfactuals which can never be observed. Thus it is 
 necessary to convert these causal estimands into other quantities, which can be called as statistical estimands
 and can be estimated from data, before proceeding to any estimation. The procedure of converting a causal
-estimand into the correspondig statistical estimand is called **identification**.
+estimand into the corresponding statistical estimand is called **identification**.
 
 The object for supporting identification and other related operations of causal structures is ``CausalModel``.
 More details can be found in :ref:`causal_model`.

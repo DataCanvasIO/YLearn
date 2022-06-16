@@ -85,7 +85,7 @@ all causal effects can be converted to statistical estimands. We refer to such c
 
     [Shpitser2006]_ gives a necessary and sufficient graphical condition such that the causal effect
     of an arbitrary set of variables on another arbitrary set can be identified uniquely whenever its identifiable. We 
-    call the correspondig action of verifying this condition as **general identification**.
+    call the corresponding action of verifying this condition as **general identification**.
 
 .. topic:: Finding Instrumental Variables
 
@@ -103,7 +103,7 @@ all causal effects can be converted to statistical estimands. We refer to such c
 Class Structures
 ================
 
-.. py:class:: CausalModel(causal_graph=None, data=None)
+.. py:class:: ylearn.causal_model.CausalModel(causal_graph=None, data=None)
 
     :param CausalGraph, optional, default=None causal_graph: An instance of CausalGraph which encodes the causal structures.
     :param pandas.DataFrame, optional, default=None data: The data used to discover the causal structures if causal_graph is not provided.
@@ -121,7 +121,7 @@ Class Structures
         :param set of str y: Set of names of outcomes.
         :param set of str x: Set of names of treatments.
         :param Prob, optional, default=None prob: Probability distribution encoded in the graph.
-        :param CausalGraph graph: CausalGraph encodes the information of correspondig causal structures.
+        :param CausalGraph graph: CausalGraph encodes the information of corresponding causal structures.
 
         :returns: The probabiity distribution of the converted casual effect.
         :rtype: Prob
