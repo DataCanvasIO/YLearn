@@ -1,7 +1,6 @@
 
 from copy import deepcopy
 from collections import defaultdict
-from matplotlib.pyplot import axis
 
 import numpy as np
 
