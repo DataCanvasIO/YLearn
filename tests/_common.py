@@ -4,7 +4,9 @@ import pandas as pd
 
 def validate_leaner(data_generator, leaner,
                     fit_kwargs=None, estimate_kwargs=None,
-                    check_fitted=True, check_effect=True):
+                    check_fitted=True, check_effect=True,
+                    check_effect_nji=False,
+                    ):
     # generate data
     data, test_data, outcome, treatment, adjustment, covariate = data_generator()
 
@@ -37,10 +39,16 @@ def validate_leaner(data_generator, leaner,
     kwargs = dict(data=test_data, quantity=None)
     if estimate_kwargs:
         kwargs.update(estimate_kwargs)
-    pred = leaner.estimate(**kwargs)
-    assert pred is not None
+    effect = leaner.estimate(**kwargs)
+    assert effect is not None
     if check_effect:
-        assert isinstance(pred, (np.ndarray, pd.Series))
-        assert pred.min() != pred.max()
+        assert isinstance(effect, (np.ndarray, pd.Series))
+        assert effect.min() != effect.max()
 
-    return leaner, pred
+    if check_effect_nji:
+        effect_nji = leaner.effect_nji(test_data)
+        assert isinstance(effect_nji, np.ndarray)
+        assert effect_nji.shape[0] == len(test_data)
+        assert effect_nji.shape[1] == len(outcome)
+
+    return leaner, effect

@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from ylearn.causal_console import CausalConsole
+from ylearn import Why
 from . import _dgp
 
 
@@ -25,7 +25,7 @@ def _validate_it(cc, test_data):
 
 def test_basis():
     data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x2b_y1()
-    cc = CausalConsole()
+    cc = Why()
     cc.fit(data, outcome[0], treatment=treatment, adjustment=adjustment, covariate=covariate)
 
     _validate_it(cc, test_data)
@@ -33,7 +33,7 @@ def test_basis():
 
 def test_identify_treatment():
     data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x2b_y1()
-    cc = CausalConsole()
+    cc = Why()
     # cc.fit(data, outcome[0], treatment=treatment, adjustment=adjustment, covariate=covariate)
     cc.fit(data, outcome[0], treatment=None, adjustment=adjustment, covariate=covariate)
 
@@ -42,7 +42,7 @@ def test_identify_treatment():
 
 def test_whatif_discrete():
     data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x2b_y1()
-    cc = CausalConsole()
+    cc = Why()
     cc.fit(data, outcome[0], treatment=treatment, adjustment=adjustment, covariate=covariate)
 
     new_value = np.ones_like(test_data[treatment[0]])
@@ -55,7 +55,7 @@ def test_whatif_continuous():
     data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x1m_y1()
     data[treatment] = data[treatment].astype('float32')
     test_data[treatment] = test_data[treatment].astype('float32')
-    cc = CausalConsole()
+    cc = Why()
     cc.fit(data, outcome[0], treatment=treatment, adjustment=adjustment, covariate=covariate)
 
     new_value = np.ones_like(test_data[treatment[0]])
@@ -68,8 +68,20 @@ def test_policy_tree():
     data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x1m_y1()
     # data[treatment] = data[treatment].astype('float32')
     # test_data[treatment] = test_data[treatment].astype('float32')
-    cc = CausalConsole()
+    cc = Why()
     cc.fit(data, outcome[0], treatment=treatment, adjustment=adjustment, covariate=covariate)
+
+    ptree = cc.policy_tree(test_data)
+    assert ptree is not None
+
+
+def test_policy_tree_dml():
+    data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x1m_y1()
+    # data[treatment] = data[treatment].astype('float32')
+    # test_data[treatment] = test_data[treatment].astype('float32')
+    cc = Why(estimator='dml')
+    # cc.fit(data, outcome[0], treatment=treatment, adjustment=adjustment, covariate=covariate)
+    cc.fit(data, treatment[0], treatment=outcome, adjustment=adjustment, covariate=covariate)
 
     ptree = cc.policy_tree(test_data)
     assert ptree is not None
@@ -79,7 +91,7 @@ def test_policy_interpreter():
     data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x1m_y1()
     # data[treatment] = data[treatment].astype('float32')
     # test_data[treatment] = test_data[treatment].astype('float32')
-    cc = CausalConsole()
+    cc = Why()
     cc.fit(data, outcome[0], treatment=treatment, adjustment=adjustment, covariate=covariate)
 
     pi = cc.policy_interpreter(test_data)
@@ -89,7 +101,7 @@ def test_policy_interpreter():
 @pytest.mark.xfail(reason='to be fixed')
 def test_discovery_treatment():
     data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x2b_y1()
-    cc = CausalConsole(identify='discovery')
+    cc = Why(identify='discovery')
     # cc.fit(data, outcome[0], treatment=treatment, adjustment=adjustment, covariate=covariate)
     cc.fit(data, outcome[0], treatment=None, adjustment=adjustment, covariate=covariate)
 
@@ -99,7 +111,7 @@ def test_discovery_treatment():
 @pytest.mark.xfail(reason='to be fixed')
 def test_discovery_taci():
     data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x2b_y1()
-    cc = CausalConsole(identify='discovery')
+    cc = Why(identify='discovery')
     # cc.fit(data, outcome[0], treatment=treatment, adjustment=adjustment, covariate=covariate)
     cc.fit(data, outcome[0])
 
@@ -109,7 +121,7 @@ def test_discovery_taci():
 @pytest.mark.xfail(reason='to be fixed')
 def test_score():
     data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x2b_y1()
-    cc = CausalConsole(scorer='auto')
+    cc = Why(scorer='auto')
     cc.fit(data, outcome[0], treatment=treatment, adjustment=adjustment, covariate=covariate)
 
     _validate_it(cc, test_data)

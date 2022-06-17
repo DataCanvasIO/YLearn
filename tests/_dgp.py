@@ -73,7 +73,7 @@ def binary_TE(w):
 
 
 def multiclass_TE(w, wi=1):
-    boundary = [-1., -0.5, -0.1, 0.1, 0.5, 1.]
+    boundary = [-1., -0.15, 0.15, 1.]
     return np.searchsorted(boundary, w[wi])
 
 
@@ -207,3 +207,31 @@ def generate_data_x1m_y1_w5v0():
 
 def generate_data_x1m_y1_w0v5():
     return generate_data_x1m_y1(d_adjustment=0, d_covariate=5)
+
+
+def generate_data_x2mb_y1(train_size=TRAIN_SIZE, test_size=TEST_SIZE,
+                          d_adjustment=ADJUSTMENT_COUNT, d_covariate=COVARIATE_COUNT):
+    beta = uniform(-3, 3, d_adjustment if d_adjustment else d_covariate)
+
+    def to_treatment(w):
+        propensity = 0.8 if -0.5 < w[3] < 0.5 else 0.2
+        return np.array([multiclass_TE(w, wi=2),
+                         np.random.binomial(1, propensity, 1)[0],
+                         ])
+
+    def to_outcome(w, x):
+        treatment_effect = multiclass_TE(w)
+        y0 = np.dot(w, beta) + np.random.normal(0, 1)
+        y = y0 + treatment_effect * x[:1]
+        return y
+
+    return generate_data(train_size, test_size, d_adjustment, d_covariate,
+                         fn_treatment=to_treatment, fn_outcome=to_outcome)
+
+
+def generate_data_x2mb_y1_w5v0():
+    return generate_data_x2mb_y1(d_adjustment=5, d_covariate=0)
+
+
+def generate_data_x2mb_y1_w0v5():
+    return generate_data_x2mb_y1(d_adjustment=0, d_covariate=5)

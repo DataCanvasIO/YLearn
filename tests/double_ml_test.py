@@ -29,6 +29,9 @@ _test_settings = {
     _dgp.generate_data_x2b_y2: (RandomForestClassifier(),
                                 RandomForestRegressor(),
                                 ),
+    _dgp.generate_data_x2mb_y1: (RandomForestClassifier(),
+                                 RandomForestRegressor(),
+                                 ),
 }
 
 
@@ -46,7 +49,7 @@ _test_settings = {
 def test_double_ml(dg):
     x_model, y_model = _test_settings[dg]
     estimator = DML4CATE(x_model=x_model, y_model=y_model, cf_fold=1, random_state=2022, is_discrete_treatment=True)
-    validate_leaner(dg, estimator)
+    validate_leaner(dg, estimator, check_effect_nji=True)
 
 
 #

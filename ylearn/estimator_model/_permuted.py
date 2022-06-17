@@ -1,6 +1,7 @@
 import copy
 from itertools import product
 
+import numpy as np
 import pandas as pd
 from joblib import delayed, Parallel
 
@@ -13,6 +14,29 @@ def _copy_and_fit(learner, data, outcome, treatment, treat, control, **kwargs):
     learner = copy.deepcopy(learner)
     learner.fit(data, outcome, treatment, treat=treat, control=control, **kwargs)
     return learner
+
+
+def _effect_nji(learner_and_sign, data, outcome, treatment, treat, control, ):
+    y_count = 1 if isinstance(outcome, str) else len(outcome)
+
+    if treat == control:
+        effect = np.zeros((len(data), y_count, y_count))
+    else:
+        assert isinstance(learner_and_sign, tuple)
+
+        learner, sign = learner_and_sign
+        effect = learner.effect_nji(data)
+        assert effect.shape[1] == y_count
+        assert effect.shape[2] == 2
+
+        if np.all(effect[:, :, 1:] == 0.0):
+            effect = effect[:, :, :1]
+        else:
+            effect = effect[:, :, 1:]
+        if sign < 0:
+            effect = effect * sign
+
+    return effect
 
 
 class PermutedLearner(BaseEstModel):
@@ -54,7 +78,7 @@ class PermutedLearner(BaseEstModel):
                 else:
                     yield tuple(permuted_treats[t]), tuple(permuted_treats[c])
 
-    def _get_learner(self, treat, control):
+    def _get_learner(self, treat, control, silent=False):
         assert self._is_fitted
 
         treatment = self.treatment
@@ -84,7 +108,10 @@ class PermutedLearner(BaseEstModel):
         elif (control, treat) in self.learners_.keys():
             return self.learners_[(control, treat)], -1
         else:
-            raise ValueError(f'Not found leaner for treat-control pair: [{treat},{control}]')
+            if not silent:
+                raise ValueError(f'Not found leaner for treat-control pair: [{treat},{control}]')
+            else:
+                return None
 
     def fit(
             self,
@@ -129,12 +156,39 @@ class PermutedLearner(BaseEstModel):
             effect = effect * sign
         return effect
 
-    def effect_nji(self, data=None, treat=None, control=None, **kwargs):
-        learner, sign = self._get_learner(treat, control)
-        effect = learner.effect_nji(data, **kwargs)
-        if sign < 0:
-            effect = effect * sign
-        return effect
+    def effect_nji(self, data=None, control=None, n_jobs=1, **kwargs):
+        treatment = self.treatment
+        if isinstance(treatment, str):
+            treatment = [treatment]
+
+        if control is None:
+            control = [self.treats_[t][0] for t in treatment]
+
+        if isinstance(control, list):
+            control = tuple(control)
+
+        if len(treatment) == 1:
+            control = control[0]
+            treats = self.treats_[treatment[0]]
+        else:
+            treats = product(*[self.treats_[x] for x in treatment])
+
+        if n_jobs in {0, 1}:
+            # estimate learners one by one
+            effects = [_effect_nji(
+                self._get_learner(treat, control, silent=True),
+                data, self.outcome, self.treatment, treat, control)
+                for treat in treats]
+        else:
+            # estimate learners with joblib
+            job_options = self._get_job_options(n_jobs)
+            effects = Parallel(**job_options)(delayed(_effect_nji)(
+                self._get_learner(treat, control, silent=True),
+                data, self.outcome, self.treatment, treat, control
+            ) for treat in treats)
+
+        effects = np.concatenate(effects, axis=2)
+        return effects
 
     @staticmethod
     def _get_job_options(n_jobs=None):
