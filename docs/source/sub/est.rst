@@ -59,8 +59,8 @@ Our problems can be expressed with the strucutral equation model.
     .. math::
         
         X & = F_1 (W, \epsilon) \\
-        Y & = F_2 (X, W, \eta)\\
-        \text{ATE} & = \mathbb{E}\left[ F_2(x_1, W, \eta) - F_2(x_0, W, \eta)\right].
+        Y & = F_2 (X, W, \eta) \\
+        \text{ATE} & = \mathbb{E}\left[ F_2(x_1, W, \eta) - F_2(x_0, W, \eta)\right]. 
 
 .. topic:: CATE
 
@@ -70,7 +70,7 @@ Our problems can be expressed with the strucutral equation model.
     .. math::
     
         X & = F_1 (W, V, \epsilon) \\
-        Y & = F_2 (X, W, V, \eta)\\
+        Y & = F_2 (X, W, V, \eta) \\
         \text{CATE} & = \mathbb{E}\left[ f_2(x_1, W, V, \eta) - f_2(x_0, W, V, \eta)| V =v\right].
 
 .. topic:: Counterfactual
