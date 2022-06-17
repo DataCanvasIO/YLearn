@@ -1,6 +1,7 @@
 
 from copy import deepcopy
 from collections import defaultdict
+from matplotlib.pyplot import axis
 
 import numpy as np
 
@@ -419,9 +420,20 @@ class DoublyRobust(BaseEstModel):
 
         return x
 
-    def effect_nji(self, data=None):
+    def _effect_nji_all(self, data=None):
         y_nji = self._prepare4est(data=data, all_tr=True)
         return y_nji
+
+    def effect_nji(self, data=None):
+        y_nji = self._prepare4est(data=data, all_tr=False).reshape(-1, self._y_d, 1)
+        null_effect = np.zeros_like(y_nji)
+        
+        if self.treat > self.control:
+            effect_ = np.concatenate((null_effect, y_nji), axis=2)
+        else:
+            effect_ = np.concatenate((y_nji, null_effect), axis=2)
+        
+        return effect_
 
     def _prepare4est(self, data=None, all_tr=False, treat=None):
         if not all((self.x_hat_dict['is_fitted'][0],
