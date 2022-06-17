@@ -167,16 +167,19 @@ class DoublyRobust(BaseEstModel):
         Parameters
         ----------
         x_model : estimator
-            Any valid x_model should implement the fit and predict_proba methods
+            The machine learning model which is trained to modeling the treatment. 
+            Any valid x_model should implement the :py:func:`fit()` and :py:func:`predict_proba()` methods
 
         y_model : estimator
+            The machine learning model which is trained to modeling the outcome with covariates (possibly adjustment) and the  treatment. 
             Any valid y_model should implement the fit and predict methods
 
         yx_model : estimatro
+            The machine learning model which is trained in the final stage of doubly robust method to modeling the causal effects with covariates (possibly adjustment). 
             Any valid yx_model should implement the fit and predict methods
 
         cf_fold : int, optional
-            The nubmer of folds for performing cross fit, by default 1
+            The nubmer of folds for performing cross fit in th first stage, by default 1
 
         random_state : int, optional
             Random seed, by default 2022
@@ -210,7 +213,8 @@ class DoublyRobust(BaseEstModel):
         adjustment=None,
         covariate=None,
     ):
-        """Fit the DoublyRobust estimator model.
+        """Fit the DoublyRobust estimator model. Note that the trainig of a doubly robust model has three stages, where we implement them in 
+        :py:func:`_fit_1st_stage` and :py:func:`_fit_2nd_stage`.
 
         Parameters
         ----------

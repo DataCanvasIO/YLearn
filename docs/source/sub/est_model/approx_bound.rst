@@ -89,7 +89,7 @@ Class Structures
             where c is the number of different treatment classes. All elements
             in the array are positive and sumed to 1. For example, x_prob = 
             array([0.5, 0.5]) means both x = 0 and x = 1 take probability 0.5.
-            Please set this as None if you are using multiple treatmens.
+            Please set this as None if you are using multiple treatments.
     :param estimator, optional, default=None x_model: Models for predicting the probabilities of treatment. Any valide x_model should implement the fit() and predict_proba() methods.
     :param int, optional, default=2022 random_state:
     :param bool, optional, default=True is_discrete_treatment: True if the treatment is discrete.

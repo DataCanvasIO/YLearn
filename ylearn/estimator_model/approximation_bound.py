@@ -66,7 +66,7 @@ class ApproxBound(BaseEstModel):
             where c is the number of different treatment classes. All elements
             in the array are positive and sumed to 1. For example, x_prob = 
             array([0.5, 0.5]) means both x = 0 and x = 1 take probability 0.5.
-            Please set this as None if you are using multiple treatmens.
+            Please set this as None if you are using multiple treatments.
         
         x_model : estimator, optional. Default to None
             Models for predicting the probabilities of treatment. Any valide x_model should implement the fit() and predict_proba() methods.
