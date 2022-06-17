@@ -13,7 +13,7 @@ S-Learner
 
 SLearn uses one machine learning model to estimate the causal effects. Specifically, we fit a model to predict outcome
 :math:`y` from treatment :math:`x` and adjustment set (or covariate) :math:`w` with a machine learning model
-:math:`f: (x, w) \to y`:
+:math:`f`:
 
 .. math::
 
@@ -53,14 +53,14 @@ The causal effect is then calculated as
                 classification task. For an example, if there are two different
                 binary treatments:
                     
-                    1. treatment_1: :math:`x_1 | x_1 \in` {'sleep', 'run'},
+                    1. treatment_1: :math:`x_1 | x_1 \in \{'sleep', 'run'\}`,
                     
-                    2. treatment_2: :math:`x_2 | x_2 \in` {'study', 'work'},
+                    2. treatment_2: :math:`x_2 | x_2 \in \{'study', 'work'\}`,
                 
                 then we can convert these two binary classification tasks into
                 a single classification task with 4 different classes:
                 
-                treatment: :math:`x | x \in {0, 1, 2, 3}`,
+                treatment: :math:`x | x \in \{0, 1, 2, 3\}`,
                 
                 where, for example, 1 stands for ('sleep' and 'stuy').
 
@@ -157,14 +157,14 @@ adjustment set (or covariate), we
                 classification task. For an example, if there are two different
                 binary treatments:
                     
-                    1. treatment_1: :math:`x_1 | x_1 \in` {'sleep', 'run'},
+                    1. treatment_1: :math:`x_1 | x_1 \in \{'sleep', 'run'\}`,
                     
-                    2. treatment_2: :math:`x_2 | x_2 \in` {'study', 'work'},
+                    2. treatment_2: :math:`x_2 | x_2 \in \{'study', 'work'\}`,
                 
                 then we can convert these two binary classification tasks into
                 a single classification task with 4 different classes:
                 
-                treatment: :math:`x | x \in {0, 1, 2, 3}`,
+                treatment: :math:`x | x \in \{0, 1, 2, 3\}`,
                 
                 where, for example, 1 stands for ('sleep' and 'stuy').
 
@@ -272,14 +272,14 @@ Finally,  the casual effect :math:`\tau(w)` can be estimated as follows:
                 classification task. For an example, if there are two different
                 binary treatments:
                     
-                    1. treatment_1: :math:`x_1 | x_1 \in` {'sleep', 'run'},
+                    1. treatment_1: :math:`x_1 | x_1 \in \{'sleep', 'run'\}`,
                     
-                    2. treatment_2: :math:`x_2 | x_2 \in` {'study', 'work'},
+                    2. treatment_2: :math:`x_2 | x_2 \in \{'study', 'work'\}`,
                 
                 then we can convert these two binary classification tasks into
                 a single classification task with 4 different classes:
                 
-                treatment: :math:`x | x \in {0, 1, 2, 3}`,
+                treatment: :math:`x | x \in \{0, 1, 2, 3\}`,
                 
                 where, for example, 1 stands for ('sleep' and 'stuy').
 
