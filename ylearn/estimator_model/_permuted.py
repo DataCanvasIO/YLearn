@@ -156,7 +156,7 @@ class PermutedLearner(BaseEstModel):
             effect = effect * sign
         return effect
 
-    def effect_nji(self, data=None, control=None, n_jobs=1, **kwargs):
+    def effect_nji(self, data=None, control=None, n_jobs=None, **kwargs):
         treatment = self.treatment
         if isinstance(treatment, str):
             treatment = [treatment]

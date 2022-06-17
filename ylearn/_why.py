@@ -9,8 +9,7 @@ from ylearn import sklearn_ex as skex
 from ylearn.causal_discovery import DagDiscovery
 from ylearn.causal_model import CausalModel, CausalGraph
 from ylearn.effect_interpreter.policy_interpreter import PolicyInterpreter
-from ylearn.estimator_model import ESTIMATOR_FACTORIES
-from ylearn.estimator_model.base_models import BaseEstModel
+from ylearn.estimator_model import ESTIMATOR_FACTORIES, BaseEstModel
 from ylearn.policy.policy_model import PolicyTree
 from ylearn.utils import const, logging, view_pydot, infer_task_type, to_repr, drop_none, set_random_state
 
@@ -120,6 +119,22 @@ def _is_number(dtype):
     return dtype.kind in {'i', 'f'}
 
 
+def _align_task_to_first(data, columns, count_limit):
+    """
+     select features which has similar task type with the first
+    """
+    selected = columns[:1]
+    discrete = infer_task_type(data[selected[0]])[0] != const.TASK_REGRESSION
+    for x in columns[1:]:
+        x_discrete = infer_task_type(data[x])[0] != const.TASK_REGRESSION
+        if x_discrete is discrete:
+            selected.append(x)
+            if len(selected) >= count_limit:
+                break
+
+    return selected
+
+
 class Identifier:
     def __init__(self, task):
         self.task = task
@@ -140,9 +155,10 @@ class DefaultIdentifier(Identifier):
             X = X[[c for c in X.columns.tolist() if c not in excludes]]
 
         tf = skex.FeatureImportancesSelectionTransformer(
-            task=self.task, strategy='number', number=count_limit, data_clean=False)
+            task=self.task, strategy='number', number=X.shape[1], data_clean=False)
         tf.fit(X, y)
-        treatment = tf.selected_features_
+        selected = tf.selected_features_
+        treatment = _align_task_to_first(data, selected, count_limit)
 
         return treatment
 
@@ -191,8 +207,9 @@ class IdentifierWithDiscovery(Identifier):
         if excludes is not None:
             treatment = [t for t in treatment if t not in excludes]
 
-        if len(treatment) > count_limit:
-            treatment = treatment[:count_limit]
+        # if len(treatment) > count_limit
+        #     treatment = treatment[:count_limit]
+        treatment = _align_task_to_first(data, treatment, count_limit)
 
         self.causation_matrix_ = causation
 
@@ -392,6 +409,8 @@ class Why:
                 treatment_count_limit = self._get_default_treatment_count_limit(data, outcome)
             treatment = identifier.identify_treatment(data, outcome, treatment_count_limit)
             logger.info(f'identified treatment: {treatment}')
+        else:
+            pass  # todo validate it
 
         treatment = _to_list(treatment, name='treatment')
         adjustment = _to_list(adjustment, name='adjustment')
@@ -593,40 +612,31 @@ class Why:
 
         return score
 
-    def policy_tree(self, Xtest, treatment=None, control=None, **kwargs):
-        if treatment is None:
-            treatment = self.treatment_[0]
-        estimator = self.estimators_[treatment]
+    def _effect_array(self, preprocessed_data, control=None):
+        effects = []
+        for i, x in enumerate(self.treatment_):
+            estimator = self.estimators_[x]
+            ci = control[i] if control is not None else None
+            effect = estimator.effect_nji(preprocessed_data, control=ci)
+            assert isinstance(effect, np.ndarray)
+            assert effect.ndim == 3 and effect.shape[1] == 1
+            effects.append(effect.reshape(-1, effect.shape[2]))
+        effect_array = np.hstack(effects)
+        return effect_array
 
-        Xtest = self._preprocess(Xtest)
-        tree_options = dict(criterion='policy_reg', **kwargs)
-        ptree = PolicyTree(**tree_options)
-        ptree.fit(Xtest, covariate=self.covariate_, est_model=estimator)
-        #
-        # Xtest = self._preprocess(Xtest)
-        # effects = []
-        # for i, x in enumerate(self.treatment_):
-        #     estimator = self.estimators_[x]
-        #     c = control[i] if control is not None else None
-        #     effect = estimator.effect_nji(Xtest, control=c)
-        #     assert isinstance(effect, np.ndarray)
-        #     assert effect.ndim == 3 and effect.shape[1] == 1
-        #     effects.append(effect.reshape(-1, effect.shape[2]))
-        # effect_array = np.hstack(effects)
-        # ptree = PolicyTree(**kwargs)
-        # ptree.fit(Xtest, covariate=self.covariate_, effect_array=effect_array)
+    def policy_tree(self, data, control=None, **kwargs):
+        data = self._preprocess(data)
+        effect_array = self._effect_array(data, control=control)
+        ptree = PolicyTree(**kwargs)
+        ptree.fit(data, covariate=self.covariate_, effect_array=effect_array)
 
         return ptree
 
-    def policy_interpreter(self, data, treatment=None, control=None, **kwargs):
-        if treatment is None:
-            treatment = self.treatment_[0]
-        estimator = self.estimators_[treatment]
-
+    def policy_interpreter(self, data, control=None, **kwargs):
         data = self._preprocess(data)
+        effect_array = self._effect_array(data, control=control)
         pi = PolicyInterpreter(**kwargs)
-        pi.fit(data, estimator, covariate=self.covariate_)
-
+        pi.fit(data, covariate=self.covariate_, est_model=None, effect_array=effect_array)
         return pi
 
     def plot_policy_tree(self, Xtest, treatment=None, control=None, **kwargs):
