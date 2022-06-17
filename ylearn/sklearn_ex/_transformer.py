@@ -223,7 +223,8 @@ def general_preprocessor():
     cat_steps = [('imputer_cat', SimpleImputer(strategy='constant', fill_value='')),
                  ('encoder', SafeOrdinalEncoder())]
     num_steps = [('imputer_num', SimpleImputer(strategy='mean')),
-                 ('scaler', StandardScaler())]
+                 # ('scaler', StandardScaler()),
+                 ]
 
     cat_transformer = Pipeline(steps=cat_steps)
     num_transformer = Pipeline(steps=num_steps)
