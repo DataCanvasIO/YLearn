@@ -24,13 +24,13 @@ GRAPH_STRING_BASE = """
  digraph G {
   graph [splines=true pad=0.5]
   node [shape="box" width=3 height=1.2]
- 
+
   W [label="Adjustments\n\n WLIST" pos="5,2!" width=5]
   V [label="Covariates\n\n VLIST"  pos="10,2!"]
   X [label="Treatments\n\n XLIST"  pos="5,0!"]
   Y [label="Outcome\n\n YLIST"  pos="10,0!"] 
- 
-  W -> {X Y}  
+
+  W -> {X Y}
   V -> {X Y}
   X -> Y
 }
@@ -485,38 +485,49 @@ class CausalConsole:
 
         return score
 
-    def policy_tree(self, Xtest, treatment=None, treat=None, control=None, **tree_options):
+    def policy_tree(self, Xtest, treatment=None, control=None, **kwargs):
         if treatment is None:
             treatment = self.treatment_[0]
         estimator = self.estimators_[treatment]
 
         Xtest = self._preprocess(Xtest)
-        tree_options = dict(criterion='policy_reg', **tree_options)
+        tree_options = dict(criterion='policy_reg', **kwargs)
         ptree = PolicyTree(**tree_options)
         ptree.fit(Xtest, covariate=self.covariate_, est_model=estimator)
+        #
+        # Xtest = self._preprocess(Xtest)
+        # effects = []
+        # for i, x in enumerate(self.treatment_):
+        #     estimator = self.estimators_[x]
+        #     c = control[i] if control is not None else None
+        #     effect = estimator.effect_nji(Xtest, control=c)
+        #     assert isinstance(effect, np.ndarray)
+        #     assert effect.ndim == 3 and effect.shape[1] == 1
+        #     effects.append(effect.reshape(-1, effect.shape[2]))
+        # effect_array = np.hstack(effects)
+        # ptree = PolicyTree(**kwargs)
+        # ptree.fit(Xtest, covariate=self.covariate_, effect_array=effect_array)
 
         return ptree
 
-    def policy_interpreter(self, data, treatment=None, **options):
+    def policy_interpreter(self, data, treatment=None, control=None, **kwargs):
         if treatment is None:
             treatment = self.treatment_[0]
         estimator = self.estimators_[treatment]
 
         data = self._preprocess(data)
-        pi = PolicyInterpreter(**options)
-        pi.fit(data, estimator)
+        pi = PolicyInterpreter(**kwargs)
+        pi.fit(data, estimator, covariate=self.covariate_)
 
         return pi
 
-    def plot_policy_tree(self, Xtest, treatment=None, treat=None, control=None, **tree_options):
-        ptree = self.policy_tree(Xtest, treatment=treatment, treat=treat, control=control, **tree_options)
+    def plot_policy_tree(self, Xtest, treatment=None, control=None, **kwargs):
+        ptree = self.policy_tree(Xtest, treatment=treatment, control=control, **kwargs)
         ptree.plot()
 
-    def plot_policy_interpreter(self, data, treatment=None, options=None, **kwargs):
-        if options is None:
-            options = {}
-        pi = self.policy_interpreter(data, treatment=treatment, **options)
-        pi.plot(**kwargs)
+    def plot_policy_interpreter(self, data, treatment=None, control=None, **kwargs):
+        pi = self.policy_interpreter(data, treatment=treatment, control=control, **kwargs)
+        pi.plot()
 
     def plot_causal_graph(self):
         import pydot
