@@ -26,6 +26,7 @@ _test_settings_x2b = {
     _dgp.generate_data_x2b_y1_w5v0: GradientBoostingRegressor(),
     _dgp.generate_data_x2b_y2_w5v0: LinearRegression(),
     # _dgp.generate_data_x2b_y2_w5v0: MultiTaskLasso(),
+    _dgp.generate_data_x2mb_y1: GradientBoostingRegressor(),
 }
 
 
