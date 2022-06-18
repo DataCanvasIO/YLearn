@@ -337,7 +337,7 @@ class Why:
         ##
         logger.info('preprocess data ...')
         preprocessor = skex.general_preprocessor()
-        columns = _join_list(adjustment, covariate, instrument)
+        columns = _join_list(treatment, adjustment, covariate, instrument)
         assert len(columns) > 0
 
         data_t = preprocessor.fit_transform(data[columns], y)
@@ -488,7 +488,7 @@ class Why:
             test_data = test_data.copy()
 
             if self.preprocessor_ is not None:
-                columns = _join_list(self.adjustment_, self.covariate_, self.instrument_)
+                columns = _join_list(self.treatment_, self.adjustment_, self.covariate_, self.instrument_)
                 assert len(columns) > 0
                 test_data[columns] = self.preprocessor_.transform(test_data[columns])
 
@@ -562,11 +562,17 @@ class Why:
         if treatment is None:
             treatment = self.treatment_[0]
 
+        data_t = self._preprocess(data)
+        new_data = data.copy()
+        new_data[treatment] = new_value
+        new_data_t = self._preprocess(new_data)
+        new_value_t = new_data_t[treatment]
+
         estimator = self.estimators_[treatment]
         if estimator.is_discrete_treatment:
-            return self._whatif_discrete(data, new_value, treatment, estimator)
+            return self._whatif_discrete(data_t, new_value_t, treatment, estimator)
         else:
-            return self._whatif_continuous(data, new_value, treatment, estimator)
+            return self._whatif_continuous(data_t, new_value_t, treatment, estimator)
 
     def _whatif_discrete(self, data, new_value, treatment, estimator):
         y_old = data[self.outcome_]
@@ -639,12 +645,12 @@ class Why:
         pi.fit(data, covariate=self.covariate_, est_model=None, effect_array=effect_array)
         return pi
 
-    def plot_policy_tree(self, Xtest, treatment=None, control=None, **kwargs):
-        ptree = self.policy_tree(Xtest, treatment=treatment, control=control, **kwargs)
+    def plot_policy_tree(self, Xtest, control=None, **kwargs):
+        ptree = self.policy_tree(Xtest, control=control, **kwargs)
         ptree.plot()
 
-    def plot_policy_interpreter(self, data, treatment=None, control=None, **kwargs):
-        pi = self.policy_interpreter(data, treatment=treatment, control=control, **kwargs)
+    def plot_policy_interpreter(self, data, control=None, **kwargs):
+        pi = self.policy_interpreter(data, control=control, **kwargs)
         pi.plot()
 
     def plot_causal_graph(self):
