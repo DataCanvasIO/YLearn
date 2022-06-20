@@ -112,8 +112,11 @@ def infer_task_type(y, *, dropna=True, excludes=None, regression_exponent=0.382)
         return task, labels
 
     uniques = unique(y)
-    if dropna and uniques.__contains__(np.nan):
-        uniques.remove(np.nan)
+    if dropna:
+        if uniques.__contains__(np.nan):
+            uniques.remove(np.nan)
+        if uniques.__contains__(None):
+            uniques.remove(None)
     if excludes is not None and len(excludes) > 0:
         uniques -= set(excludes)
     n_unique = len(uniques)
@@ -125,7 +128,6 @@ def infer_task_type(y, *, dropna=True, excludes=None, regression_exponent=0.382)
         raise ValueError(f'Could not infer task type from unique "{uniques}"')
     elif n_unique == 2:
         task = const.TASK_BINARY
-        labels = sorted(uniques)
     elif y.dtype.kind == 'f':
         task = const.TASK_REGRESSION
     elif y.dtype.kind == 'i':
@@ -134,10 +136,11 @@ def infer_task_type(y, *, dropna=True, excludes=None, regression_exponent=0.382)
             task = const.TASK_REGRESSION
         else:
             task = const.TASK_MULTICLASS
-            labels = sorted(uniques)
     else:
         task = const.TASK_MULTICLASS
-        labels = sorted(uniques)
+
+    if task != const.TASK_REGRESSION:
+        labels = pd.Series(list(uniques)).sort_values().tolist()
 
     return task, labels
 
