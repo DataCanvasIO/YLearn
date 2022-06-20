@@ -39,72 +39,255 @@ EPS = 1e-5
 
 class CausalTree(BaseEstModel):
     # TODO: add support for multi-output causal tree
-    """
-    A class for estimating causal effect with decision tree.
-
-    Attributes
+    """A class for estimating causal effect with decision tree.
+    
+    Parameters
     ----------
-    feature_importances_ : ndarray of shape (n_features,)
-        The feature importances.
-        The higher, the more important the feature.
-        The importance of a feature is computed as the
-        (normalized) total reduction of the criterion brought by that feature.
-
-    tree_ : Tree instance
-        The underlying Tree object. Please refer to
-        ``help(sklearn.tree._tree.Tree)`` for attributes of Tree object and
-        :ref:`sphx_glr_auto_examples_tree_plot_unveil_tree_structure.py`
-        for basic usage of these attributes.
-
-    n_outputs_ : int
-        The number of outputs when fit() is performed.
-
-    max_features_ : int
-        The inferred value of max_features.
+    splitter : {"best", "random"}, default="best" 
     
-    n_features_in_ : int
-        Number of features seen during fit().
+        The strategy used to choose the split at each node. Supported 
+        strategies are "best" to choose the best split and "random" to choose 
+        the best random split.
 
-    max_depth : int, default to None
+    max_depth : int, default=None 
+        The maximum depth of the tree. If None, then nodes are expanded until 
+        all leaves are pure or until all leaves contain less than 
+        min_samples_split samples. 
 
-    min_samples_split : int or float, default to 2
+    min_samples_split : int or float, default=2 
+        The minimum number of samples required to split an internal node:
+        - If int, then consider `min_samples_split` as the minimum number.
+        - If float, then `min_samples_split` is a fraction and
+        `ceil(min_samples_split * n_samples)` are the minimum
+        number of samples for each split.
 
-    min_samples_leaf : int or float, default to 1
+    min_samples_leaf : int or float, default=1 
+        The minimum number of samples required to be at a leaf node.
+        A split point at any depth will only be considered if it leaves at
+        least ``min_samples_leaf`` training samples in each of the left and
+        right branches.  This may have the effect of smoothing the model,
+        especially in regression.
+        - If int, then consider `min_samples_leaf` as the minimum number.
+        - If float, then `min_samples_leaf` is a fraction and
+        `ceil(min_samples_leaf * n_samples)` are the minimum
+        number of samples for each node.
 
-    random_state : int
+    max_features : int, float or {"sqrt", "log2"}, default=None 
+        The number of features to consider when looking for the best split:
+            
+            1. If int, then consider `max_features` features at each split.
+            2. If float, then `max_features` is a fraction and `int(max_features * n_features)` features are considered at each split.
+            3. If "sqrt", then `max_features=sqrt(n_features)`.
+            4. If "log2", then `max_features=log2(n_features)`.
+            5. If None, then `max_features=n_features`.
 
-    max_leaf_nodes : int, default to None
+    random_state : int 
+        Controls the randomness of the estimator.
 
-    min_impurity_decrease : float, default to 0.0
+    max_leaf_nodes : int, default to None 
+        Grow a tree with ``max_leaf_nodes`` in best-first fashion.
+        Best nodes are defined as relative reduction in impurity.
+        If None then unlimited number of leaf nodes.
 
-    ccp_alpha : non-negative float, default to 0.0
+    min_impurity_decrease : float, default=0.0 
+        A node will be split if this split induces a decrease of the impurity
+        greater than or equal to this value.
+        The weighted impurity decrease equation is the following::
+            N_t / N * (impurity - N_t_R / N_t * right_impurity
+                                - N_t_L / N_t * left_impurity)
+        where ``N`` is the total number of samples, ``N_t`` is the number of
+        samples at the current node, ``N_t_L`` is the number of samples in the
+        left child, and ``N_t_R`` is the number of samples in the right child.
+        ``N``, ``N_t``, ``N_t_R`` and ``N_t_L`` all refer to the weighted sum,
+        if ``sample_weight`` is passed.
+
+    ccp_alpha : non-negative float, default to 0.0 
+        Value for pruning the tree. *Not implemented yet*.
     
-    EPS : float, by default 1e-5
-        The sample weight of treatment examples will be set as 1 + EPS
-    
-    categories : str, optional, by default 'auto'
+    categories : str, optional. Defaults to 'auto'. 
+
+    See Also
+    --------
+    BaseDecisionTree : The default implementation of decision tree in sklearn.
 
     Methods
     ----------
-    fit(data, outcome, treatment,
-        adjustment=None, covariate=None, treat=None, control=None,)
+    fit(data, outcome, treatment, adjustment=None, covariate=None, treat=None, control=None)
         Fit the model on data.
-    
+        
+        Parameters
+        ----------
+        data : pandas.DataFrame
+        
+        outcome : str or list of str
+            Names of the outcomes.
+        
+        treatment : str or list of str
+            Names of the treatment vectors.
+        
+        covariate : str of list of str
+            Names of the covariate vectors.
+        
+        adjustment : str of list of str
+            Names of the covariate vectors. Note that we may only need the covariate
+            set, which usually is a subset of the adjustment set.
+        
+        treat : int or list, optional
+            If there is only one discrete treament, then treat indicates the
+            treatment group. If there are multiple treatment groups, then treat
+            should be a list of str with length equal to the number of treatments. 
+            For example, when there are multiple discrete treatments,
+                array(['run', 'read'])
+            means the treat value of the first treatment is taken as 'run' and
+            that of the second treatment is taken as 'read'.
+        
+        control : int or list, optional
+            See treat for more information
+
+        Returns
+        ----------
+        instance of CausalTree
+            The fitted causal tree.
+
     estimate(data=None, quantity=None)
         Estimate the causal effect of the treatment on the outcome in data.
+        
+        Parameters
+        ----------
+        data : pandas.DataFrame, optional, by default None
+            If None, data will be set as the training data.
+        
+        quantity : str, optional, by default None
+            The type of the causal effect. Avaliable options are:
+                
+                1. 'CATE' : the estimator will evaluate the CATE;
+                2. 'ATE' : the estimator will evaluate the ATE;
+                3. None : the estimator will evaluate the CITE.          
+
+        Returns
+        -------
+        ndarray or float, optional
+            The estimated causal effect with the type of the quantity.
+    
+    get_depth()
+        Return the depth of the causal tree. The depth of a tree is the maximum distance between the root
+        and any leaf.
+        
+        Returns
+        -------
+        self.tree_.max_depth : int
+            The maximum depth of the tree.
+    
+    get_n_leaves()
+        Return the number of leaves of the causal tree.
+        
+        Returns
+        -------
+        self.tree_.n_leaves : int
+            Number of leaves.
     
     apply(X)
         Return the index of the leaf that each sample is predicted as.
-    
+
+        Parameters
+        ----------
+        wv : ndarray
+            The input samples as a ndarray. If None, then the DataFrame data
+            will be used as the input samples.
+        
+        data : DataFrame, optional
+            The input samples. The data must contains columns of the covariates
+            used for training the model. If None, the training data will be
+            passed as input samples , by default None
+
+        Returns
+        -------
+        v_leaves : array-like of shape (n_samples, )
+            For each datapoint v_i in v, return the index of the leaf v_i
+            ends up in. Leaves are numbered within
+            ``[0; self.tree_.node_count)``, possibly with gaps in the
+            numbering.
+
     decision_path(X)
         Return the decision path.
-    
-    _prepare4est(data)
-        Prepare for the estimation of the causal effect.
+        
+        Parameters
+        ----------
+        wv : ndarray
+            The input samples as a ndarray. If None, then the DataFrame data
+            will be used as the input samples.
+        
+        data : DataFrame, optional
+            The input samples. The data must contains columns of the covariates
+            used for training the model. If None, the training data will be
+            passed as input samples , by default None
+        
+        Returns
+        -------
+        indicator : sparse matrix of shape (n_samples, n_nodes)
+            Return a node indicator CSR matrix where non zero elements
+            indicates that the samples goes through the nodes.
 
-    Reference
-    ----------
-    https://arxiv.org/abs/1504.01132
+    feature_importance()
+        Returns
+        -------
+        feature_importances_ : ndarray of shape (n_features,)
+            Normalized total reduction of criteria by feature
+            (Gini importance).
+
+    plot_causal_tree(max_depth=None, feature_names=None, label='all', filled=False, node_ids=False, proportion=False, rounded=False, precision=3, ax=None, fontsize=None)
+        Plot a causal tree.
+        The visualization is fit automatically to the size of the axis.
+        Use the ``figsize`` or ``dpi`` arguments of ``plt.figure``  to control
+        the size of the rendering.
+
+        Parameters
+        ----------        
+        max_depth : int, default=None
+            The maximum depth of the representation. If None, the tree is fully
+            generated.
+        
+        label : {'all', 'root', 'none'}, default='all'
+            Whether to show informative labels for impurity, etc.
+            Options include 'all' to show at every node, 'root' to show only at
+            the top root node, or 'none' to not show at any node.
+        
+        filled : bool, default=False
+            When set to ``True``, paint nodes to indicate majority class for
+            classification, extremity of values for regression, or purity of node
+            for multi-output.
+
+        feature_names : list, default=None
+            Names of features. If None, then the names of the adjustment or covariate
+            will be used.
+        
+        node_ids : bool, default=False
+            When set to ``True``, show the ID number on each node.
+        
+        proportion : bool, default=False
+            When set to ``True``, change the display of 'values' and/or 'samples'
+            to be proportions and percentages respectively.
+        
+        rounded : bool, default=False
+            When set to ``True``, draw node boxes with rounded corners and use
+            Helvetica fonts instead of Times-Roman.
+        
+        precision : int, default=3
+            Number of digits of precision for floating point in the values of
+            impurity, threshold and value attributes of each node.
+        
+        ax : matplotlib axis, default=None
+            Axes to plot to. If None, use current axis. Any previous content
+            is cleared.
+        
+        fontsize : int, default=None
+            Size of text font. If None, determined automatically to fit figure.
+        
+        Returns
+        -------
+        annotations : list of artists
+            List containing the artists for the annotation boxes making up the
+            tree.
     """
     # TODO: sample_weight
 
@@ -123,78 +306,6 @@ class CausalTree(BaseEstModel):
         ccp_alpha=0.0,
         categories='auto'
     ):
-        """
-        Many parameters are similar to those of BaseDecisionTree of sklearn.
-
-        Parameters
-        ----------
-        splitter : {"best", "random"}, default="best"
-            The strategy used to choose the split at each node. Supported
-            strategies are "best" to choose the best split and "random" to choose
-            the best random split.
-
-        max_depth : int, default=None
-            The maximum depth of the tree. If None, then nodes are expanded until
-            all leaves are pure or until all leaves contain less than
-            min_samples_split samples.
-
-        min_samples_split : int or float, default=2
-            The minimum number of samples required to split an internal node:
-            - If int, then consider `min_samples_split` as the minimum number.
-            - If float, then `min_samples_split` is a fraction and
-            `ceil(min_samples_split * n_samples)` are the minimum
-            number of samples for each split.
-
-        min_samples_leaf : int or float, default=1
-            The minimum number of samples required to be at a leaf node.
-            A split point at any depth will only be considered if it leaves at
-            least ``min_samples_leaf`` training samples in each of the left and
-            right branches.  This may have the effect of smoothing the model,
-            especially in regression.
-            - If int, then consider `min_samples_leaf` as the minimum number.
-            - If float, then `min_samples_leaf` is a fraction and
-            `ceil(min_samples_leaf * n_samples)` are the minimum
-            number of samples for each node.
-
-        max_features : int, float or {"sqrt", "log2"}, default=None
-            The number of features to consider when looking for the best split:
-            - If int, then consider `max_features` features at each split.
-            - If float, then `max_features` is a fraction and
-            `int(max_features * n_features)` features are considered at each
-            split.
-            - If "sqrt", then `max_features=sqrt(n_features)`.
-            - If "log2", then `max_features=log2(n_features)`.
-            - If None, then `max_features=n_features`.
-
-        random_state : int
-            Controls the randomness of the estimator.
-        
-        max_leaf_nodes : int, default to None
-            Grow a tree with ``max_leaf_nodes`` in best-first fashion.
-            Best nodes are defined as relative reduction in impurity.
-            If None then unlimited number of leaf nodes.
-
-        min_impurity_decrease : float, default=0.0
-            A node will be split if this split induces a decrease of the impurity
-            greater than or equal to this value.
-            The weighted impurity decrease equation is the following::
-                N_t / N * (impurity - N_t_R / N_t * right_impurity
-                                    - N_t_L / N_t * left_impurity)
-            where ``N`` is the total number of samples, ``N_t`` is the number of
-            samples at the current node, ``N_t_L`` is the number of samples in the
-            left child, and ``N_t_R`` is the number of samples in the right child.
-            ``N``, ``N_t``, ``N_t_R`` and ``N_t_L`` all refer to the weighted sum,
-            if ``sample_weight`` is passed.
-
-        ccp_alpha : non-negative float, default to 0.0
-            Value for pruning the tree. #TODO: not implemented yet.
-        
-        categories : str, optional. Defaults to 'auto'.
-
-        See Also
-        --------
-        BaseDecisionTree : The default implementation of decision tree in sklearn.
-        """
         self.splitter = splitter
         self.max_depth = max_depth
         self.min_samples_split = min_samples_split
@@ -255,7 +366,8 @@ class CausalTree(BaseEstModel):
 
         Returns
         ----------
-            self: The fitted causal tree.
+        instance of CausalTree
+            The fitted causal tree.
         """
         assert adjustment is not None or covariate is not None, \
             'Need adjustment or covariate to perform estimation.'

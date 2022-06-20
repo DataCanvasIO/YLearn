@@ -14,7 +14,9 @@
 # import sys
 # sys.path.insert(0, os.path.abspath('.'))
 
-
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 # -- Project information -----------------------------------------------------
 
 project = 'YLearn'
@@ -28,6 +30,8 @@ author = 'DataCanvasLab'
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
+    'sphinx.ext.napoleon',
+    'sphinx.ext.autodoc',
 ]
 
 # Add any paths that contain templates here, relative to this directory.

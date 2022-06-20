@@ -46,7 +46,6 @@ Class Structures
     
     :param int, default=1 cf_fold: The nubmer of folds for performing cross fit in the first stage.
     :param int, default=2022 random_state:
-    :param bool, default=True is_discrete_treatment: Treatment must be discrete for SLearner.
     :param str, optional, default='auto' categories:
     
     .. py:method:: fit(data, outcome, treatment, adjustment=None, covariate=None, treat=None, control=None, combined_treatment=True, **kwargs)

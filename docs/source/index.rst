@@ -15,7 +15,7 @@ Welcome to YLearn's documentation!
     sub/causal_discovery
     sub/interpreter
     sub/policy
-    sub/console
+    sub/why
     sub/ref
 
 
