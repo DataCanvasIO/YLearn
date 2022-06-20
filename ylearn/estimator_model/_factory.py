@@ -167,7 +167,7 @@ class ApproxBoundFactory(BaseEstimatorFactory):
 
 @register()
 class IVFactory(BaseEstimatorFactory):
-    def __init__(self, y_model='lr', x_model='lr'):
+    def __init__(self, y_model='lr', x_model='rf'):
         self.y_model = y_model
         self.x_model = x_model
 

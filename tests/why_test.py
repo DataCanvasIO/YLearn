@@ -1,52 +1,68 @@
 import numpy as np
-import pytest
 
 from ylearn import Why
 from . import _dgp
 
 
-def _validate_it(cc, test_data):
+def _validate_it(why, test_data, check_score=True):
     print('-' * 30)
-    e = cc.causal_effect()
+    e = why.causal_effect()
     print('causal effect:', e, sep='\n')
 
     print('-' * 30)
-    e = cc.cohort_causal_effect(test_data)
+    e = why.cohort_causal_effect(test_data)
     print('cohort causal effect:', e, sep='\n')
 
     print('-' * 30)
-    e = cc.local_causal_effect(test_data)
+    e = why.local_causal_effect(test_data)
     print('local causal effect:', e, sep='\n')
 
-    if cc.scorers_ is not None:
-        score = cc.score()
+    if check_score:
+        score = why.score(test_data)
         print("score:", score)
 
 
 def test_basis():
     data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x2b_y1()
-    cc = Why()
-    cc.fit(data, outcome[0], treatment=treatment, adjustment=adjustment, covariate=covariate)
+    why = Why()
+    why.fit(data, outcome[0], treatment=treatment, adjustment=adjustment, covariate=covariate)
 
-    _validate_it(cc, test_data)
+    _validate_it(why, test_data)
+
+
+def test_iv():
+    data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x2b_y1()
+    why = Why()
+    why.fit(data, outcome[0], treatment=treatment, instrument=adjustment, covariate=covariate)
+
+    _validate_it(why, test_data, check_score=False)
+
+
+def test_iv_w():
+    data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x2b_y1()
+    why = Why()
+    why.fit(data, outcome[0], treatment=treatment, instrument=adjustment[:2],
+            adjustment=adjustment[2:], covariate=covariate)
+
+    _validate_it(why, test_data, check_score=False)
 
 
 def test_identify_treatment():
     data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x2b_y1()
-    cc = Why()
-    # cc.fit(data, outcome[0], treatment=treatment, adjustment=adjustment, covariate=covariate)
-    cc.fit(data, outcome[0], treatment=None, adjustment=adjustment, covariate=covariate)
+    why = Why()
+    # why.fit(data, outcome[0], treatment=treatment, adjustment=adjustment, covariate=covariate)
+    why.fit(data, outcome[0], treatment=None, adjustment=adjustment, covariate=covariate)
 
-    _validate_it(cc, test_data)
+    _validate_it(why, test_data)
 
 
 def test_whatif_discrete():
     data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x2b_y1()
-    cc = Why()
-    cc.fit(data, outcome[0], treatment=treatment, adjustment=adjustment, covariate=covariate)
+    why = Why()
+    why.fit(data, outcome[0], treatment=treatment, adjustment=adjustment, covariate=covariate)
 
     new_value = np.ones_like(test_data[treatment[0]])
-    new_y = cc.whatif(test_data, new_value, treatment[0])
+    new_y = why.whatif(test_data, new_value, treatment[0])
     assert new_y is not None
     print(new_y.shape, new_y)
 
@@ -55,11 +71,11 @@ def test_whatif_continuous():
     data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x1m_y1()
     data[treatment] = data[treatment].astype('float32')
     test_data[treatment] = test_data[treatment].astype('float32')
-    cc = Why()
-    cc.fit(data, outcome[0], treatment=treatment, adjustment=adjustment, covariate=covariate)
+    why = Why()
+    why.fit(data, outcome[0], treatment=treatment, adjustment=adjustment, covariate=covariate)
 
     new_value = np.ones_like(test_data[treatment[0]])
-    new_y = cc.whatif(test_data, new_value, treatment[0])
+    new_y = why.whatif(test_data, new_value, treatment[0])
     assert new_y is not None
     print(new_y.shape, new_y)
 
@@ -68,10 +84,10 @@ def test_policy_tree():
     data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x1m_y1()
     # data[treatment] = data[treatment].astype('float32')
     # test_data[treatment] = test_data[treatment].astype('float32')
-    cc = Why()
-    cc.fit(data, outcome[0], treatment=treatment, adjustment=adjustment, covariate=covariate)
+    why = Why()
+    why.fit(data, outcome[0], treatment=treatment, adjustment=adjustment, covariate=covariate)
 
-    ptree = cc.policy_tree(test_data)
+    ptree = why.policy_tree(test_data)
     assert ptree is not None
 
 
@@ -79,11 +95,11 @@ def test_policy_tree_dml():
     data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x1m_y1()
     # data[treatment] = data[treatment].astype('float32')
     # test_data[treatment] = test_data[treatment].astype('float32')
-    cc = Why(estimator='dml')
-    # cc.fit(data, outcome[0], treatment=treatment, adjustment=adjustment, covariate=covariate)
-    cc.fit(data, treatment[0], treatment=outcome, adjustment=adjustment, covariate=covariate)
+    why = Why(estimator='dml')
+    # why.fit(data, outcome[0], treatment=treatment, adjustment=adjustment, covariate=covariate)
+    why.fit(data, treatment[0], treatment=outcome, adjustment=adjustment, covariate=covariate)
 
-    ptree = cc.policy_tree(test_data)
+    ptree = why.policy_tree(test_data)
     assert ptree is not None
 
 
@@ -91,37 +107,27 @@ def test_policy_interpreter():
     data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x1m_y1()
     # data[treatment] = data[treatment].astype('float32')
     # test_data[treatment] = test_data[treatment].astype('float32')
-    cc = Why()
-    cc.fit(data, outcome[0], treatment=treatment, adjustment=adjustment, covariate=covariate)
+    why = Why()
+    why.fit(data, outcome[0], treatment=treatment, adjustment=adjustment, covariate=covariate)
 
-    pi = cc.policy_interpreter(test_data)
+    pi = why.policy_interpreter(test_data)
     assert pi is not None
 
 
-@pytest.mark.xfail(reason='to be fixed')
 def test_discovery_treatment():
     data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x2b_y1()
-    cc = Why(identify='discovery')
-    # cc.fit(data, outcome[0], treatment=treatment, adjustment=adjustment, covariate=covariate)
-    cc.fit(data, outcome[0], treatment=None, adjustment=adjustment, covariate=covariate)
+    why = Why(identify='discovery')
+    # w.fit(data, outcome[0], treatment=treatment, adjustment=adjustment, covariate=covariate)
+    why.fit(data, outcome[0], treatment=None, adjustment=adjustment, covariate=covariate)
 
-    _validate_it(cc, test_data)
+    _validate_it(why, test_data)
 
 
-@pytest.mark.xfail(reason='to be fixed')
+# @pytest.mark.xfail(reason='to be fixed')
 def test_discovery_taci():
     data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x2b_y1()
-    cc = Why(identify='discovery')
-    # cc.fit(data, outcome[0], treatment=treatment, adjustment=adjustment, covariate=covariate)
-    cc.fit(data, outcome[0])
+    why = Why(identify='discovery')
+    # w.fit(data, outcome[0], treatment=treatment, adjustment=adjustment, covariate=covariate)
+    why.fit(data, outcome[0])
 
-    _validate_it(cc, test_data)
-
-
-@pytest.mark.xfail(reason='to be fixed')
-def test_score():
-    data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x2b_y1()
-    cc = Why(scorer='auto')
-    cc.fit(data, outcome[0], treatment=treatment, adjustment=adjustment, covariate=covariate)
-
-    _validate_it(cc, test_data)
+    _validate_it(why, test_data, check_score=False)
