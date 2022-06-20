@@ -7,6 +7,7 @@ performances of machine learning models.
 
 import inspect
 from asyncio.log import logger
+from attr import has
 import numpy as np
 import pandas as pd
 # from sklearn import clone
@@ -14,7 +15,7 @@ import pandas as pd
 from sklearn.model_selection import KFold
 
 from .double_ml import DML4CATE
-from .utils import convert2array, get_wv
+from .utils import convert2array, get_wv, get_tr_ctrl
 from ylearn.utils import logging
 
 logger = logging.get_logger(__name__)
@@ -331,9 +332,25 @@ class RLoss(DML4CATE):
         # shape (n, y_d, x_d)
         est_params = inspect.signature(test_estimator.estimate).parameters.keys()
         est_options = {}
+        dis_tr = test_estimator.is_discrete_treatment
+
         if 'treat' in est_params and treat is not None:
+            if hasattr(test_estimator, 'comp_transformer'):
+                treat = get_tr_ctrl(treat,
+                    self.comp_transormer,
+                    treat=True,
+                    one_hot=False,
+                    discrete_treat=dis_tr,
+                )
             est_options['treat'] = treat
         if 'control' in est_params and control is not None:
+            if hasattr(test_estimator, 'comp_transformer'):
+                control = get_tr_ctrl(control,
+                    self.comp_transormer,
+                    treat=False,
+                    one_hot=False,
+                    discrete_treat=dis_tr,
+                )
             est_options['control'] = control
         test_effect = test_estimator.estimate(data=test_data, **est_options)
         logger.info(
