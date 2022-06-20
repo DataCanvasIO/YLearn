@@ -5,6 +5,7 @@ performances of machine learning models.
 """
 # from collections import defaultdict
 
+import inspect
 from asyncio.log import logger
 import numpy as np
 import pandas as pd
@@ -300,7 +301,7 @@ class RLoss(DML4CATE):
 
         return self
 
-    def score(self, test_estimator):
+    def score(self, test_estimator, treat=None, control=None):
         """Calculate the RLoss as a metric of the causal effect estimated by
         the test_estimator.
 
@@ -328,7 +329,13 @@ class RLoss(DML4CATE):
         test_data = pd.DataFrame(data_dict)
 
         # shape (n, y_d, x_d)
-        test_effect = test_estimator.estimate(data=test_data,)
+        est_params = inspect.signature(test_estimator.estimate).parameters.keys()
+        est_options = {}
+        if 'treat' in est_params and treat is not None:
+            est_options['treat'] = treat
+        if 'control' in est_params and control is not None:
+            est_options['control'] = control
+        test_effect = test_estimator.estimate(data=test_data, **est_options)
         logger.info(
             f'Calculating the score: {test_estimator.__repr__()} finished estimating.'
         )
