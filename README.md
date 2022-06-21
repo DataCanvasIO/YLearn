@@ -35,6 +35,8 @@ YLearn, equiped with many techniques developed in recent literatures, is impleme
 
 There are three main concepts in YLearn corresponding to the causal inference pipeline.
 
+![A typical pipeline of YLearn](./fig/flow.png)
+
 1. *Causal Discovery*. Discovering the causal relationships in the observational data.
 
 2. *Causal Model*. Representing the causal relationships in the form of ``CausalGraph`` and doing other related operations such as identification with ``CausalModel``.
