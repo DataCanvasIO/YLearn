@@ -78,9 +78,13 @@ class PolicyInterpreter:
         criterion : {'policy_reg'}, default to 'policy_reg' # TODO: may add more criterion
             The function to measure the quality of a split. The criterion for
             training the tree is (in the Einstein notation)
+            
+            .. math::
+            
                     S = \sum_i g_{ik} y^k_{i},
-            where g_{ik} = \phi(v_i)_k is a map from the covariates, v_i, to a
-            basis vector which has only one nonzero element in the R^k space. By
+                    
+            where :math:`g_{ik} = \phi(v_i)_k` is a map from the covariates, :math:`v_i`, to a
+            basis vector which has only one nonzero element in the :math:`R^k` space. By
             using this criterion, the aim of the model is to find the index of the
             treatment which will render the max causal effect, i.e., finding the
             optimal policy.
@@ -281,7 +285,7 @@ class PolicyInterpreter:
         ax=None,
         fontsize=None
     ):
-        """Plot a policy tree.
+        """Plot the tree model.
         The sample counts that are shown are weighted with any sample_weights that
         might be present.
         The visualization is fit automatically to the size of the axis.

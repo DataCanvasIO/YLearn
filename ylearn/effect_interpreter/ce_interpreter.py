@@ -133,6 +133,7 @@ class CEInterpreter:
         est_model,
         **kwargs
     ):
+        #TODO: make this more compatible with that in the policy_interpreter
         """Fit the CEInterpreter model to interpret the causal effect estimated
         by the est_model on data.
 

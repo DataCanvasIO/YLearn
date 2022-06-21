@@ -91,7 +91,7 @@ Class Structures
 
     .. py:method:: plot(*, feature_names=None, max_depth=None, class_names=None, label='all', filled=False, node_ids=False, proportion=False, rounded=False, precision=3, ax=None, fontsize=None)
 
-        Plot a policy tree.
+        Plot the fitted tree model.
         The sample counts that are shown are weighted with any sample_weights that
         might be present.
         The visualization is fit automatically to the size of the axis.
