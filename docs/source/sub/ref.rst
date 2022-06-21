@@ -29,3 +29,15 @@ References
 
     X. Nie, et al. Quasi-Oracle estimation of heterogeneous treatment effects.
     arXiv: 1712.04912.
+
+.. [Hartford]
+
+    J. Hartford, et al. Deep IV: A Flexible Approach for Counterfactual Prediction. 
+
+.. [Newey2002]
+
+    W. Newey and J. Powell. Instrumental Variable Estimation of Nonparametric Models.
+
+.. [Kunzel2019]
+
+    S. Kunzel2019, et al. Meta-Learners for Estimating Heterogeneous Treatment Effects using Machine Learning.

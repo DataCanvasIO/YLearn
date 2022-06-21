@@ -2,7 +2,7 @@
 Meta-Learner
 ************
 
-Meta-Learners are estimator models that aim to estimate the CATE by taking advantage of machine learning
+Meta-Learners [Kunzel2019]_ are estimator models that aim to estimate the CATE by taking advantage of machine learning
 models when the treatment is discrete, e.g., the treatment has only two values 1 and 0. Generally speaking,
 it employs multiple machine learning models with the flexibility on the choice of models.
 

@@ -6,6 +6,8 @@
 Welcome to YLearn's documentation!
 ==================================
 
+YLearn, a pun of "learn why", is a powerful python package for causal inference which supports various aspects of causal inference ranging from causal effect identification, estimation, and causal graph discovery, etc.
+
 .. toctree::
     :maxdepth: 2
 

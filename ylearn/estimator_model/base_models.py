@@ -10,6 +10,8 @@ from ylearn.utils import to_repr
 from .utils import BatchData
 # from ..utils._common import check_cols
 
+#TODO: add support for assigning different treatment values for different examples for all models.
+
 class BaseEstModel:
     """
     Base class for various estimation learner.

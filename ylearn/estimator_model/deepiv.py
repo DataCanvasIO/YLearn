@@ -5,7 +5,9 @@ reference.
 To use self-defined mixture density network and outcome network, one only
 needs to define new MixtureDensityNetwork and OutcomeNet and wrap them with
 MDNWrapper and OutcomeNetWrapper, respectively.
+
 """
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -607,7 +609,7 @@ class DeepIV(BaseEstModel):
         y_hidden_d=None,
         num_gaussian=5,
         is_discrete_treatment=False,
-        is_discrete_outcome=False,
+        is_discrete_outcome=False, 
         is_discrete_instrument=False,
         categories='auto',
         random_state=2022,
@@ -615,12 +617,12 @@ class DeepIV(BaseEstModel):
         """
         Parameters
         ----------
-        x_net : Net
+        x_net : ylearn.estimator_model.deepiv.Net
             Representation of the mixture density network for continuous
-            treatment or an usual classification net for discrete treatment.
+            treatment or an usual classification net for discrete treatment. If None, the default neural network will be used. See :py:class:`ylearn.estimator_model.deepiv.Net` for reference.
 
-        y_net :  Net
-            Representation of the outcome network.
+        y_net :  ylearn.estimator_model.deepiv.Net
+            Representation of the outcome network. If None, the default neural network will be used. See :py:class:`ylearn.estimator_model.deepiv.Net` for reference.
 
         x_hidden_d : int, optional. Defaults to None
             Dimension of the hidden layer of the default x_net of DeepIV.
@@ -629,7 +631,7 @@ class DeepIV(BaseEstModel):
             Dimension of the hidden layer of the default y_net of DeepIV.
 
         num_gaussian : int, optional. Defaults to 5.
-            Number of gaussians when using the mixture density network.
+            Number of gaussians when using the mixture density network which will be directly ignored when the treatment is discrete.
 
         is_discrete_treatment : bool, optional. Defaults to False.
 
@@ -676,25 +678,34 @@ class DeepIV(BaseEstModel):
         y_net_config=None,
         **kwargs
     ):
-        # """Train the DeepIV model.
-        #
-        # Parameters
-        # ----------
-        # z : tensor
-        #     Instrument variables. Shape (b, z_d) where b is the batch size and
-        #     z_d is the dimension of a single instrument variable data point.
-        # x : tensor
-        #     Treatments. Shape (b, x_d).
-        # y : tensor
-        #     Outcomes. Shape (b, y_d)
-        # w : tensor, defaults to None.
-        #     Observed adjustments. Shape (b, w_d)
-        # sample_n : tuple of int
-        #     Eg., (5, ) means generating (5*b) samples according to the
-        #     probability density modeled by the x_net.
-        # discrete_treatment : bool
-        #     If True, the x_net is chosen as the MixtureDensityNetwork.
-        # """
+        """Train the DeepIV model. #TODO: consider implementing the comp_transformer for multiple treatment
+
+        Parameters
+        ----------
+        data : DataFrame
+            Training dataset for training the estimator.
+        outcome : list of str, optional
+            Names of the outcome
+        treatment : list of str, optional
+            Names of the treatment
+        instrument : list of str, optional
+            Names of the instrument, by default None
+        adjustment : list of str, optional
+            Names of the adjustment set. #TODO: Note that in the current version we aslo view all adjustment variables as the covariates., by default None
+        approx_grad : bool, optional
+            Whether use the approximated gradient as in the reference, by default True
+        sample_n : int, optional
+            Times of new samples when using the approx_grad technique, by default None
+        x_net_config : dict, optional
+            Configuration of the x_net, by default None
+        y_net_config : dict, optional
+            Configuration of the y_net, by default None
+
+        Returns
+        -------
+        instance of DeepIV
+            The trained DeepIV model
+        """
         assert instrument is not None, 'instrument is required.'
 
         super().fit(data, outcome, treatment,
@@ -872,6 +883,33 @@ class DeepIV(BaseEstModel):
         *args,
         **kwargs,
     ):
+        #TODO: update the definition of treat and control.
+        """Estimate the causal effect with the type of the quantity.
+
+        Parameters
+        ----------
+        data : DataFrame, optional
+            Test data. The model will use the training data if None, by default None
+        treat : int, optional
+            Value of the treatment, by default None. If None, then the model will set treat=1.
+        control : int, optional
+            Value of the control, by default None. If None, then the model will set control=0.
+        quantity : str, optional
+            Option for returned estimation result. The possible values of quantity include:
+                
+                1. *'CATE'* : the estimator will evaluate the CATE;
+                
+                2. *'ATE'* : the estimator will evaluate the ATE;
+                
+                3. *None* : the estimator will evaluate the ITE or CITE.
+        marginal_effect : bool, optional
+            _description_, by default False
+
+        Returns
+        -------
+        torch.tensor
+            Estimated causal effects
+        """
         y_preds = self._prepare4est(
             data=data,
             treat=treat,
