@@ -147,7 +147,7 @@ class CausalTree(BaseEstModel):
         Returns
         ----------
         instance of CausalTree
-            The fitted causal tree.
+            The fitted CausalTree.
 
     estimate(data=None, quantity=None)
         Estimate the causal effect of the treatment on the outcome in data.
@@ -186,7 +186,7 @@ class CausalTree(BaseEstModel):
         self.tree_.n_leaves : int
             Number of leaves.
     
-    apply(X)
+    apply(*, data=None, wv=None)
         Return the index of the leaf that each sample is predicted as.
 
         Parameters
@@ -208,7 +208,7 @@ class CausalTree(BaseEstModel):
             ``[0; self.tree_.node_count)``, possibly with gaps in the
             numbering.
 
-    decision_path(X)
+    decision_path(*, data=None, wv=None)
         Return the decision path.
         
         Parameters
