@@ -23,6 +23,20 @@ GRAPH_STRING_BASE = """
   graph [splines=true pad=0.5]
   node [shape="box" width=3 height=1.2]
 
+  V [label="Covariates\n\n VLIST"  pos="7,2!"]
+  X [label="Treatments\n\n XLIST"  pos="5,0!"]
+  Y [label="Outcome\n\n YLIST"  pos="10,0!"] 
+
+  V -> {X Y}
+  X -> Y
+}
+"""
+
+GRAPH_STRING_W = """
+ digraph G {
+  graph [splines=true pad=0.5]
+  node [shape="box" width=3 height=1.2]
+
   W [label="Adjustments\n\n WLIST" pos="5,2!" width=5]
   V [label="Covariates\n\n VLIST"  pos="10,2!"]
   X [label="Treatments\n\n XLIST"  pos="5,0!"]
@@ -34,17 +48,34 @@ GRAPH_STRING_BASE = """
 }
 """
 
-GRAPH_STRING_IV = """
+GRAPH_STRING_Z = """
  digraph G {
   graph [splines=true pad=0.5]
   node [shape="box" width=3 height=1.2]
 
-  W [label="Adjustments\n\n WLIST" pos="7,2!" width=5]
+  V [label="Covariates\n\n VLIST" pos="7,2!" width=5]
+  Z [label="Instruments\n\n ZLIST" pos="3,0!"]
+  X [label="Treatments\n\n XLIST"  pos="7,0!"  width=2]
+  Y [label="Outcome\n\n YLIST"  pos="10,0!" width=2] 
+
+  V -> {X Y}
+  Z -> X -> Y
+}
+"""
+
+GRAPH_STRING_WZ = """
+ digraph G {
+  graph [splines=true pad=0.5]
+  node [shape="box" width=3 height=1.2]
+
+  W [label="Adjustments\n\n WLIST" pos="5,2!" width=5]
+  V [label="Covariates\n\n VLIST" pos="10,2!" width=5]
   Z [label="Instruments\n\n ZLIST" pos="3,0!"]
   X [label="Treatments\n\n XLIST"  pos="7,0!"  width=2]
   Y [label="Outcome\n\n YLIST"  pos="10,0!" width=2] 
 
   W -> {X Y}
+  V -> {X Y}
   Z -> X -> Y
 }
 """
@@ -75,6 +106,10 @@ def _join_list(*args):
         else:
             r += _to_list(a)
     return r
+
+
+def _empty(v):
+    return v is None or len(v) == 0
 
 
 def _safe_remove(alist, value, copy=False):
@@ -250,21 +285,16 @@ class Why:
                  discovery_options=None,  # dict or None
                  estimator='auto',  # auto, dml, dr, ml or metaleaner, iv, div, ...
                  estimator_options=None,  # dict or None
-                 scorer=None,  # auto, rloss, or None
-                 scorer_options=None,  # dict or None
                  random_state=None):
         assert isinstance(estimator, (str, BaseEstModel))
         if isinstance(estimator, str):
             assert estimator == 'auto' or estimator in ESTIMATOR_FACTORIES.keys()
-        assert scorer is None or scorer in {'auto', 'rloss'}
 
         self.identify = identify
         self.discovery_model = discovery_model
         self.discovery_options = discovery_options
         self.estimator = estimator
         self.estimator_options = estimator_options
-        self.scorer = scorer
-        self.scorer_options = scorer_options
         self.random_state = random_state
 
         # fitted
@@ -282,7 +312,6 @@ class Why:
         self.y_encoder_ = None
         self.preprocessor_ = None
         self.estimators_ = None
-        self.scorers_ = None
 
     def fit(self, data,
             outcome,  # required, str, one
@@ -345,7 +374,7 @@ class Why:
         data[columns] = data_t
 
         estimators = {}
-        scorers = {} if self.scorer is not None else None
+
         for x in treatment:
             estimator = self._create_estimator(
                 data, outcome, treatment=x,
@@ -357,17 +386,6 @@ class Why:
             estimator.fit(data, outcome, x, **fit_kwargs)
             estimators[x] = estimator
 
-            if self.scorer is not None:
-                scorer = self._create_scorer(
-                    data, outcome, treatment=x,
-                    adjustment=adjustment, covariate=covariate, instrument=instrument
-                )
-                logger.info(f'fit scorer for {x} with {scorer}')
-                scorer.fit(data, outcome, x,
-                           **drop_none(adjustment=adjustment, covariate=covariate, instrument=instrument)
-                           )
-                scorers[x] = scorer
-
         self.feature_names_in_ = feature_names
         self.outcome_ = outcome
         self.treatment_ = treatment
@@ -376,7 +394,7 @@ class Why:
         self.instrument_ = instrument
 
         self.estimators_ = estimators
-        self.scorers_ = scorers
+
         self.y_encoder_ = y_encoder
         self.preprocessor_ = preprocessor
         self._is_fitted = True
@@ -464,22 +482,25 @@ class Why:
                             random_state=self.random_state)
         return estimator
 
-    def _create_scorer(self, data, outcome, *,
-                       treatment=None, adjustment=None, covariate=None, instrument=None):
-        scorer = self.scorer
-        if scorer == 'auto':
+    def _create_scorers(self, data, scorer):
+        if isinstance(scorer, BaseEstModel):
+            return {x: scorer for x in self.treatment_}
+
+        if scorer is None or scorer == 'auto':
             scorer = 'rloss'
 
-        x_task, _ = infer_task_type(data[treatment])
-        options = self.scorer_options if self.scorer_options is not None else {}
-        factory = ESTIMATOR_FACTORIES[scorer](**options)
-        scorer = factory(data, outcome, y_task=self.task, x_task=x_task,
-                         treatment=treatment,
-                         adjustment=adjustment,
-                         covariate=covariate,
-                         instrument=instrument,
-                         random_state=self.random_state)
-        return scorer
+        factory = ESTIMATOR_FACTORIES[scorer]()
+        scorers = {}
+        for x in self.treatment_:
+            x_task, _ = infer_task_type(data[x])
+            scorer = factory(data, self.outcome_, y_task=self.task, x_task=x_task,
+                             treatment=x,
+                             adjustment=self.adjustment_,
+                             covariate=self.covariate_,
+                             instrument=self.instrument_,
+                             random_state=self.random_state)
+            scorers[x] = scorer
+        return scorers
 
     def _preprocess(self, test_data):
         assert self._is_fitted
@@ -604,16 +625,20 @@ class Why:
         y_new = y_old + effect.ravel()
         return y_new
 
-    def score(self, Xtest=None):
-        assert Xtest is None  # fixme
+    def score(self, test_data=None, treat=None, control=None, scorer='auto'):
+        assert test_data is not None
 
-        if self.scorers_ is None:
-            raise ValueError(f'scorer was disabled. setup scorer and fit the {type(self).__name__} pls.')
+        scorers = self._create_scorers(test_data, scorer=scorer)
+        fit_options = drop_none(adjustment=self.adjustment_, covariate=self.covariate_, instrument=self.instrument_)
+        score_options = drop_none(treat=treat, control=control)
+        test_data = self._preprocess(test_data)
 
         sa = []
-        for x, scorer in self.scorers_.items():
-            est = self.estimators_[x]
-            sa.append(scorer.score(est))
+        for x, scorer in scorers.items():
+            logger.info(f'fit scorer for {x} with {scorer}')
+            scorer.fit(test_data, self.outcome_, x, **fit_options)
+            estimator = self.estimators_[x]
+            sa.append(scorer.score(estimator, **score_options))
         score = np.mean(sa)
 
         return score
@@ -658,7 +683,15 @@ class Why:
 
         values = dict(WLIST=self.adjustment_, VLIST=self.covariate_, XLIST=self.treatment_,
                       YLIST=self.outcome_, ZLIST=self.instrument_)
-        dot_string = GRAPH_STRING_BASE if self.instrument_ is None else GRAPH_STRING_IV
+        if not _empty(self.instrument_) and not _empty(self.adjustment_):
+            dot_string = GRAPH_STRING_WZ
+        elif not _empty(self.instrument_):
+            dot_string = GRAPH_STRING_Z
+        elif not _empty(self.adjustment_):
+            dot_string = GRAPH_STRING_W
+        else:
+            dot_string = GRAPH_STRING_BASE
+
         for k, v in values.items():
             if dot_string.find(k) >= 0:
                 width = 40 if k == 'ZLIST' else 64

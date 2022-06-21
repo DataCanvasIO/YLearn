@@ -20,7 +20,8 @@ from logging import INFO
 from logging import WARN
 
 # settings
-_log_level = INFO
+_dev_mode = __file__.lower().find('site-packages') < 0
+_log_level = INFO if _dev_mode else WARN
 
 _name2level = {
     'FATAL': FATAL,

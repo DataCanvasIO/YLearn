@@ -57,6 +57,9 @@ class PermutedLearner(BaseEstModel):
         self.learners_ = {}
         self._is_fitted = False
 
+        # others
+        self._last_treat_control = None
+
     def _permute_treats(self):
         treatment = self.treatment
         if isinstance(treatment, str):
@@ -154,6 +157,8 @@ class PermutedLearner(BaseEstModel):
         effect = learner.estimate(data, **kwargs)
         if sign < 0:
             effect = effect * sign
+
+        self._last_treat_control = (treat, control)
         return effect
 
     def effect_nji(self, data=None, control=None, n_jobs=None, **kwargs):
@@ -193,6 +198,15 @@ class PermutedLearner(BaseEstModel):
     @staticmethod
     def _get_job_options(n_jobs=None):
         return dict(n_jobs=n_jobs, prefer='processes')
+
+    @property
+    def treat(self):
+        tc = self._last_treat_control
+        if tc is None:
+            raise ValueError('Not found the last_treat_control, call estimate firstly please.')
+
+        learner, _ = self._get_learner(tc[0], tc[1])
+        return learner.treat
 
 
 class PermutedSLearner(PermutedLearner):
