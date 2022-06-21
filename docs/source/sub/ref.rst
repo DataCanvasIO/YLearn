@@ -20,3 +20,12 @@ References
 .. [Athey2015]
 
     S. Athey and G. Imbens. Recursive Partitioning for Heterogeneous Causal Effects. arXiv: 1504.01132.
+
+.. [Schuler]
+
+    A. Schuler, et al. A comparison of methods for model selection when estimating individual treatment effects. arXiv:1804.05146.
+
+.. [Nie]
+
+    X. Nie, et al. Quasi-Oracle estimation of heterogeneous treatment effects.
+    arXiv: 1712.04912.

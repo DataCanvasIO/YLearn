@@ -59,7 +59,7 @@ class ApproxBound(BaseEstModel):
         Parameters
         ----------
         y_model : estimator, optional
-            Any valide y_model should implement the fit() and predict() methods
+            Any valid y_model should implement the fit() and predict() methods
         
         x_prob : ndarray of shape (c, ), optional. Default to None
             An array of probabilities assigning to the corresponding values of x
@@ -69,7 +69,7 @@ class ApproxBound(BaseEstModel):
             Please set this as None if you are using multiple treatments.
         
         x_model : estimator, optional. Default to None
-            Models for predicting the probabilities of treatment. Any valide x_model should implement the fit() and predict_proba() methods.
+            Models for predicting the probabilities of treatment. Any valid x_model should implement the fit() and predict_proba() methods.
         
         random_state : int, optional. Defaults to 2022.
         

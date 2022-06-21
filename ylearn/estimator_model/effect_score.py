@@ -23,7 +23,7 @@ logger = logging.get_logger(__name__)
 class RLoss(DML4CATE):
     """
     Estimator models for estimating causal effects can not be easily evaluated
-    dut to the fact that the true effects are directly observed. This differs
+    dut to the fact that the true effects are not directly observed. This differs
     from the usual machine learning tasks.
     
     Authors in [1] proposed a framework, a schema suggested by [2], to evaluate causal
@@ -197,7 +197,8 @@ class RLoss(DML4CATE):
         covariate=None,
         combined_treatment=True,
     ):
-        """Fit the DML4CATE estimator model.
+        """Fit the RLoss estimator model. Note that the trainig of a DML has two stages, where we implement them in 
+        :py:func:`_fit_1st_stage` and :py:func:`_fit_2nd_stage`.
 
         Parameters
         ----------
@@ -310,10 +311,27 @@ class RLoss(DML4CATE):
         ----------
         test_estimator : BaseEstModel
             Any fitted estimator model for causal effect.
+        
+        treat : float or ndarray, optional
+            In the case of single discrete treatment, treat should be an int or
+            str of one of all possible treatment values which indicates the
+            value of the intended treatment;
+            in the case of multiple discrete treatment, treat should be a list
+            or a ndarray where treat[i] indicates the value of the i-th intended
+            treatment, for example, when there are multiple
+            discrete treatments, array(['run', 'read']) means the treat value of
+            the first treatment is taken as 'run' and that of the second treatment
+            is taken as 'read';
+            in the case of continuous treatment, treat should be a float or a
+            ndarray, by default None
+      
+        control : float or ndarray, optional
+            This is similar to the cases of treat, by default None
 
         Returns
         -------
         float
+            The score for the test_estimator
         """
         x_prime, y_prime = self.x_hat_dict['res'][0], self.y_hat_dict['res'][0]
         v = self._v

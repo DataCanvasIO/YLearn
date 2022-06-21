@@ -84,13 +84,13 @@ Class Structures
 
     A model used for estimating the upper and lower bounds of the causal effects.
 
-    :param estimator, optional y_model: Any valide y_model should implement the fit() and predict() methods
+    :param estimator, optional y_model: Any valid y_model should implement the fit() and predict() methods
     :param ndarray of shape (c, ), optional, default=None x_prob: An array of probabilities assigning to the corresponding values of x
             where c is the number of different treatment classes. All elements
             in the array are positive and sumed to 1. For example, x_prob = 
             array([0.5, 0.5]) means both x = 0 and x = 1 take probability 0.5.
             Please set this as None if you are using multiple treatments.
-    :param estimator, optional, default=None x_model: Models for predicting the probabilities of treatment. Any valide x_model should implement the fit() and predict_proba() methods.
+    :param estimator, optional, default=None x_model: Models for predicting the probabilities of treatment. Any valid x_model should implement the fit() and predict_proba() methods.
     :param int, optional, default=2022 random_state:
     :param bool, optional, default=True is_discrete_treatment: True if the treatment is discrete.
     :param str, optional, default='auto' categories:

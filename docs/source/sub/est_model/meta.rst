@@ -11,7 +11,7 @@ YLearn implements 3 Meta-Learners: S-Learner, T-Learner, and X-Learner.
 S-Learner
 =========
 
-SLearn uses one machine learning model to estimate the causal effects. Specifically, we fit a model to predict outcome
+SLearner uses one machine learning model to estimate the causal effects. Specifically, we fit a model to predict outcome
 :math:`y` from treatment :math:`x` and adjustment set (or covariate) :math:`w` with a machine learning model
 :math:`f`:
 
