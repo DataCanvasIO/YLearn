@@ -31,11 +31,11 @@ can also be answered.
 
 YLearn, equiped with many techniques developed in recent literatures, is implemented to support the whole causal inference pipeline from causal discovery to causal estimand estimation with the help of machine learning. This is more promising especially when there are abundant observational data.
 
-### Concepts in YLearn and their related problem settings
+### Concepts in YLearn
 
 There are three main concepts in YLearn corresponding to the causal inference pipeline.
 
-![A typical pipeline of YLearn](./fig/flow.png)
+![Concepts in YLearn](./fig/flow.png)
 
 1. *Causal Discovery*. Discovering the causal relationships in the observational data.
 
@@ -46,6 +46,8 @@ There are three main concepts in YLearn corresponding to the causal inference pi
 4. *Policy Model*.
 
 5. *Interpreters*.
+
+![A typical pipeline of YLearn](./fig/flow.png)
 
 ## Quick Start
 
