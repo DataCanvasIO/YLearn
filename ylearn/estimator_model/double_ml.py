@@ -1,5 +1,6 @@
 from copy import deepcopy
 from collections import defaultdict
+from dis import dis
 
 import numpy as np
 
@@ -437,20 +438,24 @@ class DML4CATE(BaseEstModel):
             control = self.control
 
         dis_tr = self.is_discrete_treatment
-        treat = get_tr_ctrl(
-            treat,
-            self.comp_transormer,
-            treat=True,
-            one_hot=False,
-            discrete_treat=dis_tr,
-        )
-        control = get_tr_ctrl(
-            control,
-            self.comp_transormer,
-            treat=False,
-            one_hot=False,
-            discrete_treat=dis_tr,
-        )
+        
+        if not isinstance(treat, np.ndarray) or dis_tr:
+            treat = get_tr_ctrl(
+                treat,
+                self.comp_transormer,
+                treat=True,
+                one_hot=False,
+                discrete_treat=dis_tr,
+            )
+        
+        if not isinstance(treat, np.ndarray) or dis_tr:
+            control = get_tr_ctrl(
+                control,
+                self.comp_transormer,
+                treat=False,
+                one_hot=False,
+                discrete_treat=dis_tr,
+            )
         self.treat = treat
 
         if self.is_discrete_treatment:
