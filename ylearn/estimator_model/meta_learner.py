@@ -786,7 +786,7 @@ class TLearner(BaseEstModel):
         treat : int or ndarray, optional
             If there is only one treament, then treat indicates the treatment
             group. If there are multiple treatment groups, then treat should
-            be a ndarray of str with length equal to the number of treatments. 
+            be an ndarray of str with length equal to the number of treatments. 
             For example, when there are multiple
             discrete treatments, array(['run', 'read']) means the treat value of
             the first treatment is taken as 'run' and that of the second treatment

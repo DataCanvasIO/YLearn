@@ -260,8 +260,12 @@ class PolicyTree:
             Names of the causal effects vectors.
 
         effect_array : ndarray of shape (n, n_treatments)
-            ndarray of causal effects.
-
+            The causal effect that waited to be fitted by  :class:`PolicyTree`. If this is not provided and `est_model` is None, then `effect` can not be None.
+        
+        est_model : Any valid estimator model in ylearn
+            If `effect=None` and `effect_array=None`, then `est_model` can not be None and the causal
+            effect will be estimated by the `est_model`.
+        
         Returns
         ----------
         instance of self
@@ -526,7 +530,7 @@ class PolicyTree:
         Returns
         -------
         ndarray or float, optional
-            The estimated causal effect with the type of the quantity.
+            The index of the optimal treatment dimension. 
         """
         pred = self._prepare4est(data).argmax(1)
 
@@ -545,7 +549,7 @@ class PolicyTree:
         Returns
         -------
         ndarray or float, optional
-            The estimated causal effect with the type of the quantity.
+            The estimated causal effect with the optimal treatment value.
         """
         pred = self._prepare4est(data)
 

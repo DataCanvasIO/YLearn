@@ -232,7 +232,7 @@ class DoublyRobust(BaseEstModel):
             str in one of all possible treatment values which indicates the
             value of the intended treatment;
             in the case of multiple discrete treatment, treat should be a list
-            or a ndarray where treat[i] indicates the value of the i-th intended
+            or an ndarray where treat[i] indicates the value of the i-th intended
             treatment. For example, when there are multiple
             discrete treatments, array(['run', 'read']) means the treat value of
             the first treatment is taken as 'run' and that of the second treatment
@@ -354,7 +354,7 @@ class DoublyRobust(BaseEstModel):
             str in one of all possible treatment values which indicates the
             value of the intended treatment;
             in the case of multiple discrete treatment, treat should be a list
-            or a ndarray where treat[i] indicates the value of the i-th intended
+            or an ndarray where treat[i] indicates the value of the i-th intended
             treatment. For example, when there are multiple
             discrete treatments, array(['run', 'read']) means the treat value of
             the first treatment is taken as 'run' and that of the second treatment

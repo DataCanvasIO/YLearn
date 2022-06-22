@@ -135,7 +135,7 @@ Class Structures
 
         Return the decision path.
 
-        :param numpy.ndarray, default=None wv: The input samples as a ndarray. If None, then the DataFrame data
+        :param numpy.ndarray, default=None wv: The input samples as an ndarray. If None, then the DataFrame data
             will be used as the input samples.
         :param pandas.DataFrame, default=None data: The input samples. The data must contains columns of the covariates
             used for training the model. If None, the training data will be
@@ -149,7 +149,7 @@ Class Structures
 
         Return the index of the leaf that each sample is predicted as.
         
-        :param numpy.ndarray, default=None wv: The input samples as a ndarray. If None, then the DataFrame data
+        :param numpy.ndarray, default=None wv: The input samples as an ndarray. If None, then the DataFrame data
             will be used as the input samples.
         :param pandas.DataFrame, default=None data: The input samples. The data must contains columns of the covariates
             used for training the model. If None, the training data will be

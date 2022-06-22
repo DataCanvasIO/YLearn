@@ -161,7 +161,7 @@ class DML4CATE(BaseEstModel):
         str in one of all possible treatment values which indicates the
         value of the intended treatment;
         in the case of multiple discrete treatment, treat should be a list
-        or a ndarray where treat[i] indicates the value of the i-th intended
+        or an ndarray where treat[i] indicates the value of the i-th intended
         treatment;
         in the case of continuous treatment, treat should be a float or a
         ndarray, by default None
@@ -408,7 +408,7 @@ class DML4CATE(BaseEstModel):
             str of one of all possible treatment values which indicates the
             value of the intended treatment;
             in the case of multiple discrete treatment, treat should be a list
-            or a ndarray where treat[i] indicates the value of the i-th intended
+            or an ndarray where treat[i] indicates the value of the i-th intended
             treatment, for example, when there are multiple
             discrete treatments, array(['run', 'read']) means the treat value of
             the first treatment is taken as 'run' and that of the second treatment

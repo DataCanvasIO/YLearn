@@ -192,7 +192,7 @@ class CausalTree(BaseEstModel):
         Parameters
         ----------
         wv : ndarray
-            The input samples as a ndarray. If None, then the DataFrame data
+            The input samples as an ndarray. If None, then the DataFrame data
             will be used as the input samples.
         
         data : DataFrame, optional
@@ -214,7 +214,7 @@ class CausalTree(BaseEstModel):
         Parameters
         ----------
         wv : ndarray
-            The input samples as a ndarray. If None, then the DataFrame data
+            The input samples as an ndarray. If None, then the DataFrame data
             will be used as the input samples.
         
         data : DataFrame, optional
@@ -666,7 +666,7 @@ class CausalTree(BaseEstModel):
         Parameters
         ----------
         wv : ndarray
-            The test samples as a ndarray. If None, then the DataFrame data
+            The test samples as an ndarray. If None, then the DataFrame data
             will be used as the test samples.
         
         data : pandas.DataFrame
@@ -743,7 +743,7 @@ class CausalTree(BaseEstModel):
         Parameters
         ----------
         wv : ndarray
-            The input samples as a ndarray. If None, then the DataFrame data
+            The input samples as an ndarray. If None, then the DataFrame data
             will be used as the input samples.
         
         data : DataFrame, optional
@@ -770,7 +770,7 @@ class CausalTree(BaseEstModel):
         Parameters
         ----------
         wv : ndarray
-            The input samples as a ndarray. If None, then the DataFrame data
+            The input samples as an ndarray. If None, then the DataFrame data
             will be used as the input samples.
         
         data : DataFrame, optional
