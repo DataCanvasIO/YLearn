@@ -258,10 +258,10 @@ class NP2SLS(BaseEstModel):
             return (yt - y0).mean(dim=0)
         if quantity == 'ATE':
             return (yt - y0).mean(dim=0)
-        else:
+        elif quantity == 'ITE' or quantity == 'CITE':
             return (yt - y0)
-        # else:
-        #     return yt
+        else:
+            return yt
 
     def effect_nji(self, data=None):
         if self.is_discrete_treatment:
