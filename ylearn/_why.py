@@ -154,14 +154,39 @@ def _is_number(dtype):
     return dtype.kind in {'i', 'f'}
 
 
+def _is_discrete(y):
+    return infer_task_type(y)[0] != const.TASK_REGRESSION
+
+
+def _task_tag(discrete):
+    if isinstance(discrete, (np.ndarray, pd.Series)):
+        discrete = _is_discrete(discrete)
+    return 'classification' if discrete else 'regression'
+
+
 def _align_task_to_first(data, columns, count_limit):
     """
      select features which has similar task type with the first
     """
     selected = columns[:1]
-    discrete = infer_task_type(data[selected[0]])[0] != const.TASK_REGRESSION
+    discrete = _is_discrete(data[selected[0]])
     for x in columns[1:]:
-        x_discrete = infer_task_type(data[x])[0] != const.TASK_REGRESSION
+        x_discrete = _is_discrete(data[x])
+        if x_discrete is discrete:
+            selected.append(x)
+            if len(selected) >= count_limit:
+                break
+
+    return selected
+
+
+def _select_by_task(data, columns, count_limit, discrete):
+    """
+     select features which has similar task type with the first
+    """
+    selected = []
+    for x in columns:
+        x_discrete = _is_discrete(data[x])
         if x_discrete is discrete:
             selected.append(x)
             if len(selected) >= count_limit:
@@ -171,10 +196,7 @@ def _align_task_to_first(data, columns, count_limit):
 
 
 class Identifier:
-    def __init__(self, task):
-        self.task = task
-
-    def identify_treatment(self, data, outcome, count_limit, excludes=None):
+    def identify_treatment(self, data, outcome, discrete_treatment, count_limit, excludes=None):
         raise NotImplemented()
 
     def identify_aci(self, data, outcome, treatment):
@@ -182,7 +204,7 @@ class Identifier:
 
 
 class DefaultIdentifier(Identifier):
-    def identify_treatment(self, data, outcome, count_limit, excludes=None):
+    def identify_treatment(self, data, outcome, discrete_treatment, count_limit, excludes=None):
         X = data.copy()
         y = X.pop(outcome)
 
@@ -190,10 +212,14 @@ class DefaultIdentifier(Identifier):
             X = X[[c for c in X.columns.tolist() if c not in excludes]]
 
         tf = skex.FeatureImportancesSelectionTransformer(
-            task=self.task, strategy='number', number=X.shape[1], data_clean=False)
+            strategy='number', number=X.shape[1], data_clean=False)
         tf.fit(X, y)
         selected = tf.selected_features_
-        treatment = _align_task_to_first(data, selected, count_limit)
+
+        if discrete_treatment is None:
+            treatment = _align_task_to_first(data, selected, count_limit)
+        else:
+            treatment = _select_by_task(data, selected, count_limit, discrete_treatment)
 
         return treatment
 
@@ -206,9 +232,7 @@ class DefaultIdentifier(Identifier):
 
 
 class IdentifierWithDiscovery(Identifier):
-    def __init__(self, task, random_state, **kwargs):
-        super().__init__(task)
-
+    def __init__(self, random_state, **kwargs):
         self.random_state = random_state
         self.discovery_options = kwargs.copy()
         self.causation_matrix_ = None
@@ -231,9 +255,9 @@ class IdentifierWithDiscovery(Identifier):
             options.update(self.discovery_options)
 
         dd = DagDiscovery(**options)
-        return dd(data)
+        return dd(X)
 
-    def identify_treatment(self, data, outcome, count_limit, excludes=None):
+    def identify_treatment(self, data, outcome, discrete_treatment, count_limit, excludes=None):
         causation = self._discovery(data, outcome)
         assert isinstance(causation, pd.DataFrame) and outcome in causation.columns.tolist()
 
@@ -242,9 +266,12 @@ class IdentifierWithDiscovery(Identifier):
         if excludes is not None:
             treatment = [t for t in treatment if t not in excludes]
 
-        # if len(treatment) > count_limit
-        #     treatment = treatment[:count_limit]
-        treatment = _align_task_to_first(data, treatment, count_limit)
+        # # if len(treatment) > count_limit
+        # #     treatment = treatment[:count_limit]
+        if discrete_treatment is None:
+            treatment = _align_task_to_first(data, treatment, count_limit)
+        else:
+            treatment = _select_by_task(data, treatment, count_limit, discrete_treatment)
 
         self.causation_matrix_ = causation
 
@@ -279,8 +306,9 @@ class IdentifierWithDiscovery(Identifier):
 
 class Why:
     def __init__(self,
-                 task=None,  # str, default infer from outcome
-                 identify='auto',  # discovery, feature_importances, ...
+                 discrete_outcome=None,  # str, default infer from outcome
+                 discrete_treatment=None,
+                 identifier='auto',  # discovery, feature_importances, ...
                  discovery_model=None,  # notears_linear, ...
                  discovery_options=None,  # dict or None
                  estimator='auto',  # auto, dml, dr, ml or metaleaner, iv, div, ...
@@ -290,7 +318,9 @@ class Why:
         if isinstance(estimator, str):
             assert estimator == 'auto' or estimator in ESTIMATOR_FACTORIES.keys()
 
-        self.identify = identify
+        self.discrete_outcome = discrete_outcome
+        self.discrete_treatment = discrete_treatment
+        self.identifier = identifier
         self.discovery_model = discovery_model
         self.discovery_options = discovery_options
         self.estimator = estimator
@@ -300,7 +330,6 @@ class Why:
         # fitted
         self._is_fitted = False,
         self.feature_names_in_ = None
-        self.task = task
         self.treatment_ = None
         self.outcome_ = None
         self.adjustment_ = None
@@ -344,9 +373,9 @@ class Why:
             data = data.copy()
 
         y = data[outcome]
-        if self.task is None:
-            self.task, _ = infer_task_type(y)
-            logger.info(f'infer task as {self.task}')
+        if self.discrete_outcome is None:
+            self.discrete_outcome = _is_discrete(y)
+            logger.info(f'infer outcome as {_task_tag(self.discrete_outcome)}')
 
         if not _is_number(y.dtype):
             logger.info('encode outcome with LabelEncoder')
@@ -357,7 +386,7 @@ class Why:
             y_encoder = None
 
         logger.info(f'identify treatment, adjustment, covariate and instrument')
-        treatment, adjustment, covariate, instrument = self._identify(
+        treatment, adjustment, covariate, instrument = self.identify(
             data, outcome,
             treatment=treatment, adjustment=adjustment, covariate=covariate, instrument=instrument,
             treatment_count_limit=treatment_count_limit,
@@ -406,31 +435,44 @@ class Why:
         return min(math.ceil(data.shape[1] * DEFAULT_TREATMENT_COUNT_LIMIT_PERCENT),
                    DEFAULT_TREATMENT_COUNT_LIMIT_BOUND)
 
-    def _get_default_estimator(self, data, outcome, x_task, options, *,
+    def _get_default_estimator(self, data, outcome, options, *,
                                treatment, adjustment=None, covariate=None, instrument=None):
         if instrument is not None and len(instrument) > 0:
             estimator = 'iv'
-        elif x_task in {const.TASK_BINARY, const.TASK_MULTICLASS}:
+        # elif x_task in {const.TASK_BINARY, const.TASK_MULTICLASS}:
+        elif self.discrete_treatment:
             estimator = 'ml'
         else:
             estimator = 'dml'
 
         return estimator, options
 
-    def _identify(self, data, outcome, *,
-                  treatment=None, adjustment=None, covariate=None, instrument=None,
-                  treatment_count_limit=None):
+    def identify(self, data, outcome, *,
+                 treatment=None, adjustment=None, covariate=None, instrument=None, treatment_count_limit=None):
         identifier = None
-        if treatment is None:
+
+        treatment = _to_list(treatment, name='treatment')
+        if _empty(treatment):
             identifier = self._create_identifier()
             if treatment_count_limit is None:
                 treatment_count_limit = self._get_default_treatment_count_limit(data, outcome)
-            treatment = identifier.identify_treatment(data, outcome, treatment_count_limit)
-            logger.info(f'identified treatment: {treatment}')
+            treatment = identifier.identify_treatment(data, outcome, self.discrete_treatment, treatment_count_limit)
+            if logger.is_info_enabled():
+                tag = 'classification' if _is_discrete(data[treatment[0]]) else 'regression'
+                logger.info(f'identified treatment[{tag}]: {treatment}')
         else:
-            pass  # todo validate it
+            x_tasks = dict(map(lambda x: (x, 'classification' if _is_discrete(data[x]) else 'regression'),
+                               treatment))
+            if len(set(x_tasks.values())) > 1:
+                logger.warn('Both regression and classification features are used as treatment, '
+                            'something maybe unexpected.'
+                            f'\n{x_tasks}')
 
-        treatment = _to_list(treatment, name='treatment')
+        if self.discrete_treatment is None:
+            self.discrete_treatment = _is_discrete(data[treatment[0]])
+            if logger.is_info_enabled():
+                logger.info(f'infer discrete_treatment={self.discrete_treatment}')
+
         adjustment = _to_list(adjustment, name='adjustment')
         covariate = _to_list(covariate, name='covariate')
         instrument = _to_list(instrument, name='instrument')
@@ -439,33 +481,34 @@ class Why:
         _safe_remove(covariate, treatment)
         _safe_remove(instrument, treatment)
 
-        if all(map(lambda a: a is None or len(a) == 0, (adjustment, covariate, instrument))):
+        if all(map(_empty, (adjustment, covariate, instrument))):
             if identifier is None:
                 identifier = self._create_identifier()
             adjustment, covariate, instrument = identifier.identify_aci(data, outcome, treatment)
-            logger.info(f'identified adjustment: {adjustment}')
-            logger.info(f'identified covariate: {covariate}')
-            logger.info(f'identified instrument: {instrument}')
+            if logger.is_info_enabled():
+                logger.info(f'identified adjustment: {adjustment}')
+                logger.info(f'identified covariate: {covariate}')
+                logger.info(f'identified instrument: {instrument}')
 
         self.identifier_ = identifier
         return treatment, adjustment, covariate, instrument
 
     def _create_identifier(self):
-        if self.identify == 'discovery':
+        if self.identifier == 'discovery':
             options = self.discovery_options if self.discovery_options is not None else {}
-            return IdentifierWithDiscovery(self.task, self.random_state, **options)
+            return IdentifierWithDiscovery(self.random_state, **options)
         else:
-            return DefaultIdentifier(self.task)
+            return DefaultIdentifier()
 
     def _create_estimator(self, data, outcome, *,
                           treatment, adjustment=None, covariate=None, instrument=None):
-        x_task, _ = infer_task_type(data[treatment])
+        # x_task, _ = infer_task_type(data[treatment])
 
         estimator = self.estimator
         options = self.estimator_options if self.estimator_options is not None else {}
         if estimator == 'auto':
             estimator, options = self._get_default_estimator(
-                data, outcome, x_task, options,
+                data, outcome, options,
                 treatment=treatment,
                 adjustment=adjustment,
                 covariate=covariate,
@@ -474,7 +517,7 @@ class Why:
 
         factory = ESTIMATOR_FACTORIES[estimator](**options)
 
-        estimator = factory(data, outcome, y_task=self.task, x_task=x_task,
+        estimator = factory(data, outcome, y_task=self.discrete_outcome, x_task=self.discrete_treatment,
                             treatment=treatment,
                             adjustment=adjustment,
                             covariate=covariate,
@@ -492,8 +535,10 @@ class Why:
         factory = ESTIMATOR_FACTORIES[scorer]()
         scorers = {}
         for x in self.treatment_:
-            x_task, _ = infer_task_type(data[x])
-            scorer = factory(data, self.outcome_, y_task=self.task, x_task=x_task,
+            # x_task, _ = infer_task_type(data[x])
+            scorer = factory(data, self.outcome_,
+                             y_task=self.discrete_outcome,
+                             x_task=self.discrete_treatment,
                              treatment=x,
                              adjustment=self.adjustment_,
                              covariate=self.covariate_,
@@ -622,6 +667,9 @@ class Why:
         y_old = data[self.outcome_]
         old_value = data[treatment]
         effect = estimator.estimate(data, treat=new_value, control=old_value)
+        # effect_treat = estimator.estimate(data, treat=new_value)
+        # effect_control = estimator.estimate(data, treat=old_value)
+        # effect = effect_treat - effect_control
         y_new = y_old + effect.ravel()
         return y_new
 
