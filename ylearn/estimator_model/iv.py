@@ -236,7 +236,7 @@ class NP2SLS(BaseEstModel):
         treat=None,
         control=None,
         quantity=None,
-        # marginal_effect=False,
+        marginal_effect=False,
     ):
         if not self._is_fitted:
             raise Exception('The estimator is not fitted yet.')
@@ -250,7 +250,7 @@ class NP2SLS(BaseEstModel):
             data=data,
             treat=treat,
             control=control,
-            # marginal_effect=marginal_effect,
+            marginal_effect=marginal_effect,
         )
         if quantity == 'CATE':
             assert self.covariate is not None,\
@@ -303,7 +303,7 @@ class NP2SLS(BaseEstModel):
         data,
         treat,
         control,
-        # marginal_effect,
+        marginal_effect,
     ):
         v, w, x, n = self._check_data(data=data)
 
