@@ -4,7 +4,7 @@ Overview of YLearn and Causal Inference
 
 Machine learning has made great achievements in recent years. 
 The areas in which machine learning succeeds are mainly for prediction, 
-e.g., the classificatio of pictures of cats and dogs. However, machine learning is incapable of answering some 
+e.g., the classification of pictures of cats and dogs. However, machine learning is incapable of answering some 
 questions that naturally arise in many scenarios. One example is for the **counterfactual questions** in policy 
 evaluations: what would have happened if the policy had changed? Due to the fact that these counterfactuals can 
 not be observed, machine learning models, the prediction tools, can not be used. These incapabilities of machine 

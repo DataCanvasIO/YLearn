@@ -9,6 +9,7 @@ from sklearn.preprocessing import (OneHotEncoder, OrdinalEncoder,
 from .base_models import BaseEstModel
 from .utils import (convert2array, nd_kron, get_wv)
 
+# TODO: double check the case where is_discrete_treatment=True
 
 # class TwoSLS(BaseEstModel):
 #     # TODO: simply import the 2SLS from StatsModel can finish this
@@ -65,6 +66,23 @@ class NP2SLS(BaseEstModel):
         is_discrete_outcome=False,
         categories='auto'
     ):
+        """
+
+        Parameters
+        ----------
+        x_model : estimator, optional
+            The machine learning model to model the treatment. Any valid x_model should implement the `fit` and `predict` methods, by default None
+        y_model : estimator, optional
+            The machine learning model to model the outcome. Any valid y_model should implement the `fit` and `predict` methods, by default None
+        random_state : int, optional
+            by default 2022
+        is_discrete_treatment : bool, optional
+            Avoid setting this as True in the current version, by default False
+        is_discrete_outcome : bool, optional
+            Avoid setting this as True in the current version, by default False
+        categories : str, optional
+            by default 'auto'
+        """
         self.x_model = LinearRegression() if x_model is None else x_model
         self.y_model = LinearRegression() if y_model is None else y_model
 
@@ -89,8 +107,31 @@ class NP2SLS(BaseEstModel):
         covariate=None,
         **kwargs
     ):
-        """Note that when both treatment_basis and instrument_basis have degree
+        """Fit a NP2SLS. Note that when both treatment_basis and instrument_basis have degree
         1 we are actually doing 2SLS.
+        
+        data : DataFrame
+            Training data for the model.
+        
+        outcome : str or list of str
+            Names of the outcomes.
+        
+        treatment : str or list of str
+            Names of the treatment vectors.
+        
+        covariate : str of list of str
+            Names of the covariate vectors.
+            
+        treatment_basis : tuple of 2 elements, optional, default=('Poly', 2)
+            Option for transforming the original treatment vectors. The first element indicates the transformation basis function while the second one denotes the degree. Currently only support 'Poly' in the first element.
+        
+        instrument_basis : tuple of 2 elements, optional, default=('Poly', 2)
+            Option for transforming the original instrument vectors. The first element indicates the transformation basis function while the second one denotes the degree. Currently only support 'Poly' in the first element.
+        
+        covar_basis : tuple of 2 elements, optional, default=('Poly', 2)
+            Option for transforming the original covariate vectors. The first element indicates the transformation basis function while the second one denotes the degree. Currently only support 'Poly' in the first element.
+        
+        is_discrete_instrument : bool, default=False
         """
         assert instrument is not None, 'Instrument is required.'
 
@@ -195,7 +236,7 @@ class NP2SLS(BaseEstModel):
         treat=None,
         control=None,
         quantity=None,
-        marginal_effect=False,
+        # marginal_effect=False,
     ):
         if not self._is_fitted:
             raise Exception('The estimator is not fitted yet.')
@@ -209,7 +250,7 @@ class NP2SLS(BaseEstModel):
             data=data,
             treat=treat,
             control=control,
-            marginal_effect=marginal_effect,
+            # marginal_effect=marginal_effect,
         )
         if quantity == 'CATE':
             assert self.covariate is not None,\
@@ -217,10 +258,10 @@ class NP2SLS(BaseEstModel):
             return (yt - y0).mean(dim=0)
         if quantity == 'ATE':
             return (yt - y0).mean(dim=0)
-        elif quantity == 'ITE':
-            return (yt - y0)
         else:
-            return yt
+            return (yt - y0)
+        # else:
+        #     return yt
 
     def effect_nji(self, data=None):
         if self.is_discrete_treatment:
@@ -262,7 +303,7 @@ class NP2SLS(BaseEstModel):
         data,
         treat,
         control,
-        marginal_effect,
+        # marginal_effect,
     ):
         v, w, x, n = self._check_data(data=data)
 
