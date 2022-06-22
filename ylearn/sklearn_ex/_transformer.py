@@ -7,7 +7,7 @@ from sklearn.base import BaseEstimator
 from sklearn.compose import make_column_selector
 from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import OrdinalEncoder, StandardScaler, LabelEncoder
+from sklearn.preprocessing import OrdinalEncoder, LabelEncoder
 
 from ylearn.utils import logging, const, infer_task_type
 from ._data_cleaner import DataCleaner
@@ -317,6 +317,8 @@ def general_estimator(X, y=None, estimator=None, task=None, random_state=None, *
     if task is None:
         assert y is not None, '"y" or "task" is required.'
         task = infer_task_type(y)
+    elif isinstance(task, bool):  # discrete or not
+        task = const.TASK_MULTICLASS if task else const.TASK_REGRESSION
 
     if estimator in creators.keys():
         estimator_ = creators[estimator](task)
