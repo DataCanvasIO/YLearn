@@ -49,3 +49,11 @@ References
 .. [Athey2020]
 
     S. Athey and S. Wager. Policy Learning with Observational Data. *arXiv: 1702.02896.*
+
+.. [Spirtes2001]
+
+    P. Spirtes, et al. Causation, Prediction, and Search.
+
+.. [Zheng2018]
+
+    X. Zheng, et al. DAGs with NO TEARS: Continuous Optimization for Structure Learning. *arXiv: 1803.01422.*

@@ -28,7 +28,7 @@ more promising especially when there are abundant observational data.
 
 Concepts in YLearn and their related problem settings
 =====================================================
-There are three main components in YLearn corresponding to the causal inference pipeline.
+There are 5 main components in YLearn corresponding to the causal inference pipeline.
 
 .. figure:: structure_ylearn.png
 
