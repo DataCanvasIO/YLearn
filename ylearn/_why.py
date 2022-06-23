@@ -6,7 +6,7 @@ import pandas as pd
 from sklearn.preprocessing import LabelEncoder
 
 from ylearn import sklearn_ex as skex
-from ylearn.causal_discovery import DagDiscovery
+from ylearn.causal_discovery import CausalDiscovery
 from ylearn.causal_model import CausalModel, CausalGraph
 from ylearn.effect_interpreter.policy_interpreter import PolicyInterpreter
 from ylearn.estimator_model import ESTIMATOR_FACTORIES, BaseEstModel
@@ -254,7 +254,7 @@ class IdentifierWithDiscovery(Identifier):
         if self.discovery_options is not None:
             options.update(self.discovery_options)
 
-        dd = DagDiscovery(**options)
+        dd = CausalDiscovery(**options)
         return dd(X)
 
     def identify_treatment(self, data, outcome, discrete_treatment, count_limit, excludes=None):
@@ -262,7 +262,7 @@ class IdentifierWithDiscovery(Identifier):
         assert isinstance(causation, pd.DataFrame) and outcome in causation.columns.tolist()
 
         treatment = causation[outcome].abs().sort_values(ascending=False)
-        treatment = [i for i in treatment.index if treatment[i] > 0]
+        treatment = [i for i in treatment.index if treatment[i] > 0 and i != outcome]
         if excludes is not None:
             treatment = [t for t in treatment if t not in excludes]
 
@@ -286,7 +286,7 @@ class IdentifierWithDiscovery(Identifier):
         # threshold = causation.values.diagonal().max()
         threshold = min(np.quantile(causation.values.diagonal(), 0.8),
                         np.mean(causation.values))
-        m = DagDiscovery().matrix2dict(causation, threshold=threshold)
+        m = CausalDiscovery().matrix2dict(causation, threshold=threshold)
         cg = CausalGraph(m)
         cm = CausalModel(cg)
         try:
@@ -316,14 +316,45 @@ class IdentifierWithDiscovery(Identifier):
 
 
 class Why:
+    """
+    A quickstart point to identity causation and estimate causal effect.
+
+    Parameters
+    ----------
+    discrete_outcome : bool, default infer from outcome
+    discrete_treatment : bool, default infer from the first treatment
+    identifier : str,  'auto' or 'discovery'
+    discovery_model : str, reserved
+    discovery_options : None or dict of parameter key-values to initialize the discovery model
+    estimator : str, 'auto' or estimator name or estimate instance
+    estimator_options : None or dict of parameter key-values to initialize the estimator
+    random_state : None or int (random state seed)
+
+    Attributes
+    ----------
+    feature_names_in_ : list of feature names seen during `fit`
+    outcome_ : name of outcome
+    treatment_ : list of treatment names identified during `fit`
+    adjustment_ : list of adjustment names identified during `fit`
+    covariate_ : list of covariate names identified during `fit`
+    instrument_ : list of instrument names identified during `fit`
+    identifier_ : identifier object or None
+         Used to identify treatment/adjustment/covariate/instrument if they were not specified during `fit`
+    y_encoder_ : LabelEncoder object or None
+        Used to encode outcome if its dtype was not numeric
+    preprocessor_ : Pipeline object to preprocess data during `fit`
+    estimators_ : estimators dict for each treatment, key is the treatment name, value is the estimator object
+
+    """
+
     def __init__(self,
-                 discrete_outcome=None,  # str, default infer from outcome
+                 discrete_outcome=None,
                  discrete_treatment=None,
-                 identifier='auto',  # discovery, feature_importances, ...
-                 discovery_model=None,  # notears_linear, ...
-                 discovery_options=None,  # dict or None
-                 estimator='auto',  # auto, dml, dr, ml or metaleaner, iv, div, ...
-                 estimator_options=None,  # dict or None
+                 identifier='auto',
+                 discovery_model=None,
+                 discovery_options=None,
+                 estimator='auto',
+                 estimator_options=None,
                  random_state=None):
         assert isinstance(estimator, (str, BaseEstModel))
         if isinstance(estimator, str):
@@ -353,24 +384,43 @@ class Why:
         self.preprocessor_ = None
         self.estimators_ = None
 
-    def fit(self, data,
-            outcome,  # required, str, one
+    def fit(self, data, outcome,
             *,
-            treatment=None,  # str list, one or more, default inferred from feature importances
-            adjustment=None,  # str list, one or more, default None
-            covariate=None,  # str list, one or more, default None
-            instrument=None,  # str list, one or more, default None
+            treatment=None,
+            adjustment=None,
+            covariate=None,
+            instrument=None,
             treatment_count_limit=None,
             copy=True,
             **kwargs
             ):
         """
-        steps:
-            * infer task type if None
-            * discovery causal graph
-            * identify adjustment with identification_model
-            * fit causal estimator with nuisance_models and heterogeneity_model
+        Fit the Why object, steps:
+            * encode outcome if its dtype is not numeric
+            * identify treatment and adjustment/covariate/instrument
+            * preprocess data
+            * fit causal estimators
 
+        Parameters
+        ----------
+        data : pandas.DataFrame, required
+        outcome : str, outcome feature name, required
+        treatment : str or list of str
+            Names of the treatment variables
+        adjustment : str or list of str, optional
+            If None, identified by identifier.
+        covariate : str or list of str, optional
+            If None, identified by identifier.
+        instrument : str or list of str, optional
+            If None, identified by identifier.
+        treatment_count_limit : maximum treatment number, default `min(5, 10% of total feature number)`
+        copy : bool, default True
+        kwargs : options to fit estimators
+
+        Returns
+        -------
+        self :
+            fitted object
         """
         assert isinstance(data, pd.DataFrame)
 
@@ -460,6 +510,28 @@ class Why:
 
     def identify(self, data, outcome, *,
                  treatment=None, adjustment=None, covariate=None, instrument=None, treatment_count_limit=None):
+        """
+        Identify treatment and adjustment/covariate/instrument
+
+        Parameters
+        ----------
+        data : pandas.DataFrame, required
+        outcome : str, outcome feature name, required
+        treatment : str or list of str
+            Names of the treatment variables
+        adjustment : str or list of str, optional
+            If None, identified by identifier.
+        covariate : str or list of str, optional
+            If None, identified by identifier.
+        instrument : str or list of str, optional
+            If None, identified by identifier.
+        treatment_count_limit : maximum treatment number, default `min(5, 10% of total feature number)`
+
+        Returns
+        -------
+        tuple of identified treatment, adjustment, covariate, instrument
+        """
+
         identifier = None
 
         treatment = _to_list(treatment, name='treatment')
@@ -575,12 +647,19 @@ class Why:
         return test_data
 
     def causal_graph(self):
+        """
+        Get identified causal graph
+
+        Returns
+        -------
+        CausalGraph object
+        """
         causation = self.identifier_.causation_matrix_ \
             if isinstance(self.identifier_, IdentifierWithDiscovery) else None
 
         if causation is not None:
             threshold = causation.values.diagonal().max()
-            m = DagDiscovery().matrix2dict(causation, threshold=threshold)
+            m = CausalDiscovery().matrix2dict(causation, threshold=threshold)
         else:
             m = {}
             fmt = partial(_format, line_limit=1, line_width=20)
@@ -600,17 +679,30 @@ class Why:
         cg = CausalGraph(m)
         return cg
 
-    def causal_effect(self, treat=None, control=None):
-        return self.cohort_causal_effect(None, treat=treat, control=control)
+    def causal_effect(self, test_data=None, treat=None, control=None):
+        """
+        Estimate the causal effect.
 
-    def cohort_causal_effect(self, Xtest, treat=None, control=None):
-        Xtest = self._preprocess(Xtest)
+        Parameters
+        ----------
+        test_data : pd.DataFrame, default None
+            The test data to evaluate the causal effect.
+            If None, estimate effect with the training data .
+        treat : int or list, default None
+        control : int or list, default None
+
+        Returns
+        -------
+        pd.DataFrame
+            causal effect of each treatment
+        """
+        test_data = self._preprocess(test_data)
         dfs = []
         for i, x in enumerate(self.treatment_):
             est = self.estimators_[x]
             treat_i = treat[i] if treat is not None else None
             control_i = control[i] if control is not None else None
-            effect = est.estimate(data=Xtest, treat=treat_i, control=control_i)
+            effect = est.estimate(data=test_data, treat=treat_i, control=control_i)
             s = pd.Series(dict(mean=effect.mean(),
                                min=effect.min(),
                                max=effect.max(),
@@ -619,19 +711,49 @@ class Why:
             dfs.append(s)
         return pd.concat(dfs, axis=1).T
 
-    def local_causal_effect(self, Xtest, treat=None, control=None):
-        Xtest = self._preprocess(Xtest)
+    def individual_causal_effect(self, test_data, treat=None, control=None):
+        """
+        Estimate individual causal effect.
+
+        Parameters
+        ----------
+        test_data : pd.DataFrame, default None
+            The test data to evaluate the causal effect.
+            If None, estimate effect with the training data .
+        treat : int or list, default None
+        control : int or list, default None
+
+        Returns
+        -------
+        pd.DataFrame
+            individual causal effect of each treatment
+        """
+        test_data = self._preprocess(test_data)
         dfs = []
         for i, x in enumerate(self.treatment_):
             est = self.estimators_[x]
             treat_i = treat[i] if treat is not None else None
             control_i = control[i] if control is not None else None
-            effect = est.estimate(data=Xtest, treat=treat_i, control=control_i)
+            effect = est.estimate(data=test_data, treat=treat_i, control=control_i)
             s = pd.Series(effect.ravel(), name=x)
             dfs.append(s)
         return pd.concat(dfs, axis=1)
 
     def whatif(self, data, new_value, treatment=None):
+        """
+        Get counterfactual predictions when treatment is changed to new_value from its observational counterpart.
+
+        Parameters
+        ----------
+        data : pd.DataFrame
+        new_value : ndarray or pd.Series
+        treatment : treatment name
+
+        Returns
+        -------
+        pd.Series
+            The counterfactual prediction
+        """
         assert data is not None and new_value is not None
         assert treatment is None or isinstance(treatment, str)
         if isinstance(treatment, str):
@@ -685,6 +807,21 @@ class Why:
         return y_new
 
     def score(self, test_data=None, treat=None, control=None, scorer='auto'):
+        """
+        Scoring the estimators with test_data
+
+        Parameters
+        ----------
+        test_data : pd.DataFrame, required
+        treat : int or list, default None
+        control : int or list, default None
+        scorer: reserved
+
+        Returns
+        -------
+        float
+            score
+        """
         assert test_data is not None
 
         scorers = self._create_scorers(test_data, scorer=scorer)
@@ -715,6 +852,20 @@ class Why:
         return effect_array
 
     def policy_tree(self, data, control=None, **kwargs):
+        """
+        Get the policy tree
+
+        Parameters
+        ----------
+        data : pd.DataFrame, required
+        control : int or list, default None
+        kwargs : options to initialize the PolicyTree
+
+        Returns
+        -------
+        object :
+            The fitted PolicyTree object
+        """
         data = self._preprocess(data)
         effect_array = self._effect_array(data, control=control)
         ptree = PolicyTree(**kwargs)
@@ -723,6 +874,20 @@ class Why:
         return ptree
 
     def policy_interpreter(self, data, control=None, **kwargs):
+        """
+        Get the policy interpreter
+
+        Parameters
+        ----------
+        data : pd.DataFrame, required
+        control : int or list, default None
+        kwargs : options to initialize the PolicyInterpreter
+
+        Returns
+        -------
+        object :
+            The fitted PolicyInterpreter object
+        """
         data = self._preprocess(data)
         effect_array = self._effect_array(data, control=control)
         pi = PolicyInterpreter(**kwargs)
@@ -757,19 +922,6 @@ class Why:
                 dot_string = dot_string.replace(k, _format(v, line_width=width))
         graph = pydot.graph_from_dot_data(dot_string)[0]
         view_pydot(graph, prog='fdp')
-
-    # def plot_heterogeneity_tree(self, Xtest, feature_index, *,
-    #                             max_depth=3, min_samples_leaf=2, min_impurity_decrease=1e-4,
-    #                             include_model_uncertainty=False,
-    #                             alpha=0.05):
-    def plot_heterogeneity_tree(self, Xtest, treatment=None, **tree_options):
-        raise NotImplemented()
-
-    # # ??
-    # def individualized_policy(self, Xtest, treatment=None,
-    #                           *,
-    #                           n_rows=None, treatment_costs=0, alpha=0.05):
-    #     pass
 
     def __repr__(self):
         return to_repr(self)

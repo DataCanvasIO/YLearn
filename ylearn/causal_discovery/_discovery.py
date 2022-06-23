@@ -97,7 +97,7 @@ class DagNet(nn.Module):
         return W
 
 
-class DagDiscovery(BaseDiscovery):
+class CausalDiscovery(BaseDiscovery):
     def __init__(self, hidden_layer_dim=None,
                  lambdaa: float = 0.01, h_tol: float = 1e-6, rho_max: float = 1e6,
                  device=None, random_state=None):
