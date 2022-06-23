@@ -24,6 +24,42 @@ where :math:`N_{tr}` is the nubmer of samples in the training set :math:`S_{tr}`
     \hat{\tau}(v) = \frac{1}{\#(\{i\in S_{treat}: V_i \in \ell(v; \Pi)\})} \sum_{ \{i\in S_{treat}: V_i \in \ell(v; \Pi)\}} Y_i \\
     - \frac{1}{\#(\{i\in S_{control}: V_i \in \ell(v; \Pi)\})} \sum_{ \{i\in S_{control}: V_i \in \ell(v; \Pi)\}} Y_i.
 
+.. topic:: Example
+
+    .. code-block:: python
+
+        import numpy as np
+        import matplotlib.pyplot as plt
+
+        from ylearn.estimator_model.causal_tree import CausalTree
+        from ylearn.exp_dataset.exp_data import sq_data
+        from ylearn.utils._common import to_df
+
+
+        # build dataset
+        n = 2000
+        d = 10     
+        n_x = 1
+        y, x, v = sq_data(n, d, n_x)
+        true_te = lambda X: np.hstack([X[:, [0]]**2 + 1, np.ones((X.shape[0], n_x - 1))])
+        data = to_df(treatment=x, outcome=y, v=v)
+        outcome = 'outcome'
+        treatment = 'treatment'
+        adjustment = data.columns[2:]
+
+        # build test data
+        v_test = v[:min(100, n)].copy()
+        v_test[:, 0] = np.linspace(np.percentile(v[:, 0], 1), np.percentile(v[:, 0], 99), min(100, n))
+        test_data = to_df(v=v_test)
+    
+    Train the `CausalTree` and use it in the test data:
+
+    .. code-block:: python
+
+        ct = CausalTree(min_samples_leaf=3, max_depth=5)
+        ct.fit(data=data, outcome=outcome, treatment=treatment, adjustment=adjustment)
+        ct_pred = ct.estimate(data=test_data)
+
 
 Class Structures
 ================
@@ -164,7 +200,3 @@ Class Structures
 
         :returns: Normalized total reduction of criteria by feature (Gini importance).
         :rtype: ndarray of shape (n_features,)
-
-.. topic:: Example
-
-    pass

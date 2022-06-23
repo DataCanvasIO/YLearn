@@ -95,6 +95,28 @@ now becomes
 
         f \cdot v.
 
+.. topic:: Example
+
+    .. code-block:: python
+        
+        from sklearn.ensemble import RandomForestRegressor
+
+        from ylearn.exp_dataset.exp_data import single_continuous_treatment
+        from ylearn.estimator_model.double_ml import DML4CATE
+
+        # build the dataset
+        train, val, treatment_effect = single_continuous_treatment()
+        adjustment = train.columns[:-4]
+        covariate = 'c_0'
+        outcome = 'outcome'
+        treatment = 'treatment'
+
+        dml = DML4CATE(x_model=RandomForestRegressor(), y_model=RandomForestRegressor(), cf_fold=3,)
+        dml.fit(train, outcome, treatment, adjustment, covariate,)
+
+    >>> 06-23 14:02:36 I ylearn.e.double_ml.py 684 - _fit_1st_stage: fitting x_model RandomForestRegressor
+    >>> 06-23 14:02:39 I ylearn.e.double_ml.py 690 - _fit_1st_stage: fitting y_model RandomForestRegressor
+    >>> DML4CATE(x_model=RandomForestRegressor(), y_model=RandomForestRegressor(), yx_model=LinearRegression(), cf_fold=3)      
 
 Class Structures
 ================
@@ -177,6 +199,3 @@ Class Structures
         :returns: The transformed one-hot vectors.
         :rtype: numpy.ndarray
 
-.. topic:: Example
-
-    pass

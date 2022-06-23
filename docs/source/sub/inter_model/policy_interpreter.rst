@@ -8,6 +8,54 @@ PolicyInterpreter
 different strategies to different examples, it aims to maximize the casual effects of a subgroup and separate them from those 
 with negative causal effects. 
 
+.. topic:: Example
+
+    We build a dataset where, given the covariate :math:`v` and binary treatment :math:`x`, the causal effect :math:`y` of taking the treatment is positive if the first dimension of
+    :math:`v` is positive and negative otherwise. The goal of `PolicyInterpreter` is to help making the decision of whether taking the treatment for each individual, i.e., whether the
+    causal effect is positive.
+
+    .. code-block:: python
+
+        import numpy as np
+        from ylearn.utils import to_df
+
+        # build dataset
+        v = np.random.normal(size=(1000, 10))
+        y = np.hstack([v[:, [0]] < 0, v[:, [0]] > 0])
+
+        data = to_df(v=v)
+        covariate = data.columns
+
+        # train the `PolicyInterpreter`
+        from ylearn.effect_interpreter.policy_interpreter import PolicyInterpreter
+        pit = PolicyInterpreter(max_depth=2)
+        pit.fit(data=data, est_model=None, covariate=covariate, effect_array=y.astype(float))
+
+        pit_result = pit.interpret()
+
+    >>> 06-02 17:06:49 I ylearn.p.policy_model.py 448 - Start building the policy tree with criterion PRegCriteria
+    >>> 06-02 17:06:49 I ylearn.p.policy_model.py 464 - Building the policy tree with splitter BestSplitter
+    >>> 06-02 17:06:49 I ylearn.p.policy_model.py 507 - Building the policy tree with builder DepthFirstTreeBuilder
+
+    The interpreted results:
+
+    .. code-block:: python
+
+        for i in range(57, 60):
+            print(f'the policy for the sample {i}\n --------------\n' + pit_result[f'sample_{i}'] + '\n')
+    
+    >>> the policy for the sample 57
+    >>> --------------
+    >>> decision node 0: (covariate [57, 0] = -0.0948629081249237) <= 8.582111331634223e-05 
+    >>> decision node 1: (covariate [57, 8] = 1.044342041015625) > -2.3793461322784424 
+    >>> The recommended policy is treatment 0 with value 1.0
+
+    >>> the policy for the sample 58
+    >>> --------------
+    >>> decision node 0: (covariate [58, 0] = 0.706959068775177) > 8.582111331634223e-05 
+    >>> decision node 4: (covariate [58, 5] = 0.9160318374633789) > -2.575441598892212 
+    >>> The recommended policy is treatment 1 with value 1.0
+
 Class Structures
 ================
 
@@ -107,7 +155,3 @@ Class Structures
         :returns: List containing the artists for the annotation boxes making up the
             tree.
         :rtype: annotations : list of artists
-
-.. topic:: Example
-
-    pass

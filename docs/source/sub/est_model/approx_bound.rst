@@ -77,6 +77,45 @@ There are four different bounds in YLearn. We briefly introduce them as follows.
         \mathbb{E}[Y(do(1)) - Y(do(0))] & \leq \mathbb{E}[Y|X = 1] - \pi a - (1 - \pi)\mathbb{E}[Y|X=0]\\
         \mathbb{E}[Y(do(1)) - Y(do(0))] & \geq \pi\mathbb{E}[Y|X = 1] + (1 - \pi) a - \mathbb{E}[Y| X = 0].
 
+.. topic:: Example
+
+    .. code-block:: python
+
+        import numpy as np
+
+        from ylearn.estimator_model.approximation_bound import ApproxBound
+        from ylearn.exp_dataset.exp_data import meaningless_discrete_dataset_
+        from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+
+        data = meaningless_discrete_dataset_(num=num, confounder_n=3, treatment_effct=[2, 5, -8], random_seed=0)
+        treatment = 'treatment'
+        w = ['w_0', 'w_1', 'w_2']
+        outcome = 'outcome'
+
+        bound = ApproxBound(y_model=RandomForestRegressor(), x_model=RandomForestClassifier())
+        bound.fit(data=data, treatment=treatment, outcome=outcome, covariate=w,)
+
+    >>> ApproxBound(y_model=RandomForestRegressor(), x_prob=array([[0.  , 0.99, 0.01],
+                [0.  , 0.99, 0.01],
+                [1.  , 0.  , 0.  ],
+                ...,
+                [0.  , 1.  , 0.  ],
+                [0.01, 0.99, 0.  ],
+                [0.01, 0.99, 0.  ]]), x_model=RandomForestClassifier())
+        
+    .. code-block:: python
+        
+        b_l, b_u = bound1.estimate()
+        b_l.mean()
+    
+    >>> -7.126728994957785
+
+    .. code-block:: python
+
+        b_u.mean()
+
+    >>> 8.994011617037696
+
 Class Structures
 ================
 
@@ -148,42 +187,3 @@ Class Structures
 
         :returns: The transformed one-hot vectors.
         :rtype: numpy.ndarray
-
-.. topic:: Example
-
-    .. code-block:: python
-
-        import numpy as np
-
-        from ylearn.estimator_model.approximation_bound import ApproxBound
-        from ylearn.exp_dataset.exp_data import meaningless_discrete_dataset_
-        from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
-
-        data = meaningless_discrete_dataset_(num=num, confounder_n=3, treatment_effct=[2, 5, -8], random_seed=0)
-        treatment = 'treatment'
-        w = ['w_0', 'w_1', 'w_2']
-        outcome = 'outcome'
-
-        bound = ApproxBound(y_model=RandomForestRegressor(), x_model=RandomForestClassifier())
-        bound.fit(data=data, treatment=treatment, outcome=outcome, covariate=w,)
-
-    >>> ApproxBound(y_model=RandomForestRegressor(), x_prob=array([[0.  , 0.99, 0.01],
-                [0.  , 0.99, 0.01],
-                [1.  , 0.  , 0.  ],
-                ...,
-                [0.  , 1.  , 0.  ],
-                [0.01, 0.99, 0.  ],
-                [0.01, 0.99, 0.  ]]), x_model=RandomForestClassifier())
-        
-    .. code-block:: python
-        
-        b_l, b_u = bound1.estimate()
-        b_l.mean()
-    
-    >>> -7.126728994957785
-
-    .. code-block:: python
-
-        b_u.mean()
-
-    >>> 8.994011617037696

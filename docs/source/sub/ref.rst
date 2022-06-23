@@ -15,11 +15,11 @@ References
 
 .. [Chern2016]
 
-    V. Chernozhukov, et al. Double Machine Learning for Treatment and Causal Parameters. arXiv:1608.00060.
+    V. Chernozhukov, et al. Double Machine Learning for Treatment and Causal Parameters. *arXiv:1608.00060.*
 
 .. [Athey2015]
 
-    S. Athey and G. Imbens. Recursive Partitioning for Heterogeneous Causal Effects. arXiv: 1504.01132.
+    S. Athey and G. Imbens. Recursive Partitioning for Heterogeneous Causal Effects. *arXiv: 1504.01132.*
 
 .. [Schuler]
 
@@ -28,7 +28,7 @@ References
 .. [Nie]
 
     X. Nie, et al. Quasi-Oracle estimation of heterogeneous treatment effects.
-    arXiv: 1712.04912.
+    *arXiv: 1712.04912.*
 
 .. [Hartford]
 
@@ -41,3 +41,11 @@ References
 .. [Kunzel2019]
 
     S. Kunzel2019, et al. Meta-Learners for Estimating Heterogeneous Treatment Effects using Machine Learning.
+
+.. [Angrist1996]
+
+    J. Angrist, et al. Identification of causal effects using instrumental variables. *Journal of the American Statistical Association*.
+
+.. [Athey2020]
+
+    S. Athey and S. Wager. Policy Learning with Observational Data. *arXiv: 1702.02896.*

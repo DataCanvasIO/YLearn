@@ -1,4 +1,6 @@
+from random import random
 import numpy as np
+import scipy.special
 from numpy.random import binomial, multivariate_normal, normal, uniform
 import pandas as pd
 
@@ -113,7 +115,17 @@ def binary_data(n=2000, d=5, n_test=250):
     controls_outcome = generate_controls_outcome(d)
     
     return _binary_data(n, d, controls_outcome, treatment_effect, propensity)
-    
+
+def sq_data(n, d, n_x, random_seed=123):
+    np.random.seed(random_seed)
+    true_te = lambda X: np.hstack([X[:, [0]]**2 + 1, np.ones((X.shape[0], n_x - 1))])
+    v = np.random.normal(0, 1, size=(n, d))
+    x = np.random.normal(0, 1, size=(n, n_x))
+    for t in range(n_x):
+        x[:, t] = np.random.binomial(1, scipy.special.expit(v[:, 0]))
+    y = np.sum(true_te(v) * x, axis=1, keepdims=True) + np.random.normal(0, .5, size=(n, 1))
+    return y, x, v
+
 def multi_continuous_treatment(
     n=6000,
     n_w=30,

@@ -28,25 +28,31 @@ more promising especially when there are abundant observational data.
 
 Concepts in YLearn and their related problem settings
 =====================================================
-There are three main concepts in YLearn corresponding to the causal inference pipeline.
+There are three main components in YLearn corresponding to the causal inference pipeline.
+
+.. figure:: structure_ylearn.png
+
+    *Components in YLearn*
 
 1. *Causal Discovery*. Discovering the causal relationships in the observational data.
 
 2. *Causal Model*. Representing the causal relationships in the form of ``CausalGraph`` and doing other related operations such as identification with ``CausalModel``.
 
-3. *Estimator Model*. Estimating the causal estimand with vairous techniques.
+3. *Estimator Model*. Estimating the causal estimands with vairous techniques.
 
-4. *Policy Model*. 
+4. *Policy Model*. Selecting the best policy for each individual.
 
-5. *Interpreters*.
+5. *Interpreters*. Explain the causal effects and polices.
+
+These components are conneted to give a full pipeline of causal inference, which are also encapsulated into a single API `Why`.
+
+.. figure:: flow.png
+
+    *The pipeline of causal inference in YLearn*. Starting from the training data, one first uses the `CausalDiscovery` to reveal
+    the causal structures in data, which will usually output a `CausalGraph`. The causal graph is then passed into the `CausalModel`, where
+    the interested causal effects are identified and converted into statistical estimands. An `EstimatorModel` is then trained with the training data
+    to model relationships between causal effects and other variables, i.e., estimating causal effects in training data. One can then
+    use the trained `EstimatorModel` to predict causal effects in some new test dataset and evaluate the policy assigned to each individual or interpret
+    the estiamted causal effects.
 
 All APIs are introduced in :ref:`api`.
-
-Examples of Scenarios for Causal Inference
-==========================================
-
-example 1
-^^^^^^^^^
-
-example 2
-^^^^^^^^^

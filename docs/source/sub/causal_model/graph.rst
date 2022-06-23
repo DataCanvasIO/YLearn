@@ -63,6 +63,39 @@ In YLearn, one can use the :class:`CausalGraph` to represent causal structures b
 each key in this dict is a child of all elements in the corresponding dict value, which usually should be a list 
 of str.
 
+.. topic:: Examples
+
+    .. figure:: graph_expun.png
+        :scale: 40 %
+
+        Causal structures where all green nodes are unobserved (a variable is unobserved if it is not present
+        in the dataset but one believes that it will have causal relationships with other Variables).
+
+    .. figure:: graph_un_arc.png
+        
+        Causal structures where all unobserved variables are removed and their related causations are replaced by
+        the confounding arcs (black doted lines with two arrows).
+    
+    We can represent this causal structure with YLearn as follows:
+
+    .. code-block:: python
+        
+        from ylearn.causal_model.graph import CausalGraph
+        causation = {
+            'X': ['Z2'],
+            'Z1': ['X', 'Z2'],
+            'Y': ['Z1', 'Z3'],
+            'Z3': ['Z2'],
+            'Z2': [], 
+        }
+        arcs = [('X', 'Z2'), ('X', 'Z3'), ('X', 'Y'), ('Z2', 'Y')]
+
+        cg = CausalGraph(causation=causation, latent_confounding_arcs=arcs)
+
+        list(cg.c_components)
+    
+    >>> [{'X', 'Y', 'Z2', 'Z3'}, {'Z1'}]
+
 Class Structures
 ================
 
@@ -232,37 +265,3 @@ Class Structures
         
         :returns: Nodes in the topological order
         :rtype: generator          
-
-
-.. topic:: Examples
-
-    .. figure:: graph_expun.png
-        :scale: 40 %
-
-        Causal structures where all green nodes are unobserved (a variable is unobserved if it is not present
-        in the dataset but one believes that it will have causal relationships with other Variables).
-
-    .. figure:: graph_un_arc.png
-        
-        Causal structures where all unobserved variables are removed and their related causations are replaced by
-        the confounding arcs (black doted lines with two arrows).
-    
-    We can represent this causal structure with YLearn as follows:
-
-    .. code-block:: python
-        
-        from ylearn.causal_model.graph import CausalGraph
-        causation = {
-            'X': ['Z2'],
-            'Z1': ['X', 'Z2'],
-            'Y': ['Z1', 'Z3'],
-            'Z3': ['Z2'],
-            'Z2': [], 
-        }
-        arcs = [('X', 'Z2'), ('X', 'Z3'), ('X', 'Y'), ('Z2', 'Y')]
-
-        cg = CausalGraph(causation=causation, latent_confounding_arcs=arcs)
-
-        list(cg.c_components)
-    
-    >>> [{'X', 'Y', 'Z2', 'Z3'}, {'Z1'}]

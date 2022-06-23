@@ -2,8 +2,8 @@
 Policy: Selecting the Best Option
 *********************************
 
-In tasks such as policy evaluation, besides the causal effects, we may also have interets in other questions such as whether an example should be assigned to a treament and if the answer is yes, which option is
-the best to assign among all possible treament values. YLearn implement :class:`PolicyTree` for such purpose. Given a trained estimator model or estimated causal effects, it finds the optimal polices for each
+In tasks such as policy evaluation, e.g., [Athey2020]_, besides the causal effects, we may also have interets in other questions such as whether an example should be assigned to a treament and if the answer is yes, which option is
+the best to select among all possible treament values. YLearn implement :class:`PolicyTree` for such purpose. Given a trained estimator model or estimated causal effects, it finds the optimal polices for each
 example by building a decision tree model which aims to maximize the causal effect of each example.
 
 The criterion for training the tree is 
@@ -16,6 +16,31 @@ where :math:`g_{ik} = \phi(v_i)_k` with :math:`\phi: \mathbb{R}^D \to \mathbb{R}
 the causal effect of taking the :math:`k`-th value of the treatment for example :math:`i`.
 
 Note that one can use the PolicyInterpreter to interpret the result of a policy model.
+
+.. topic:: Example
+
+    .. code-block:: python
+
+        import numpy as np
+
+        from ylearn.policy.policy_model import PolicyTree
+        from ylearn.utils._common import to_df
+
+        # build dataset
+        v = np.random.normal(size=(1000, 10))
+        y = np.hstack([v[:, [0]] < 0, v[:, [0]] > 0])
+
+        data = to_df(v=v)
+        covariate = data.columns
+
+        est = PolicyTree(criterion='policy_reg')
+        est.fit(data=data, covariate=covariate, effect_array=y.astype(float))
+    
+    >>> 06-23 14:53:14 I ylearn.p.policy_model.py 452 - Start building the policy tree with criterion PRegCriteria
+    >>> 06-23 14:53:14 I ylearn.p.policy_model.py 468 - Building the policy tree with splitter BestSplitter
+    >>> 06-23 14:53:14 I ylearn.p.policy_model.py 511 - Building the policy tree with builder DepthFirstTreeBuilder
+    >>> <ylearn.policy.policy_model.PolicyTree at 0x7ff1ee5f2eb0>
+
 
 Class Structures
 ================
@@ -200,7 +225,3 @@ Class Structures
         :returns: List containing the artists for the annotation boxes making up the
             tree.
         :rtype: annotations : list of artists
-
-.. topic:: Example
-
-    pass

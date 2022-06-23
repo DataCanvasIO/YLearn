@@ -50,6 +50,123 @@ Note that every causal model can be associated with a DAG and encodes necessary 
 YLearn uses :class:`CausalModel` to represent a causal model and support many operations related to the causal
 model such as :ref:`identification`.
 
+.. topic:: Example 1: Identify the causal effect with the general identification method
+
+    .. figure:: graph_un_arc.png
+        
+        Causal structures where all unobserved variables are removed and their related causations are replaced by
+        the confounding arcs (black doted lines with two arrows).
+    
+    For the causal structure in the figure, we want to identify the causal effect of :math:`X` on :math:`Y` using the *general identification* method. The first
+    step is to represent the causal structure with :class:`CausalModel`.
+    
+    .. code-block:: python
+        
+        from ylearn.causal_model.graph import CausalGraph
+        
+        causation = {
+            'X': ['Z2'],
+            'Z1': ['X', 'Z2'],
+            'Y': ['Z1', 'Z3'],
+            'Z3': ['Z2'],
+            'Z2': [], 
+        }
+        arcs = [('X', 'Z2'), ('X', 'Z3'), ('X', 'Y'), ('Z2', 'Y')]
+        cg = CausalGraph(causation=causation, latent_confounding_arcs=arcs)
+
+    Then we need to define an instance of :class:`CausalModel` for the causal structure encoded in :py:attr:`cg` to preform the identification.
+
+    .. code-block:: python
+
+        from ylearn.causal_model.model import CausalModel
+        cm = CausalModel(causal_model=cg)
+        stat_estimand = cm.id(y={'Y'}, x={'X'})
+        stat_estimand.show_latex_expression()
+
+    >>> :math:`\sum_{Z3, Z1, Z2}[P(Z2)P(Y|Z3, Z2)][P(Z1|Z2, X)][P(Z3|Z2)]`
+
+    The result is the desired identified causal effect of :math:`X` on :math:`Y` in the given causal structure.
+
+.. topic:: Example 2: Identify the causal effect with the back-door adjustment
+
+    .. figure:: backdoor.png
+
+        All nodes are observed variables.
+    
+    For the causal structure in the figure, we want to identify the causal effect of :math:`X` on :math:`Y` using the *back-door adjustment* method.
+    
+    .. code-block:: python
+        
+        from ylearn.causal_model.graph import CausalGraph
+        from ylearn.causal_model.model import CausalModel
+
+        causation = {
+            'X1': [], 
+            'X2': [], 
+            'X3': ['X1'], 
+            'X4': ['X1', 'X2'], 
+            'X5': ['X2'], 
+            'X6': ['X'], 
+            'X': ['X3', 'X4'], 
+            'Y': ['X6', 'X4', 'X5', 'X'], 
+        } 
+
+        cg = CausalGraph(causation=causation)
+        cm = CausalModel(causal_graph=cg)
+        backdoor_set, prob = cm3.identify(treatment={'X'}, outcome={'Y'}, identify_method=('backdoor', 'simple'))['backdoor']
+
+        print(backdoor_set)
+
+
+    >>> ['X3', 'X4']
+
+.. topic:: Example 3: Find the valid instrumental variables
+
+    .. figure:: iv1.png
+
+        Causal structure for the variables :math:`p, t, l, g`
+
+    We want to find the valid instrumental variables for the causal effect of :math:`t` on :math:`g`.
+
+    .. code-block:: python
+
+        causation = {
+            'p':[],
+            't': ['p'],
+            'l': ['p'],
+            'g': ['t', 'l']
+        }
+        arc = [('t', 'g')]
+        cg = CausalGraph(causation=causation, latent_confounding_arcs=arc)
+        cm = CausalModel(causal_graph=cg)
+
+        cm.get_iv('t', 'g')
+
+    >>> No valid instrument variable has been found.
+
+    .. figure:: iv2.png
+
+        Another causal structure for the variables :math:`p, t, l, g`
+
+    We still want to find the valid instrumental variables for the causal effect of :math:`t` on :math:`g`
+    in this new causal structure.
+
+    .. code-block:: python
+
+        causation = {
+            'p':[],
+            't': ['p', 'l'],
+            'l': [],
+            'g': ['t', 'l']
+        }
+        arc = [('t', 'g')]
+        cg = CausalGraph(causation=causation, latent_confounding_arcs=arc)
+        cm = CausalModel(causal_graph=cg)
+
+        cm.get_iv('t', 'g')
+    
+    >>> {'p'}
+
 .. _identification:
 
 Identification
@@ -349,121 +466,3 @@ Class Structures
 
         :returns: The estimated causal effect in data.
         :rtype: np.ndarray or float
-
-
-.. topic:: Example 1: Identify the causal effect with the general identification method
-
-    .. figure:: graph_un_arc.png
-        
-        Causal structures where all unobserved variables are removed and their related causations are replaced by
-        the confounding arcs (black doted lines with two arrows).
-    
-    For the causal structure in the figure, we want to identify the causal effect of :math:`X` on :math:`Y` using the *general identification* method. The first
-    step is to represent the causal structure with :class:`CausalModel`.
-    
-    .. code-block:: python
-        
-        from ylearn.causal_model.graph import CausalGraph
-        
-        causation = {
-            'X': ['Z2'],
-            'Z1': ['X', 'Z2'],
-            'Y': ['Z1', 'Z3'],
-            'Z3': ['Z2'],
-            'Z2': [], 
-        }
-        arcs = [('X', 'Z2'), ('X', 'Z3'), ('X', 'Y'), ('Z2', 'Y')]
-        cg = CausalGraph(causation=causation, latent_confounding_arcs=arcs)
-
-    Then we need to define an instance of :class:`CausalModel` for the causal structure encoded in :py:attr:`cg` to preform the identification.
-
-    .. code-block:: python
-
-        from ylearn.causal_model.model import CausalModel
-        cm = CausalModel(causal_model=cg)
-        stat_estimand = cm.id(y={'Y'}, x={'X'})
-        stat_estimand.show_latex_expression()
-
-    >>> :math:`\sum_{Z3, Z1, Z2}[P(Z2)P(Y|Z3, Z2)][P(Z1|Z2, X)][P(Z3|Z2)]`
-
-    The result is the desired identified causal effect of :math:`X` on :math:`Y` in the given causal structure.
-
-.. topic:: Example 2: Identify the causal effect with the back-door adjustment
-
-    .. figure:: backdoor.png
-
-        All nodes are observed variables.
-    
-    For the causal structure in the figure, we want to identify the causal effect of :math:`X` on :math:`Y` using the *back-door adjustment* method.
-    
-    .. code-block:: python
-        
-        from ylearn.causal_model.graph import CausalGraph
-        from ylearn.causal_model.model import CausalModel
-
-        causation = {
-            'X1': [], 
-            'X2': [], 
-            'X3': ['X1'], 
-            'X4': ['X1', 'X2'], 
-            'X5': ['X2'], 
-            'X6': ['X'], 
-            'X': ['X3', 'X4'], 
-            'Y': ['X6', 'X4', 'X5', 'X'], 
-        } 
-
-        cg = CausalGraph(causation=causation)
-        cm = CausalModel(causal_graph=cg)
-        backdoor_set, prob = cm3.identify(treatment={'X'}, outcome={'Y'}, identify_method=('backdoor', 'simple'))['backdoor']
-
-        print(backdoor_set)
-
-
-    >>> ['X3', 'X4']
-
-.. topic:: Example 3: Find the valid instrumental variables
-
-    .. figure:: iv1.png
-
-        Causal structure for the variables :math:`p, t, l, g`
-
-    We want to find the valid instrumental variables for the causal effect of :math:`t` on :math:`g`.
-
-    .. code-block:: python
-
-        causation = {
-            'p':[],
-            't': ['p'],
-            'l': ['p'],
-            'g': ['t', 'l']
-        }
-        arc = [('t', 'g')]
-        cg = CausalGraph(causation=causation, latent_confounding_arcs=arc)
-        cm = CausalModel(causal_graph=cg)
-
-        cm.get_iv('t', 'g')
-
-    >>> No valid instrument variable has been found.
-
-    .. figure:: iv2.png
-
-        Another causal structure for the variables :math:`p, t, l, g`
-
-    We still want to find the valid instrumental variables for the causal effect of :math:`t` on :math:`g`
-    in this new causal structure.
-
-    .. code-block:: python
-
-        causation = {
-            'p':[],
-            't': ['p', 'l'],
-            'l': [],
-            'g': ['t', 'l']
-        }
-        arc = [('t', 'g')]
-        cg = CausalGraph(causation=causation, latent_confounding_arcs=arc)
-        cm = CausalModel(causal_graph=cg)
-
-        cm.get_iv('t', 'g')
-    
-    >>> {'p'}

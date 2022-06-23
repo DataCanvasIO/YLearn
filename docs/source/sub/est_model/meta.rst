@@ -8,6 +8,64 @@ it employs multiple machine learning models with the flexibility on the choice o
 
 YLearn implements 3 Meta-Learners: S-Learner, T-Learner, and X-Learner.
 
+.. topic:: Example
+
+    .. code-block:: python
+
+        import numpy as np
+        from numpy.random import multivariate_normal
+        
+        from sklearn.ensemble import RandomForestClassifier, GradientBoostingRegressor
+        
+        import matplotlib.pyplot as plt
+
+        from ylearn.estimator_model.meta_learner import SLearner, TLearner, XLearner
+        from ylearn.estimator_model.doubly_robust import DoublyRobust
+        from ylearn.exp_dataset.exp_data import binary_data
+        from ylearn.utils import to_df
+
+        # build the dataset
+        d = 5
+        n = 2500
+        n_test = 250
+
+        y, x, w = binary_data(n=n, d=d, n_test=n_test)
+        data = to_df(outcome=y, treatment=x, w=w)
+        outcome = 'outcome'
+        treatment = 'treatment'
+        adjustment = data.columns[2:]
+
+        # build the test dataset
+        treatment_effect = lambda x: (1 if x[1] > 0.1 else 0) * 8
+
+        w_test = multivariate_normal(np.zeros(d), np.diag(np.ones(d)), n_test)
+        delta = 6/n_test
+        w_test[:, 1] = np.arange(-3, 3, delta)
+
+    **SLearner**
+
+    .. code-block:: python
+
+        s = SLearner(model=GradientBoostingRegressor())
+        s.fit(data=data, outcome=outcome, treatment=treatment, adjustment=adjustment) # training
+        s_pred = s.estimate(data=test_data, quantity=None) # predicting
+
+    **TLearner**
+
+    .. code-block:: python
+
+        t = TLearner(model=GradientBoostingRegressor())
+        t.fit(data=data, outcome=outcome, treatment=treatment, adjustment=adjustment) # training
+        t_pred = t.estimate(data=test_data, quantity=None) # predicting
+
+    **XLearner**
+
+    .. code-block:: python
+
+        x = XLearner(model=GradientBoostingRegressor())
+        x.fit(data=data, outcome=outcome, treatment=treatment, adjustment=adjustment) # training
+        x_pred = x.estimate(data=test_data, quantity=None) # predicting
+
 S-Learner
 =========
 
@@ -24,6 +82,7 @@ The causal effect :math:`\tau(w)` is then calculated as
 .. math::
 
     \tau(w) = f(x=1, w) - f(x=0, w).
+
 
 .. py:class:: ylearn.estimator_model.meta_learner.SLearner(model, random_state=2022, is_discrete_treatment=True, categories='auto', *args, **kwargs)
 

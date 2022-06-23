@@ -35,6 +35,56 @@ Training a doubly robust model is composed of 3 steps.
    Then we can directly estimate the causal effects by passing the covariate :math:`V` to
    the model :math:`h(V)`.
 
+
+.. topic:: Example
+
+    .. code-block:: python
+
+        import numpy as np
+        from numpy.random import multivariate_normal
+        
+        from sklearn.ensemble import RandomForestClassifier, GradientBoostingRegressor
+        
+        import matplotlib.pyplot as plt
+
+        from ylearn.estimator_model.meta_learner import SLearner, TLearner, XLearner
+        from ylearn.estimator_model.doubly_robust import DoublyRobust
+        from ylearn.exp_dataset.exp_data import binary_data
+        from ylearn.utils import to_df
+
+        # build the dataset
+        d = 5
+        n = 2500
+        n_test = 250
+
+        y, x, w = binary_data(n=n, d=d, n_test=n_test)
+        data = to_df(outcome=y, treatment=x, w=w)
+        outcome = 'outcome'
+        treatment = 'treatment'
+        adjustment = data.columns[2:]
+
+        # build the test dataset
+        treatment_effect = lambda x: (1 if x[1] > 0.1 else 0) * 8
+
+        w_test = multivariate_normal(np.zeros(d), np.diag(np.ones(d)), n_test)
+        delta = 6/n_test
+        w_test[:, 1] = np.arange(-3, 3, delta)
+
+    Train the `DoublyRobust` Model.
+    
+    .. code-block:: python
+
+        dr = DoublyRobust(
+            x_model=RandomForestClassifier(n_estimators=100, max_depth=100, min_samples_leaf=int(n/100)),
+            y_model=GradientBoostingRegressor(n_estimators=100, max_depth=100, min_samples_leaf=int(n/100)),
+            yx_model=GradientBoostingRegressor(n_estimators=100, max_depth=100, min_samples_leaf=int(n/100)),
+            cf_fold=1, 
+            random_state=2022,
+        )
+        dr.fit(data=data, outcome=outcome, treatment=treatment, covariate=adjustment,)
+        dr_pred = dr.estimate(data=test_data, quantity=None).squeeze()
+
+
 Class Structures
 ================
 
@@ -120,7 +170,3 @@ Class Structures
 
         :returns: The transformed one-hot vectors.
         :rtype: numpy.ndarray
-
-.. topic:: Example
-
-    pass

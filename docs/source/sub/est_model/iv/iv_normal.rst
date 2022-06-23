@@ -4,14 +4,14 @@ Nonparametric Instrumental Variables
 
 Two-stage Least Squares
 =======================
-When the relationship between the outcome :math:`y`, treatment :math:`x` and covariate :math:`v` are assumed to be linear
+When the relationship between the outcome :math:`y`, treatment :math:`x` and covariate :math:`v` are assumed to be linear, e.g., [Angrist1996]_,
 
 .. math::
 
     y & = \alpha x + \beta v + e \\
     x & = \gamma z + \lambda v + \eta,
 
-then the IV framework becomes direct, it will first train a linear model for :math:`x` given :math:`z` and :math:`v`, then it repalces :math:`x`
+then the IV framework becomes direct: it will first train a linear model for :math:`x` given :math:`z` and :math:`v`, then it repalces :math:`x`
 the predicted values :math:`\hat{x}` to train a linear model for :math:`y` in the second stage. This procedure is called the two-stage least-squares (2SLS).
 
 Nonparametric IV

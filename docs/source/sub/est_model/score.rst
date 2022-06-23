@@ -35,6 +35,45 @@ that is waited to be evaluated, we
 
         E_{V}[(\tilde{y} - \tilde{x} \tau(v))^2].
 
+.. topic:: Example
+
+    .. code-block:: python
+
+        from sklearn.ensemble import RandomForestRegressor
+
+        from ylearn.exp_dataset.exp_data import single_binary_treatment
+        from ylearn.estimator_model.meta_learner import TLearner
+        
+        train, val, te = single_binary_treatment()
+        rloss = RLoss(
+            x_model=RandomForestClassifier(),
+            y_model=RandomForestRegressor(),
+            cf_fold=1,
+            is_discrete_treatment=True
+        )
+        rloss.fit(
+            data=val,
+            outcome=outcome,
+            treatment=treatment,
+            adjustment=adjustment,
+            covariate=covariate,
+        )
+        
+        est = TLearner(model=RandomForestRegressor())
+        est.fit(
+            data=train,
+            treatment=treatment,
+            outcome=outcome,
+            adjustment=adjustment,
+            covariate=covariate,
+        )
+    
+    .. code-block:: python
+
+        rloss.score(est)
+
+    >>> 0.20451977
+
 Class Structures
 ================
 
@@ -127,41 +166,3 @@ Class Structures
         :returns: The transformed one-hot vectors.
         :rtype: numpy.ndarray
 
-.. topic:: Example
-
-    .. code-block:: python
-
-        from sklearn.ensemble import RandomForestRegressor
-
-        from ylearn.exp_dataset.exp_data import single_binary_treatment
-        from ylearn.estimator_model.meta_learner import TLearner
-        
-        train, val, te = single_binary_treatment()
-        rloss = RLoss(
-            x_model=RandomForestClassifier(),
-            y_model=RandomForestRegressor(),
-            cf_fold=1,
-            is_discrete_treatment=True
-        )
-        rloss.fit(
-            data=val,
-            outcome=outcome,
-            treatment=treatment,
-            adjustment=adjustment,
-            covariate=covariate,
-        )
-        
-        est = TLearner(model=RandomForestRegressor())
-        est.fit(
-            data=train,
-            treatment=treatment,
-            outcome=outcome,
-            adjustment=adjustment,
-            covariate=covariate,
-        )
-    
-    .. code-block:: python
-
-        rloss.score(est)
-
-    >>> 0.20451977
