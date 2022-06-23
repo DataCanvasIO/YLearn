@@ -47,6 +47,7 @@ class BaseDiscovery:
                     matrix[i, c] = 0.
                 else:
                     matrix[c, i] = 0.
+            matrix[i, i] = 0.
 
         d = OrderedDict()
         idx = np.arange(matrix.shape[0])
