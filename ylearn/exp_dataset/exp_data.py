@@ -1,5 +1,5 @@
-from cmath import exp
 import numpy as np
+from numpy.random import binomial, multivariate_normal, normal, uniform
 import pandas as pd
 
 from itertools import product
@@ -54,6 +54,66 @@ def build_data_frame(
     return train, val
 
 
+def coupon_dataset(n_users, treatment_style='binary', with_income=False):
+    if with_income:
+        income = np.random.normal(500, scale=15, size=n_users)
+        gender = np.random.randint(0, 2, size=n_users)
+        coupon = gender * 20 + 110 + income / 50 \
+            + np.random.normal(scale=5, size=n_users)
+        if treatment_style == 'binary':
+            coupon = (coupon > 120).astype(int)
+        amount = coupon * 150 + gender * 100 + 150 \
+            + income / 5 + np.random.normal(size=n_users)
+        time_spent = coupon * 10 + amount / 10
+
+        df = pd.DataFrame({
+            'gender': gender,
+            'coupon': coupon,
+            'amount': amount,
+            'income': income,
+            'time_spent': time_spent,
+        })
+    else:
+        gender = np.random.randint(0, 2, size=n_users)
+        coupon = gender * 20 + 150 + np.random.normal(scale=5, size=n_users)
+        if treatment_style == 'binary':
+            coupon = (coupon > 150).astype(int)
+        amount = coupon * 30 + gender * 100 \
+            + 150 + np.random.normal(size=n_users)
+        time_spent = coupon * 100 + amount / 10
+
+        df = pd.DataFrame({
+            'gender': gender,
+            'coupon': coupon,
+            'amount': amount,
+            'time_spent': time_spent,
+        })
+
+    return df
+
+def generate_controls_outcome(d):
+    beta = uniform(-3, 3, d)
+    return lambda x: np.dot(x, beta) + normal(0, 1)
+
+def binary_data(n=2000, d=5, n_test=250):
+    def _binary_data(n, d, ctrl, ce, propensity):
+        np.random.seed(2022)
+        # Generate covariates
+        v = multivariate_normal(np.zeros(d), np.diag(np.ones(d)), n)
+        # Generate treatment
+        x = np.apply_along_axis(lambda x: binomial(1, propensity(x), 1)[0], 1, v)
+        # Calculate outcome
+        y0 = np.apply_along_axis(lambda x: ctrl(x), 1, v)
+        treat_effect = np.apply_along_axis(lambda x: ce(x), 1, v)
+        y = y0 + treat_effect * x
+        return (y, x, v)
+
+    treatment_effect = lambda x: (1 if x[1] > 0.1 else 0)*8
+    propensity = lambda x: (0.8 if (x[2]>-0.5 and x[2]<0.5) else 0.2)
+    controls_outcome = generate_controls_outcome(d)
+    
+    return _binary_data(n, d, controls_outcome, treatment_effect, propensity)
+    
 def multi_continuous_treatment(
     n=6000,
     n_w=30,
@@ -239,43 +299,6 @@ def meaningless_discrete_dataset_(num, treatment_effct,
         else:
             return (x, w, y)
 
-
-def coupon_dataset(n_users, treatment_style='binary', with_income=False):
-    if with_income:
-        income = np.random.normal(500, scale=15, size=n_users)
-        gender = np.random.randint(0, 2, size=n_users)
-        coupon = gender * 20 + 110 + income / 50 \
-            + np.random.normal(scale=5, size=n_users)
-        if treatment_style == 'binary':
-            coupon = (coupon > 120).astype(int)
-        amount = coupon * 150 + gender * 100 + 150 \
-            + income / 5 + np.random.normal(size=n_users)
-        time_spent = coupon * 10 + amount / 10
-
-        df = pd.DataFrame({
-            'gender': gender,
-            'coupon': coupon,
-            'amount': amount,
-            'income': income,
-            'time_spent': time_spent,
-        })
-    else:
-        gender = np.random.randint(0, 2, size=n_users)
-        coupon = gender * 20 + 150 + np.random.normal(scale=5, size=n_users)
-        if treatment_style == 'binary':
-            coupon = (coupon > 150).astype(int)
-        amount = coupon * 30 + gender * 100 \
-            + 150 + np.random.normal(size=n_users)
-        time_spent = coupon * 100 + amount / 10
-
-        df = pd.DataFrame({
-            'gender': gender,
-            'coupon': coupon,
-            'amount': amount,
-            'time_spent': time_spent,
-        })
-
-    return df
 
 
 def meaningless_discrete_dataset(num, confounder_n,
