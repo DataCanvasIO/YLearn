@@ -977,7 +977,7 @@ class CausalModel:
         iv = waited_instrument.difference(excluded_nodes_des)
 
         if not iv:
-            print(f'No valid instrument variable has been found.')
+            # print(f'No valid instrument variable has been found.')
             iv = None
 
         return iv

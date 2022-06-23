@@ -283,23 +283,34 @@ class IdentifierWithDiscovery(Identifier):
         if self.causation_matrix_ is None:
             self.causation_matrix_ = self._discovery(data, outcome)
         causation = self.causation_matrix_
-        threshold = causation.values.diagonal().max()
+        # threshold = causation.values.diagonal().max()
+        threshold = min(np.quantile(causation.values.diagonal(), 0.8),
+                        np.mean(causation.values))
         m = DagDiscovery().matrix2dict(causation, threshold=threshold)
         cg = CausalGraph(m)
         cm = CausalModel(cg)
         try:
-            instrument = cm.get_iv(treatment[0], outcome)  # fixme
-            instrument = [c for c in instrument if c != outcome and c not in treatment]
+            instrument = []
+            for x in treatment:
+                iv = cm.get_iv(x, outcome)
+                if not _empty(iv):
+                    instrument.extend(iv)
+            instrument = [c for c in set(instrument) if c != outcome and c not in treatment]
         except Exception as e:
             logger.warn(e)
             instrument = []
 
-        if len(instrument) == 0:
+        if _empty(instrument):
             ids = cm.identify(treatment, outcome, identify_method=('backdoor', 'simple'))
             covariate = list(set(ids['backdoor'][0]))
-        else:
+            covariate = [c for c in covariate if c != outcome and c not in treatment]
+
+        if _empty(covariate):
+            logger.info('Not found covariate by discovery, so setup it by default')
             covariate = [c for c in data.columns.tolist()
                          if c != outcome and c not in treatment and c not in instrument]
+        if _empty(instrument):
+            instrument = None
 
         return adjustment, covariate, instrument
 
