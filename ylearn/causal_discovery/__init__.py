@@ -3,6 +3,6 @@
 from ._base import BaseDiscovery
 
 try:
-    from ._discovery import DagDiscovery
+    from ._discovery import CausalDiscovery
 except ImportError:
     pass

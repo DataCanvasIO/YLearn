@@ -10,11 +10,11 @@ def _validate_it(why, test_data, check_score=True):
     print('causal effect:', e, sep='\n')
 
     print('-' * 30)
-    e = why.cohort_causal_effect(test_data)
+    e = why.causal_effect(test_data)
     print('cohort causal effect:', e, sep='\n')
 
     print('-' * 30)
-    e = why.local_causal_effect(test_data)
+    e = why.individual_causal_effect(test_data)
     print('local causal effect:', e, sep='\n')
 
     if check_score:
