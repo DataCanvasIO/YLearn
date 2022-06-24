@@ -15,6 +15,10 @@ The criterion for training the tree is
 where :math:`g_{ik} = \phi(v_i)_k` with :math:`\phi: \mathbb{R}^D \to \mathbb{R}^K` being a map from :math:`v_i\in \mathbb{R}^D` to a basis vector with only one nonzero element in :math:`\mathbb{R}^K` and :math:`e_{ki}` denotes
 the causal effect of taking the :math:`k`-th value of the treatment for example :math:`i`.
 
+.. seealso::
+
+    :py:class:`BaseDecisionTree` in sklearn.
+
 Note that one can use the :class:`PolicyInterpreter` to interpret the result of a policy model.
 
 .. topic:: Example

@@ -6,3 +6,5 @@ try:
     from ._discovery import CausalDiscovery
 except ImportError:
     pass
+
+# from ._discovery import CausalDiscovery
