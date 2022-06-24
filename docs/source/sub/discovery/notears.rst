@@ -31,8 +31,10 @@ The YLearn class for the NO-TEARS algorithm is :class:`CausalDiscovery`.
         from ylearn.causal_discovery import CausalDiscovery
 
         X = gen()
+        X = pd.DataFrame(X, columns=[f'x{i}' for i in range(X.shape[1])])
         cd = CausalDiscovery(hidden_layer_dim=[3])
-        est = cd(X, threshold=0.01)
+        est = cd(X, threshold=0.01, return_dict=True)
 
-        # cd.matrix2dict(est)
-        
+        print(est)
+    
+    >>> OrderedDict([('x0', []), ('x1', ['x0', 'x2', 'x3', 'x4']), ('x2', ['x0']), ('x3', ['x0', 'x2', 'x4']), ('x4', ['x0', 'x2'])])
