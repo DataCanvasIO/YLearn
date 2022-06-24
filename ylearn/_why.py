@@ -321,14 +321,19 @@ class Why:
 
     Parameters
     ----------
-    discrete_outcome : bool, default infer from outcome
-    discrete_treatment : bool, default infer from the first treatment
-    identifier : str,  'auto' or 'discovery'
+    discrete_outcome : bool, default=infer from outcome
+    discrete_treatment : bool, default=infer from the first treatment
+    identifier : str
+        Avaliable options: 'auto' or 'discovery'
     discovery_model : str, reserved
-    discovery_options : None or dict of parameter key-values to initialize the discovery model
-    estimator : str, 'auto' or estimator name or estimate instance
-    estimator_options : None or dict of parameter key-values to initialize the estimator
-    random_state : None or int (random state seed)
+    discovery_options : dict, default=None
+        Parameters (key-values) to initialize the discovery model
+    estimator : str, default='auto' 
+        Name of a valid EstimatorModel. One can also pass an instance of a valid estimator model
+    estimator_options : dict, default=None
+        Parameters (key-values) to initialize the estimator model.
+    random_state : int, default=None
+        Random state seed
 
     Attributes
     ----------
@@ -341,7 +346,7 @@ class Why:
     identifier_ : identifier object or None
          Used to identify treatment/adjustment/covariate/instrument if they were not specified during `fit`
     y_encoder_ : LabelEncoder object or None
-        Used to encode outcome if its dtype was not numeric
+        Used to encode outcome if its dtype is not numeric
     preprocessor_ : Pipeline object to preprocess data during `fit`
     estimators_ : estimators dict for each treatment, key is the treatment name, value is the estimator object
 
@@ -396,10 +401,10 @@ class Why:
             ):
         """
         Fit the Why object, steps:
-            * encode outcome if its dtype is not numeric
-            * identify treatment and adjustment/covariate/instrument
-            * preprocess data
-            * fit causal estimators
+            1. encode outcome if its dtype is not numeric
+            2. identify treatment and adjustment/covariate/instrument
+            3. preprocess data
+            4. fit causal estimators
 
         Parameters
         ----------
@@ -419,7 +424,7 @@ class Why:
 
         Returns
         -------
-        self :
+        instance of :py:class:`Why`
             fitted object
         """
         assert isinstance(data, pd.DataFrame)
@@ -808,7 +813,7 @@ class Why:
 
     def score(self, test_data=None, treat=None, control=None, scorer='auto'):
         """
-        Scoring the estimators with test_data
+        Evaluate the fitted estimator models in test_data
 
         Parameters
         ----------
