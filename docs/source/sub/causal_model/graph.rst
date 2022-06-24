@@ -103,7 +103,7 @@ Class Structures
 
     :param dict causation: Descriptions of the causal structures where values are parents of the
             corresponding keys.
-    :param networkx.MultiGraph, optional, default=None dag: A konw graph structure represented.
+    :param networkx.MultiGraph, optional, default=None dag: A known graph structure.
             If provided, dag must represent the causal structures stored in causation.
     :param set or list of tuple of two str, optional, default=None, latent_confounding_arcs: Two elements 
             in the tuple are names of nodes in the graph where there

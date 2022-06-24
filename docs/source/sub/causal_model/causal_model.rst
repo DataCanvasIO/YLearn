@@ -7,10 +7,10 @@ Causal Model
 :class:`CausalModel` is a core object for performing :ref:`identification` and finding
 Instrumental Variables. 
 
-Before introducing the causal model, we should clarify the definition of **Interventions** first.
+Before introducing the causal model, we should clarify the definition of **interventions** first.
 Interventions would be to take the whole population and give every one some operation. 
 [Pearl]_ defined the :math:`do`-operator to describe such operations. Probabilistic models can not serve 
-to predict the effect of interventions that leads to the need for causal model. 
+to predict the effect of interventions which leads to the need for causal model. 
 
 The formal definition of **causal model** is due to [Pearl]_. A causal model is a triple
 
@@ -49,6 +49,55 @@ such that
 Note that every causal model can be associated with a DAG and encodes necessary information of the causal relationships between variables.
 YLearn uses :class:`CausalModel` to represent a causal model and support many operations related to the causal
 model such as :ref:`identification`.
+
+.. _identification:
+
+Identification
+==============
+
+To characterize the effect of the intervention, one needs to consider the **causal effect** which is a 
+causal estimand including the :math:`do`-operator. The action that converts the causal effect into corresponding 
+statistical estimands is called :ref:`identification` and is implemented in :class:`CausalModel` in YLearn. Note that not 
+all causal effects can be converted to statistical estimands. We refer to such causal effects as not identifiable. We list several identification methods supported by `CausalModel`.
+
+.. topic:: Backdoor adjustment
+
+    The causal effect of :math:`X` on :math:`Y` is given by
+
+    .. math::
+
+        P(y|do(x)) = \sum_w P(y|x, w)P(w)
+    
+    if the set of variables :math:`W` satisfies the back-door criterion relative to :math:`(X, Y)`.
+
+.. topic:: Frontdoor adjustment
+
+    The causal effect of :math:`X` on :math:`Y` is given by
+
+    .. math::
+
+        P(y|do(x)) = \sum_w P(w|x) \sum_{x'}P(y|x', w)P(x')
+    
+    if the set of variables :math:`W` satisfies the front-door criterion relative to :math:`(X, Y)` and if
+    :math:`P(x, w) > 0`.
+
+.. topic:: General identification
+
+    [Shpitser2006]_ gives a necessary and sufficient graphical condition such that the causal effect
+    of an arbitrary set of variables on another arbitrary set can be identified uniquely whenever its identifiable. We 
+    call the corresponding action of verifying this condition as **general identification**.
+
+.. topic:: Finding Instrumental Variables
+
+    Instrumental variables are useful to identify and estimate the causal effect of :math:`X` on :math:`Y` when there are 
+    unobserved confoundings of :math:`X` and :math:`Y`. A set of variables :math:`Z` is said to be a set of **instrumental variables**
+    if for any :math:`z` in :math:`Z`:
+    
+    1. :math:`z` has a causal effect on :math:`X`.
+    
+    2. The causal effect of :math:`z` on :math:`Y` is fully mediated by :math:`X`.
+    
+    3. There are no back-door paths from :math:`z` to :math:`Y`.
 
 .. topic:: Example 1: Identify the causal effect with the general identification method
 
@@ -166,56 +215,6 @@ model such as :ref:`identification`.
         cm.get_iv('t', 'g')
     
     >>> {'p'}
-
-.. _identification:
-
-Identification
-==============
-
-To characterize the effect of the intervention, one needs to consider the **causal effect** which is a 
-causal estimand including the :math:`do`-operator. The action that converts the causal effect into corresponding 
-statistical estimands is called :ref:`identification` and is implemented in :class:`CausalModel` in YLearn. Note that not 
-all causal effects can be converted to statistical estimands. We refer to such causal effects as not identifiable.
-
-.. topic:: Backdoor adjustment
-
-    The causal effect of :math:`X` on :math:`Y` is given by
-
-    .. math::
-
-        P(y|do(x)) = \sum_w P(y|x, w)P(w)
-    
-    if the set of variables :math:`W` satisfies the back-door criterion relative to :math:`(X, Y)`.
-
-.. topic:: Frontdoor adjustment
-
-    The causal effect of :math:`X` on :math:`Y` is given by
-
-    .. math::
-
-        P(y|do(x)) = \sum_w P(w|x) \sum_{x'}P(y|x', w)P(x')
-    
-    if the set of variables :math:`W` satisfies the front-door criterion relative to :math:`(X, Y)` and if
-    :math:`P(x, w) > 0`.
-
-.. topic:: General identification
-
-    [Shpitser2006]_ gives a necessary and sufficient graphical condition such that the causal effect
-    of an arbitrary set of variables on another arbitrary set can be identified uniquely whenever its identifiable. We 
-    call the corresponding action of verifying this condition as **general identification**.
-
-.. topic:: Finding Instrumental Variables
-
-    Instrumental variables are useful to identify and estimate the causal effect of :math:`X` on :math:`Y` when there are 
-    unobserved confoundings of :math:`X` and :math:`Y`. A set of variables :math:`Z` is said to be a set of **instrumental variables**
-    if for any :math:`z` in :math:`Z`:
-    
-    1. :math:`z` has a causal effect on :math:`X`.
-    
-    2. The causal effect of :math:`z` on :math:`Y` is fully mediated by :math:`X`.
-    
-    3. There are no back-door paths from :math:`z` to :math:`Y`.
-
 
 Class Structures
 ================

@@ -83,8 +83,9 @@ def dat_gen():
 #         return np.array([x2, x1, x3])
 
 
-dat = dat_gen()
-print(f'chain result {func(dat)}')
+if __name__ == 'main':
+    dat = dat_gen()
+    print(f'chain result {func(dat)}')
 
 # dat = dat_gen1()
 # print(f'folk result {func(dat)}')

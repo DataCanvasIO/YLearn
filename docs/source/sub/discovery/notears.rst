@@ -18,3 +18,21 @@ where :math:`F(W)` is a continuous function measuring :math:`\|x - Wx\|` and
     h(W) = tr\left( e^{W \circ W} \right)
 
 where :math:`\circ` is the Hadamard product. This optimization can then be solved with some optimization technique, such as gradient desscent.
+
+The YLearn class for the NO-TEARS algorithm is :class:`CausalDiscovery`.
+
+.. topic:: Example
+
+    .. code-block:: python
+
+        import pandas as pd
+
+        from ylearn.exp_dataset.gen import gen
+        from ylearn.causal_discovery import CausalDiscovery
+
+        X = gen()
+        cd = CausalDiscovery(hidden_layer_dim=[3])
+        est = cd(X, threshold=0.01)
+
+        # cd.matrix2dict(est)
+        
