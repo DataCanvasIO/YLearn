@@ -10,6 +10,7 @@ from __future__ import division
 from __future__ import print_function
 
 import logging as _logging
+import os as _os
 import re
 import sys as _sys
 import traceback as _traceback
@@ -18,10 +19,6 @@ from logging import ERROR
 from logging import FATAL
 from logging import INFO
 from logging import WARN
-
-# settings
-_dev_mode = __file__.lower().find('site-packages') < 0
-_log_level = INFO if _dev_mode else WARN
 
 _name2level = {
     'FATAL': FATAL,
@@ -41,6 +38,26 @@ _name2level = {
     'DEBUG': DEBUG,
     'D': DEBUG,
 }
+
+
+def _init_log_level():
+    pkg = __name__.split('.')[0]
+    env_key = pkg.upper() + '_LOG_LEVEL'
+    for k, v in _os.environ.items():
+        if k.upper() == env_key:
+            if v.upper() in _name2level.keys():
+                return _name2level[v.upper()]
+            elif re.match(r'^\d$', v):
+                return int(v)
+            else:
+                print(f'Unrecognized log level {v}.', file=_sys.stderr)
+
+    _dev_mode = __file__.lower().find('site-packages') < 0
+    return INFO if _dev_mode else WARN
+
+
+# settings
+_log_level = _init_log_level()
 
 # _log_format = '%(name)s %(levelname).1s%(asctime)s.%(msecs)d %(filename)s %(lineno)d - %(message)s'
 # _log_format = '%(module)s %(levelname).1s %(filename)s %(lineno)d - %(message)s'
