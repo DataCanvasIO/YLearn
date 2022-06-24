@@ -7,7 +7,6 @@ performances of machine learning models.
 
 import inspect
 from asyncio.log import logger
-from attr import has
 import numpy as np
 import pandas as pd
 # from sklearn import clone
