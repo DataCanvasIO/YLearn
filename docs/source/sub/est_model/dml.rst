@@ -4,8 +4,8 @@ Double Machine Learning
 
 .. topic:: Notation
 
-    We use capital letters for matrices and small letters for vectors. The treatment is denoted as :math:`y`, the outcome is 
-    denoted by :math:`x`, the covariate is denoted by :math:`v`, and other adjustment set variables as :math:`w`. Greek letters are for error terms.
+    We use capital letters for matrices and small letters for vectors. The treatment is denoted by :math:`x`, the outcome is 
+    denoted by :math:`y`, the covariate is denoted by :math:`v`, and other adjustment set variables are :math:`w`. Greek letters are for error terms.
 
 The double machine learning (DML) model [Chern2016]_ can be applied when all confounders of the treatment and outcome, variables that
 simultaneously influence the treatment and outcome, are observed. Let :math:`y` be the outcome and :math:`x` be the treatment, 
@@ -69,31 +69,31 @@ now becomes
 
     In YLearn, we implement a double machine learning as in the algorithm described in the [Chern2016]_:
 
-    1. Let k (cf_folds in our class) be an int. Form a k-fold random
-    partition {..., (train_data_i, test_data_i), ...,
-    (train_data_k, test_data_k)}.
+        1. Let k (cf_folds in our class) be an int. Form a k-fold random
+        partition {..., (train_data_i, test_data_i), ...,
+        (train_data_k, test_data_k)}.
 
-    2. For each i, train y_model and x_model on train_data_i, then evaluate
-    their performances in test_data_i whoes results will be saved as
-    :math:`(\hat{y}_k, \hat{x}_k)`. All :math:`(\hat{y}_k, \hat{x}_k)` will be combined to give the new dataset
-    :math:`(\hat{y}, \hat{x})`.
+        2. For each i, train y_model and x_model on train_data_i, then evaluate
+        their performances in test_data_i whoes results will be saved as
+        :math:`(\hat{y}_k, \hat{x}_k)`. All :math:`(\hat{y}_k, \hat{x}_k)` will be combined to give the new dataset
+        :math:`(\hat{y}, \hat{x})`.
 
-    3. Define the differences
+        3. Define the differences
 
-    .. math::
+        .. math::
 
-        \tilde{y}& = y - \hat{y}, \\
-        \tilde{x}&= (x - \hat{x}) \otimes v.
+            \tilde{y}& = y - \hat{y}, \\
+            \tilde{x}&= (x - \hat{x}) \otimes v.
 
-    Then form the new dataset :math:`(\tilde{y}, \tilde{x})`.
+        Then form the new dataset :math:`(\tilde{y}, \tilde{x})`.
 
-    4. Perform linear regression on the dataset :math:`(\tilde{y}, \tilde{x})` whoes
-    coefficients will be saved in a vector :math:`f`. The estimated CATE given :math:`v`
-    will just be
+        4. Perform linear regression on the dataset :math:`(\tilde{y}, \tilde{x})` whoes
+        coefficients will be saved in a vector :math:`f`. The estimated CATE given :math:`v`
+        will just be
 
-    .. math::
+        .. math::
 
-        f \cdot v.
+            f \cdot v.
 
 .. topic:: Example
 

@@ -12,11 +12,11 @@ When the relationship between the outcome :math:`y`, treatment :math:`x` and cov
     x & = \gamma z + \lambda v + \eta,
 
 then the IV framework becomes direct: it will first train a linear model for :math:`x` given :math:`z` and :math:`v`, then it repalces :math:`x`
-the predicted values :math:`\hat{x}` to train a linear model for :math:`y` in the second stage. This procedure is called the two-stage least-squares (2SLS).
+with the predicted values :math:`\hat{x}` to train a linear model for :math:`y` in the second stage. This procedure is called the two-stage least-squares (2SLS).
 
 Nonparametric IV
 ================
-Removing the linear assumptions regarding the relationships between variables, the nonparametric IV can replaceh the linear regression with a linear projection 
+Removing the linear assumptions regarding the relationships between variables, the nonparametric IV can replace the linear regression with a linear projection 
 onto a series of known basis functions [Newey2002]_. 
 
 This method is similar to the conventional 2SLS and is also composed of 2 stages after finding new features of :math:`x`, :math:`v`, and :math:`z`,  

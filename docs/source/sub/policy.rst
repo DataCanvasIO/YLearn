@@ -3,7 +3,7 @@ Policy: Selecting the Best Option
 *********************************
 
 In tasks such as policy evaluation, e.g., [Athey2020]_, besides the causal effects, we may also have interets in other questions such as whether an example should be assigned to a treament and if the answer is yes, which option is
-the best to select among all possible treament values. YLearn implement :class:`PolicyTree` for such purpose. Given a trained estimator model or estimated causal effects, it finds the optimal polices for each
+the best among all possible treament values. YLearn implements :class:`PolicyTree` for such purpose. Given a trained estimator model or estimated causal effects, it finds the optimal polices for each
 example by building a decision tree model which aims to maximize the causal effect of each example.
 
 The criterion for training the tree is 
@@ -15,7 +15,7 @@ The criterion for training the tree is
 where :math:`g_{ik} = \phi(v_i)_k` with :math:`\phi: \mathbb{R}^D \to \mathbb{R}^K` being a map from :math:`v_i\in \mathbb{R}^D` to a basis vector with only one nonzero element in :math:`\mathbb{R}^K` and :math:`e_{ki}` denotes
 the causal effect of taking the :math:`k`-th value of the treatment for example :math:`i`.
 
-Note that one can use the PolicyInterpreter to interpret the result of a policy model.
+Note that one can use the :class:`PolicyInterpreter` to interpret the result of a policy model.
 
 .. topic:: Example
 

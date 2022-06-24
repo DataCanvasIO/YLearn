@@ -63,7 +63,7 @@ There are four different bounds in YLearn. We briefly introduce them as follows.
         X = 1 &\implies Y(do(1)) \geq Y(do(0)) \\
         X = 0 & \implies Y(do(0)) \geq Y(do(1))            
 
-    which means that *people always receive the treatment if it is best for them*. Then we have the following bound:
+    which means that *people always receive the treatment if it is the best for them*. Then we have the following bound:
     
     .. math::
 

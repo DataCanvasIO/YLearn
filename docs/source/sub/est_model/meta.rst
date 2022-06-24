@@ -3,7 +3,7 @@ Meta-Learner
 ************
 
 Meta-Learners [Kunzel2019]_ are estimator models that aim to estimate the CATE by taking advantage of machine learning
-models when the treatment is discrete, e.g., the treatment has only two values 1 and 0. Generally speaking,
+models when the treatment is discrete, e.g., the treatment has only two values 1 and 0, and when the unconfoundedness is satisified. Generally speaking,
 it employs multiple machine learning models with the flexibility on the choice of models.
 
 YLearn implements 3 Meta-Learners: S-Learner, T-Learner, and X-Learner.
@@ -163,7 +163,7 @@ T-Learner
 =========
 
 The problem of SLearner is that the treatment vector is only 1-dimensional while the adjustment vector could be 
-multi-dimensional thus if the dimension of the adjustment is much larger than 1 then the estimated result will always close to 0. 
+multi-dimensional. Thus if the dimension of the adjustment is much larger than 1, then the estimated results will always be close to 0. 
 TLearner uses two machine learning models to estimate the causal effect. Specifically, let :math:`w` denote the
 adjustment set (or covariate), we
 
@@ -279,8 +279,8 @@ TLearnr does not use all data efficiently, which can be addressed by the XLearne
     
     .. math::
 
-        h_0 & = f_1(w) - y_0(w),\\ 
-        h_1 & = y_1(w) - f_0(w). 
+        h_0 & = f_1(w) - y_0,\\ 
+        h_1 & = y_1 - f_0(w). 
     
     Then train two new machine learing models :math:`k_0(w)` and :math:`k_1(w)` in these datasets such that
 

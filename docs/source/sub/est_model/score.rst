@@ -3,8 +3,8 @@ Scoring Estimated Causal Effects
 ********************************
 
 Estimator models for estimating causal effects can not be easily evaluated
-dut to the fact that the true effects are Notation directly observed. This differs
-from the usual machine learning tasks whoes results can be easily evaluated by the value of loss functions.
+due to the fact that the true effects are not directly observed. This differs
+from the usual machine learning tasks whoes results can be easily evaluated by, for example, the value of loss functions.
 
 Authors in [Schuler]_ proposed a framework, a schema suggested by [Nie]_, to evaluate causal
 effects estimated by different estimator models. Roughly speaking, this

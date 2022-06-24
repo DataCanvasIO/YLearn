@@ -9,7 +9,7 @@ Specifically, for a given vector :math:`x \in \mathbb{R}^d` such that there exis
 .. math::
 
     \min_{W \in \mathbb{R}^{d\times d}} & F(W) \\
-    s.t. & h(W) = 0,
+    s.t. \quad & h(W) = 0,
 
 where :math:`F(W)` is a continuous function measuring :math:`\|x - Wx\|` and 
 

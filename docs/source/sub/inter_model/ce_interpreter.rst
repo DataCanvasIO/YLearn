@@ -4,7 +4,7 @@
 CEInterpreter
 *************
 
-For the CATE :math:`\tau(v)` estimated by a estimator model, e.g., double machine learning model, :class:`CEInterpreter` interprets the result
+For the CATE :math:`\tau(v)` estimated by an estimator model, e.g., double machine learning model, :class:`CEInterpreter` interprets the results
 by building a decision tree to model the relationships between :math:`\tau(v)` and the covariates :math:`v`. Then one can use the decision rules 
 of the fitted tree model to analyze :math:`\tau(v)`.
 

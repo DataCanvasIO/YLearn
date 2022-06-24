@@ -10,7 +10,7 @@ Training a doubly robust model is composed of 3 steps.
 
    .. math::
 
-        \{(x_i, w_i, v_i, y_i)\}_{i = 1}^n = D_j \cup T_k
+        \{(x_i, w_i, v_i, y_i)\}_{i = 1}^n = D_k \cup T_k
 
    where :math:`D_k` stands for the trainig data while :math:`T_k` stands for the test data and :math:`\cup_{k = 1}^K T_k = \{(X_i, W_i, V_i, Y_i)\}_{i = 1}^n`.
 

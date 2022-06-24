@@ -19,8 +19,8 @@ each child-parent family in a DAG :math:`G` represents a deterministic function
 
     X_i = F_i (pa_i, \eta_i), i = 1, \dots, n,
 
-where :math:`pa_i` are parents of :math:`x_i` in :math:`G` and :math:`\eta_i` are random disturbance representing exogeneous not present in the
-analysis. We call these functions **Structural Equation Model** related to the causal structures. For a set of variable :math:`W` that satisfies
+where :math:`pa_i` are parents of :math:`x_i` in :math:`G` and :math:`\eta_i` are random disturbances representing exogeneous not present in the
+analysis. We call these functions **Structural Equation Model** related to the causal structures. For a set of variables :math:`W` that satisfies
 the back-door criterion (see :ref:`identification`), the causal effect of :math:`X` on :math:`Y` is given by the formula
 
 .. math::
@@ -40,7 +40,7 @@ Our problems can be expressed with the strucutral equation model.
 
 .. topic:: ATE
 
-    Specifically, one interested causal quantity in YLearn is the difference
+    Specifically, one particular important causal quantity in YLearn is the difference
 
     .. math::
 
@@ -75,7 +75,7 @@ Our problems can be expressed with the strucutral equation model.
 
 .. topic:: Counterfactual
 
-    Besides the interested casual estimands which are differences of effects, there is also a causal quantity **counterfactuals**.
+    Besides casual estimands which are differences of effects, there is also a causal quantity **counterfactual**.
     For such quantity, we estimate the following causal estimand:
 
     .. math::
@@ -85,9 +85,10 @@ Our problems can be expressed with the strucutral equation model.
 
 Estimator Models
 ==========================
+YLearn implements several estimator models for the estimation of causal effects:
 
 .. toctree::
-    :maxdepth: 3
+    :maxdepth: 2
 
     est_model/approx_bound
     est_model/meta
@@ -111,7 +112,7 @@ in ATE and
 
 in CATE will be the tasks of vairous suitable **estimator models** in YLearn. The concept :class:`EstimatorModel` in YLearn is designed for this purpose.
 
-A typical :class:`EstimatorModel` should have the follwing structures:
+A typical :class:`EstimatorModel` should have the follwing structure:
 
 .. code-block:: python
 
@@ -195,7 +196,7 @@ A typical :class:`EstimatorModel` should have the follwing structures:
 
 .. topic:: Usage
 
-    One can apply any :class:`EstimatorModel` in the following procedure
+    One can apply any :class:`EstimatorModel` in the following procedure:
 
     1. For the data in the form of :class:`pandas.DataFrame`, find the names of *treatment*, *outcome*, *adjustment*, and *covariate*.
 
