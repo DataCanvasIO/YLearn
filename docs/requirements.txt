@@ -5,4 +5,3 @@ scikit-learn
 torch
 IPython
 networkx
-python==3.8
