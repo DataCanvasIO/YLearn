@@ -50,13 +50,12 @@ There are 5 main concepts in YLearn corresponding to the causal inference pipeli
 These components are conneted to give a full pipeline of causal inference, which are also encapsulated into a single API `Why`.
 
 ![A typical pipeline of YLearn](./fig/flow.png)
-
-    The pipeline of causal inference in YLearn. Starting from the training data, one first uses the `CausalDiscovery` to reveal
-    the causal structures in data, which will usually output a `CausalGraph`. The causal graph is then passed into the `CausalModel`, where
-    the interested causal effects are identified and converted into statistical estimands. An `EstimatorModel` is then trained with the training data
-    to model relationships between causal effects and other variables, i.e., estimating causal effects in training data. One can then
-    use the trained `EstimatorModel` to predict causal effects in some new test dataset and evaluate the policy assigned to each individual or interpret
-    the estiamted causal effects.
+*The pipeline of causal inference in YLearn. Starting from the training data, one first uses the `CausalDiscovery` to reveal
+the causal structures in data, which will usually output a `CausalGraph`. The causal graph is then passed into the `CausalModel`, where
+the interested causal effects are identified and converted into statistical estimands. An `EstimatorModel` is then trained with the training data
+to model relationships between causal effects and other variables, i.e., estimating causal effects in training data. One can then
+use the trained `EstimatorModel` to predict causal effects in some new test dataset and evaluate the policy assigned to each individual or interpret
+the estiamted causal effects.*
 
 ## Quick Start
 
