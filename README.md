@@ -23,7 +23,7 @@ vairous manners nowdays, rather than relying on conducting craftly designed expe
 
 A typical complete causal inference procedure is composed of three parts. First, it learns causal relationships
 using the technique called causal discovery. These relationships are then expressed either in the form of Structural
-Causal Models or Directed Acyclic Graphs (DAG). Second, it expresses the causal estimand, which are clarified by the
+Causal Models or Directed Acyclic Graphs (DAG). Second, it expresses the causal estimands, which are clarified by the
 interested causal questions such as the average treatment effects, in terms of the observed data. This process is
 known as identification. Finally, once the causal estimand is identified, causal inference proceeds to focus on
 estimating the causal estimand from observational data. Then policy evaluation problems and counterfactual questions
@@ -35,7 +35,7 @@ YLearn, equiped with many techniques developed in recent literatures, is impleme
 
 ![Concepts in YLearn](./fig/structure_ylearn.png)
 
-There are three main concepts in YLearn corresponding to the causal inference pipeline.
+There are 5 main concepts in YLearn corresponding to the causal inference pipeline.
 
 1. *Causal Discovery*. Discovering the causal relationships in the observational data.
 
@@ -43,11 +43,20 @@ There are three main concepts in YLearn corresponding to the causal inference pi
 
 3. *Estimator Model*. Estimating the causal estimand with vairous techniques.
 
-4. *Policy Model*.
+4. *Policy Model*. Selecting the best policy for each individual.
 
-5. *Interpreters*.
+5. *Interpreters*. Explain the causal effects and polices.
+
+These components are conneted to give a full pipeline of causal inference, which are also encapsulated into a single API `Why`.
 
 ![A typical pipeline of YLearn](./fig/flow.png)
+
+    The pipeline of causal inference in YLearn. Starting from the training data, one first uses the `CausalDiscovery` to reveal
+    the causal structures in data, which will usually output a `CausalGraph`. The causal graph is then passed into the `CausalModel`, where
+    the interested causal effects are identified and converted into statistical estimands. An `EstimatorModel` is then trained with the training data
+    to model relationships between causal effects and other variables, i.e., estimating causal effects in training data. One can then
+    use the trained `EstimatorModel` to predict causal effects in some new test dataset and evaluate the policy assigned to each individual or interpret
+    the estiamted causal effects.
 
 ## Quick Start
 

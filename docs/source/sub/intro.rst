@@ -16,7 +16,7 @@ vairous manners nowdays, rather than relying on conducting craftly designed expe
 
 A typical complete causal inference procedure is composed of three parts. First, it learns causal relationships
 using the technique called causal discovery. These relationships are then expressed either in the form of Structural 
-Causal Models or Directed Acyclic Graphs (DAG). Second, it expresses the causal estimand, which are clarified by the 
+Causal Models or Directed Acyclic Graphs (DAG). Second, it expresses the causal estimands, which are clarified by the 
 interested causal questions such as the average treatment effects, in terms of the observed data. This process is 
 known as identification. Finally, once the causal estimand is identified, causal inference proceeds to focus on
 estimating the causal estimand from observational data. Then policy evaluation problems and counterfactual questions
