@@ -45,7 +45,7 @@ There are 5 main concepts in YLearn corresponding to the causal inference pipeli
 
 4. *Policy Model*. Selecting the best policy for each individual.
 
-5. *Interpreters*. Explain the causal effects and polices.
+5. *Interpreters*. Explaining the causal effects and polices.
 
 These components are conneted to give a full pipeline of causal inference, which are also encapsulated into a single API `Why`.
 

@@ -25,7 +25,8 @@ from torch import svd
 from ..utils import logging, Version
 from .utils import (convert2array, get_wv, get_treat_control)
 from .base_models import BaseEstModel
-from ._tree.tree_criterion import CMSE, MSE, HonestCMSE
+
+from ylearn.estimator_model._tree.tree_criterion import CMSE, MSE, HonestCMSE
 # import pyximport
 # pyximport.install(setup_args={"script_args": ["--verbose"]})
 

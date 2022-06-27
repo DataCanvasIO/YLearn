@@ -16,6 +16,8 @@
 
 import sys
 import os
+
+from sympy import im
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 # -- Project information -----------------------------------------------------
 
@@ -54,3 +56,15 @@ html_theme = 'sphinx_rtd_theme'
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
+
+# import ylearn
+# print("cwd: ")
+# print(os.getcwd())
+build_cmd = f"cd ../.. && {sys.executable} setup.py build_ext --inplace"
+# print(build_cmd)
+
+os.system(build_cmd)
+
+
+
+
