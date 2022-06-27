@@ -23,7 +23,7 @@ GRAPH_STRING_BASE = """
   graph [splines=true pad=0.5]
   node [shape="box" width=3 height=1.2]
 
-  V [label="Covariates\n\n VLIST"  pos="7,2!"]
+  V [label="Covariates\n\n VLIST"  pos="7.5,2!"]
   X [label="Treatments\n\n XLIST"  pos="5,0!"]
   Y [label="Outcome\n\n YLIST"  pos="10,0!"] 
 
@@ -328,7 +328,7 @@ class Why:
     discovery_model : str, reserved
     discovery_options : dict, default=None
         Parameters (key-values) to initialize the discovery model
-    estimator : str, default='auto' 
+    estimator : str, default='auto'
         Name of a valid EstimatorModel. One can also pass an instance of a valid estimator model
     estimator_options : dict, default=None
         Parameters (key-values) to initialize the estimator model.
@@ -347,8 +347,12 @@ class Why:
          Used to identify treatment/adjustment/covariate/instrument if they were not specified during `fit`
     y_encoder_ : LabelEncoder object or None
         Used to encode outcome if its dtype is not numeric
+    x_encoders_ : LabelEncoder dict for each treatment if discrete_treatment is True
+        Key is the treatment name, value is the LabelEncoder object
+        None if discrete_treatment is False
     preprocessor_ : Pipeline object to preprocess data during `fit`
-    estimators_ : estimators dict for each treatment, key is the treatment name, value is the estimator object
+    estimators_ : estimators dict for each treatment
+        Key is the treatment name, value is the estimator object
 
     """
 
@@ -386,6 +390,7 @@ class Why:
         #
         self.identifier_ = None
         self.y_encoder_ = None
+        self.x_encoders_ = None
         self.preprocessor_ = None
         self.estimators_ = None
 
@@ -403,8 +408,9 @@ class Why:
         Fit the Why object, steps:
             1. encode outcome if its dtype is not numeric
             2. identify treatment and adjustment/covariate/instrument
-            3. preprocess data
-            4. fit causal estimators
+            3. encode treatment if discrete_treatment is True
+            4. preprocess data
+            5. fit causal estimators
 
         Parameters
         ----------
@@ -458,18 +464,28 @@ class Why:
             treatment_count_limit=treatment_count_limit,
         )
 
-        ##
+        # encode treatment
+        if self.discrete_treatment:
+            logger.info(f'encode treatment ...')
+            x_encoders = {}
+            for x in treatment:
+                x_encoder = LabelEncoder()
+                data[x] = x_encoder.fit_transform(data[x])
+                x_encoders[x] = x_encoder
+        else:
+            x_encoders = None
+
+        # preprocess adjustment, covariate, instrument
         logger.info('preprocess data ...')
         preprocessor = skex.general_preprocessor()
-        columns = _join_list(treatment, adjustment, covariate, instrument)
+        columns = _join_list(adjustment, covariate, instrument)
         assert len(columns) > 0
-
         data_t = preprocessor.fit_transform(data[columns], y)
         assert isinstance(data_t, pd.DataFrame) and set(data_t.columns.tolist()) == set(columns)
         data[columns] = data_t
 
+        # fit estimator
         estimators = {}
-
         for x in treatment:
             estimator = self._create_estimator(
                 data, outcome, treatment=x,
@@ -481,6 +497,7 @@ class Why:
             estimator.fit(data, outcome, x, **fit_kwargs)
             estimators[x] = estimator
 
+        # save state
         self.feature_names_in_ = feature_names
         self.outcome_ = outcome
         self.treatment_ = treatment
@@ -491,6 +508,7 @@ class Why:
         self.estimators_ = estimators
 
         self.y_encoder_ = y_encoder
+        self.x_encoders_ = x_encoders
         self.preprocessor_ = preprocessor
         self._is_fitted = True
 
@@ -591,7 +609,6 @@ class Why:
     def _create_estimator(self, data, outcome, *,
                           treatment, adjustment=None, covariate=None, instrument=None):
         # x_task, _ = infer_task_type(data[treatment])
-
         estimator = self.estimator
         options = self.estimator_options if self.estimator_options is not None else {}
         if estimator == 'auto':
@@ -642,7 +659,7 @@ class Why:
             test_data = test_data.copy()
 
             if self.preprocessor_ is not None:
-                columns = _join_list(self.treatment_, self.adjustment_, self.covariate_, self.instrument_)
+                columns = _join_list(self.adjustment_, self.covariate_, self.instrument_)
                 assert len(columns) > 0
                 test_data[columns] = self.preprocessor_.transform(test_data[columns])
 
@@ -650,6 +667,22 @@ class Why:
                 test_data[self.outcome_] = self.y_encoder_.transform(test_data[self.outcome_])
 
         return test_data
+
+    def _safe_treat_control(self, t_or_c, name):
+        assert self._is_fitted
+
+        if t_or_c is None:
+            return None
+
+        if isinstance(t_or_c, (tuple, list)):
+            assert len(t_or_c) == len(self.treatment_), \
+                f'{name} should have the same number with treatment ({self.treatment_})'
+        else:
+            assert len(self.treatment_) == 1, \
+                f'{name} should be list or tuple if the number of treatment is greater than 1'
+            t_or_c = [t_or_c, ]
+
+        return t_or_c
 
     def causal_graph(self):
         """
@@ -702,6 +735,52 @@ class Why:
             causal effect of each treatment
         """
         test_data = self._preprocess(test_data)
+        treat = self._safe_treat_control(treat, 'treat')
+        control = self._safe_treat_control(control, 'control')
+
+        if self.discrete_treatment:
+            return self._causal_effect_discrete(test_data, treat, control)
+        else:
+            return self._causal_effect_continuous(test_data, treat, control)
+
+    def _causal_effect_discrete(self, test_data=None, treat=None, control=None):
+        dfs = []
+        for i, x in enumerate(self.treatment_):
+            est = self.estimators_[x]
+            xe = self.x_encoders_[x]
+            if control is not None:
+                assert control[i] in xe.classes_.tolist(), f'Invalid {x} control "{control[i]}"'
+                control_i = control[i]
+            else:
+                control_i = xe.classes_[0]
+
+            if treat is not None:
+                assert treat[i] in xe.classes_.tolist(), f'Invalid {x} treat "{treat[i]}"'
+                treats = [treat[i], ]
+            else:
+                if test_data is None:
+                    treats = xe.classes_.tolist()
+                else:
+                    treats = np.unique(test_data[x]).tolist()
+                treats = filter(lambda _: _ != control_i, treats)
+
+            c = xe.transform([control_i])[0]
+            for treat_i in treats:
+                t = xe.transform([treat_i])[0]
+                effect = est.estimate(data=test_data, treat=t, control=c)
+                s = pd.Series(dict(mean=effect.mean(),
+                                   min=effect.min(),
+                                   max=effect.max(),
+                                   std=effect.std(),
+                                   ),
+                              name=(x, f'{treat_i} vs {control_i}')
+                              )
+                dfs.append(s)
+
+        result = pd.concat(dfs, axis=1).T
+        return result
+
+    def _causal_effect_continuous(self, test_data=None, treat=None, control=None):
         dfs = []
         for i, x in enumerate(self.treatment_):
             est = self.estimators_[x]
@@ -716,7 +795,7 @@ class Why:
             dfs.append(s)
         return pd.concat(dfs, axis=1).T
 
-    def individual_causal_effect(self, test_data, treat=None, control=None):
+    def individual_causal_effect(self, test_data, control=None):
         """
         Estimate individual causal effect.
 
@@ -724,8 +803,6 @@ class Why:
         ----------
         test_data : pd.DataFrame, default None
             The test data to evaluate the causal effect.
-            If None, estimate effect with the training data .
-        treat : int or list, default None
         control : int or list, default None
 
         Returns
@@ -733,11 +810,43 @@ class Why:
         pd.DataFrame
             individual causal effect of each treatment
         """
+        assert test_data is not None
+
         test_data = self._preprocess(test_data)
+        control = self._safe_treat_control(control, 'control')
+
+        if self.discrete_treatment:
+            return self._individual_causal_effect_discrete(test_data, control)
+        else:
+            return self._individual_causal_effect_continuous(test_data, control)
+
+    def _individual_causal_effect_discrete(self, test_data, control=None):
+        if control is None:
+            control = [self.x_encoders_[x].classes_.tolist()[0] for x in self.treatment_]
+
+        dfs = []
+        for ri in test_data.index:
+            row_df = test_data.loc[ri:ri]
+            for xi, x in enumerate(self.treatment_):
+                treat_i = row_df[x].tolist()[0]
+                control_i = control[xi]
+                if treat_i == control_i:
+                    effect = 0.0
+                else:
+                    xe = self.x_encoders_[x]
+                    t, c = xe.transform([treat_i, control_i]).tolist()
+                    est = self.estimators_[x]
+                    effect = est.estimate(data=row_df, treat=t, control=c).ravel()[0]
+                s = pd.Series(dict(effect=effect),
+                              name=(ri, x, f'{treat_i} vs {control_i}'))
+                dfs.append(s)
+        return pd.concat(dfs, axis=1).T
+
+    def _individual_causal_effect_continuous(self, test_data, control=None):
         dfs = []
         for i, x in enumerate(self.treatment_):
             est = self.estimators_[x]
-            treat_i = treat[i] if treat is not None else None
+            treat_i = test_data[x]
             control_i = control[i] if control is not None else None
             effect = est.estimate(data=test_data, treat=treat_i, control=control_i)
             s = pd.Series(effect.ravel(), name=x)
@@ -767,20 +876,16 @@ class Why:
             treatment = self.treatment_[0]
 
         data_t = self._preprocess(data)
-        new_data = data.copy()
-        new_data[treatment] = new_value
-        new_data_t = self._preprocess(new_data)
-        new_value_t = new_data_t[treatment]
-
         estimator = self.estimators_[treatment]
         if estimator.is_discrete_treatment:
-            return self._whatif_discrete(data_t, new_value_t, treatment, estimator)
+            return self._whatif_discrete(data_t, new_value, treatment, estimator)
         else:
-            return self._whatif_continuous(data_t, new_value_t, treatment, estimator)
+            return self._whatif_continuous(data_t, new_value, treatment, estimator)
 
     def _whatif_discrete(self, data, new_value, treatment, estimator):
         y_old = data[self.outcome_]
         old_value = data[treatment]
+        xe = self.x_encoders_[treatment]
 
         df = pd.DataFrame(dict(c=old_value, t=new_value), index=old_value.index)
         df['tc'] = df[['t', 'c']].apply(tuple, axis=1)
@@ -792,7 +897,9 @@ class Why:
                 eff = np.zeros((len(tc_rows),))
             else:
                 data_rows = data.loc[tc_rows.index]
-                eff = estimator.estimate(data_rows, treat=t, control=c)
+                t_encoded = xe.transform([t])[0]
+                c_encoded = xe.transform([c])[0]
+                eff = estimator.estimate(data_rows, treat=t_encoded, control=c_encoded)
             effect.append(pd.DataFrame(dict(e=eff.ravel()), index=tc_rows.index))
         effect = pd.concat(effect, axis=0)
         assert len(effect) == len(df)
@@ -804,10 +911,12 @@ class Why:
     def _whatif_continuous(self, data, new_value, treatment, estimator):
         y_old = data[self.outcome_]
         old_value = data[treatment]
-        effect = estimator.estimate(data, treat=new_value, control=old_value)
-        # effect_treat = estimator.estimate(data, treat=new_value)
-        # effect_control = estimator.estimate(data, treat=old_value)
-        # effect = effect_treat - effect_control
+        if isinstance(new_value, np.ndarray):
+            new_value = pd.Series(new_value)
+        # effect = estimator.estimate(data, treat=new_value, control=old_value)
+        effect_treat = estimator.estimate(data, treat=new_value)
+        effect_control = estimator.estimate(data, treat=old_value)
+        effect = effect_treat - effect_control
         y_new = y_old + effect.ravel()
         return y_new
 
@@ -831,14 +940,24 @@ class Why:
 
         scorers = self._create_scorers(test_data, scorer=scorer)
         fit_options = drop_none(adjustment=self.adjustment_, covariate=self.covariate_, instrument=self.instrument_)
-        score_options = drop_none(treat=treat, control=control)
         test_data = self._preprocess(test_data)
+        treat = self._safe_treat_control(treat, 'treat')
+        control = self._safe_treat_control(control, 'control')
 
         sa = []
-        for x, scorer in scorers.items():
+        for i, (x, scorer) in enumerate(scorers.items()):
             logger.info(f'fit scorer for {x} with {scorer}')
+            if self.discrete_treatment:
+                xe = self.x_encoders_[x]
+                test_data[x] = xe.transform(test_data[x])
+                treat_i = xe.transform([treat[i], ])[0] if treat is not None else None
+                control_i = xe.transform([control[i], ])[0] if control is not None else None
+            else:
+                treat_i = treat[i] if treat is not None else None
+                control_i = control[i] if control is not None else None
             scorer.fit(test_data, self.outcome_, x, **fit_options)
             estimator = self.estimators_[x]
+            score_options = drop_none(treat=treat_i, control=control_i)
             sa.append(scorer.score(estimator, **score_options))
         score = np.mean(sa)
 
@@ -848,7 +967,11 @@ class Why:
         effects = []
         for i, x in enumerate(self.treatment_):
             estimator = self.estimators_[x]
-            ci = control[i] if control is not None else None
+            if self.discrete_treatment:
+                xe = self.x_encoders_[x]
+                ci = xe.transform([control[i], ])[0] if control is not None else None
+            else:
+                ci = control[i] if control is not None else None
             effect = estimator.effect_nji(preprocessed_data, control=ci)
             assert isinstance(effect, np.ndarray)
             assert effect.ndim == 3 and effect.shape[1] == 1
@@ -872,6 +995,7 @@ class Why:
             The fitted PolicyTree object
         """
         data = self._preprocess(data)
+        control = self._safe_treat_control(control, 'control')
         effect_array = self._effect_array(data, control=control)
         ptree = PolicyTree(**kwargs)
         ptree.fit(data, covariate=self.covariate_, effect_array=effect_array)
@@ -894,6 +1018,7 @@ class Why:
             The fitted PolicyInterpreter object
         """
         data = self._preprocess(data)
+        control = self._safe_treat_control(control, 'control')
         effect_array = self._effect_array(data, control=control)
         pi = PolicyInterpreter(**kwargs)
         pi.fit(data, covariate=self.covariate_, est_model=None, effect_array=effect_array)
