@@ -59,10 +59,10 @@ html_static_path = ['_static']
 # import ylearn
 # print("cwd: ")
 # print(os.getcwd())
-build_cmd = f"cd ../.. && {sys.executable} setup.py build_ext --inplace"
-# print(build_cmd)
+# build_cmd = f"cd ../.. && {sys.executable} setup.py build_ext --inplace"
+# # print(build_cmd)
 
-os.system(build_cmd)
+# os.system(build_cmd)
 
 
 

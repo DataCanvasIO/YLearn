@@ -61,3 +61,35 @@ the estiamted causal effects.*
 
 pass
 aaa
+
+## References
+
+J. Pearl. Causality: models, reasoing, and inference.
+
+S. Shpister and J. Identification of Joint Interventional Distributions in Recursive Semi-Markovian Causal Models. *AAAI 2006*.
+
+B. Neal. Introduction to Causal Inference.
+
+M. Funk, et al. Doubly Robust Estimation of Causal Effects. *Am J Epidemiol. 2011 Apr 1;173(7):761-7.*
+
+V. Chernozhukov, et al. Double Machine Learning for Treatment and Causal Parameters. *arXiv:1608.00060.*
+
+S. Athey and G. Imbens. Recursive Partitioning for Heterogeneous Causal Effects. *arXiv: 1504.01132.*
+
+A. Schuler, et al. A comparison of methods for model selection when estimating individual treatment effects. *arXiv:1804.05146.*
+
+X. Nie, et al. Quasi-Oracle estimation of heterogeneous treatment effects. *arXiv: 1712.04912.*
+
+J. Hartford, et al. Deep IV: A Flexible Approach for Counterfactual Prediction. *ICML 2017.*
+
+W. Newey and J. Powell. Instrumental Variable Estimation of Nonparametric Models. *Econometrica 71, no. 5 (2003): 1565–78.*
+
+S. Kunzel2019, et al. Meta-Learners for Estimating Heterogeneous Treatment Effects using Machine Learning. *arXiv: 1706.03461.*
+
+J. Angrist, et al. Identification of causal effects using instrumental variables. *Journal of the American Statistical Association*.
+
+S. Athey and S. Wager. Policy Learning with Observational Data. *arXiv: 1702.02896.*
+
+P. Spirtes, et al. Causation, Prediction, and Search.
+
+X. Zheng, et al. DAGs with NO TEARS: Continuous Optimization for Structure Learning. *arXiv: 1803.01422.*
