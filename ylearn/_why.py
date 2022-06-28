@@ -1,5 +1,6 @@
 import math
 from functools import partial
+from itertools import product
 
 import numpy as np
 import pandas as pd
@@ -485,8 +486,11 @@ class Why:
         data[columns] = data_t
 
         # fit estimator
+        estimator_keys = treatment.copy()
+        if self.discrete_treatment and len(treatment) > 1:
+            estimator_keys.extend(list(filter(lambda _: _[0] != _[1], product(treatment, treatment))))
         estimators = {}
-        for x in treatment:
+        for x in estimator_keys:
             estimator = self._create_estimator(
                 data, outcome, treatment=x,
                 adjustment=adjustment, covariate=covariate, instrument=instrument)
@@ -494,7 +498,10 @@ class Why:
             logger.info(f'fit estimator for {x} with {estimator}')
             fit_kwargs = dict(**drop_none(adjustment=adjustment, covariate=covariate, instrument=instrument),
                               **kwargs)
-            estimator.fit(data, outcome, x, **fit_kwargs)
+            if isinstance(x, tuple):
+                estimator.fit(data, outcome, list(x), **fit_kwargs)
+            else:
+                estimator.fit(data, outcome, x, **fit_kwargs)
             estimators[x] = estimator
 
         # save state
@@ -786,6 +793,14 @@ class Why:
             est = self.estimators_[x]
             treat_i = treat[i] if treat is not None else None
             control_i = control[i] if control is not None else None
+            if isinstance(treat_i, (pd.Series, pd.DataFrame)):
+                treat_i = treat_i.values
+            if isinstance(control_i, (pd.Series, pd.DataFrame)):
+                control_i = control_i.values
+            if treat_i is not None and control_i is None:
+                control_i = np.zeros_like(treat_i)
+            elif treat_i is None and control_i is not None:
+                treat_i = np.ones_like(control_i)
             effect = est.estimate(data=test_data, treat=treat_i, control=control_i)
             s = pd.Series(dict(mean=effect.mean(),
                                min=effect.min(),
@@ -910,13 +925,10 @@ class Why:
 
     def _whatif_continuous(self, data, new_value, treatment, estimator):
         y_old = data[self.outcome_]
-        old_value = data[treatment]
-        if isinstance(new_value, np.ndarray):
-            new_value = pd.Series(new_value)
-        # effect = estimator.estimate(data, treat=new_value, control=old_value)
-        effect_treat = estimator.estimate(data, treat=new_value)
-        effect_control = estimator.estimate(data, treat=old_value)
-        effect = effect_treat - effect_control
+        old_value = data[treatment].values
+        if isinstance(new_value, pd.Series):
+            new_value = new_value.values
+        effect = estimator.estimate(data, treat=new_value, control=old_value)
         y_new = y_old + effect.ravel()
         return y_new
 
@@ -963,29 +975,45 @@ class Why:
 
         return score
 
-    def _effect_array(self, preprocessed_data, control=None):
-        effects = []
-        for i, x in enumerate(self.treatment_):
-            estimator = self.estimators_[x]
-            if self.discrete_treatment:
-                xe = self.x_encoders_[x]
-                ci = xe.transform([control[i], ])[0] if control is not None else None
-            else:
-                ci = control[i] if control is not None else None
-            effect = estimator.effect_nji(preprocessed_data, control=ci)
-            assert isinstance(effect, np.ndarray)
-            assert effect.ndim == 3 and effect.shape[1] == 1
-            effects.append(effect.reshape(-1, effect.shape[2]))
-        effect_array = np.hstack(effects)
+    def _effect_array(self, preprocessed_data, treatment, control=None):
+        if treatment is None:
+            treatment = self.treatment_[:2]
+        else:
+            treatment = _to_list(treatment, 'treatment')
+
+        if len(treatment) > 2:
+            raise ValueError(f'2 treatment are supported at most.')
+
+        if self.discrete_treatment and len(treatment) > 1:
+            estimator = self.estimators_[tuple(treatment)]
+            if control is not None:
+                control = [self.x_encoders_[x].transform([control[i]])[0] for i, x in enumerate(treatment)]
+            effect = estimator.effect_nji(preprocessed_data, control=control)
+            effect_array = effect.reshape(-1, effect.shape[2])
+        else:
+            effects = []
+            for i, x in enumerate(treatment):
+                estimator = self.estimators_[x]
+                if self.discrete_treatment:
+                    xe = self.x_encoders_[x]
+                    ci = xe.transform([control[i], ])[0] if control is not None else None
+                else:
+                    ci = control[i] if control is not None else None
+                effect = estimator.effect_nji(preprocessed_data, control=ci)
+                assert isinstance(effect, np.ndarray)
+                assert effect.ndim == 3 and effect.shape[1] == 1
+                effects.append(effect.reshape(-1, effect.shape[2]))
+            effect_array = np.hstack(effects)
         return effect_array
 
-    def policy_tree(self, data, control=None, **kwargs):
+    def policy_tree(self, data, treatment=None, control=None, **kwargs):
         """
         Get the policy tree
 
         Parameters
         ----------
         data : pd.DataFrame, required
+        treatment: treatment names, default the
         control : int or list, default None
         kwargs : options to initialize the PolicyTree
 
@@ -996,19 +1024,20 @@ class Why:
         """
         data = self._preprocess(data)
         control = self._safe_treat_control(control, 'control')
-        effect_array = self._effect_array(data, control=control)
+        effect_array = self._effect_array(data, treatment, control=control)
         ptree = PolicyTree(**kwargs)
         ptree.fit(data, covariate=self.covariate_, effect_array=effect_array)
 
         return ptree
 
-    def policy_interpreter(self, data, control=None, **kwargs):
+    def policy_interpreter(self, data, treatment=None, control=None, **kwargs):
         """
         Get the policy interpreter
 
         Parameters
         ----------
         data : pd.DataFrame, required
+        treatment: treatment names, default the
         control : int or list, default None
         kwargs : options to initialize the PolicyInterpreter
 
@@ -1019,7 +1048,7 @@ class Why:
         """
         data = self._preprocess(data)
         control = self._safe_treat_control(control, 'control')
-        effect_array = self._effect_array(data, control=control)
+        effect_array = self._effect_array(data, treatment, control=control)
         pi = PolicyInterpreter(**kwargs)
         pi.fit(data, covariate=self.covariate_, est_model=None, effect_array=effect_array)
         return pi
