@@ -113,6 +113,10 @@ def _empty(v):
     return v is None or len(v) == 0
 
 
+def _not_empty(v):
+    return v is not None and len(v) > 0
+
+
 def _safe_remove(alist, value, copy=False):
     assert alist is None or isinstance(alist, list)
 
@@ -291,12 +295,21 @@ class IdentifierWithDiscovery(Identifier):
         cg = CausalGraph(m)
         cm = CausalModel(cg)
         try:
-            instrument = []
-            for x in treatment:
+            instrument = cm.get_iv(treatment[0], outcome)
+            if _not_empty(instrument):
+                instrument = [c for c in instrument if c != outcome and c not in treatment]
+            for x in treatment[1:]:
+                if _empty(instrument):
+                    break
                 iv = cm.get_iv(x, outcome)
-                if not _empty(iv):
-                    instrument.extend(iv)
-            instrument = [c for c in set(instrument) if c != outcome and c not in treatment]
+                if _empty(iv):
+                    instrument = None
+                    break
+                else:
+                    iv = [c for c in iv if c != outcome and c not in treatment]
+                    instrument = list(set(instrument).intersection(set(iv)))
+            if logger.is_info_enabled():
+                logger.info(f'found instrument: {instrument}')
         except Exception as e:
             logger.warn(e)
             instrument = []
@@ -310,6 +323,9 @@ class IdentifierWithDiscovery(Identifier):
             logger.info('Not found covariate by discovery, so setup it by default')
             covariate = [c for c in data.columns.tolist()
                          if c != outcome and c not in treatment and c not in instrument]
+        else:
+            logger.info(f'found covariate: {covariate}')
+
         if _empty(instrument):
             instrument = None
 
@@ -988,7 +1004,7 @@ class Why:
             estimator = self.estimators_[tuple(treatment)]
             if control is not None:
                 control = [self.x_encoders_[x].transform([control[i]])[0] for i, x in enumerate(treatment)]
-            effect = estimator.effect_nji(preprocessed_data, control=control)
+            effect = estimator.effect_nji(preprocessed_data, **drop_none(control=control))
             effect_array = effect.reshape(-1, effect.shape[2])
         else:
             effects = []
@@ -999,7 +1015,7 @@ class Why:
                     ci = xe.transform([control[i], ])[0] if control is not None else None
                 else:
                     ci = control[i] if control is not None else None
-                effect = estimator.effect_nji(preprocessed_data, control=ci)
+                effect = estimator.effect_nji(preprocessed_data, **drop_none(control=ci))
                 assert isinstance(effect, np.ndarray)
                 assert effect.ndim == 3 and effect.shape[1] == 1
                 effects.append(effect.reshape(-1, effect.shape[2]))
