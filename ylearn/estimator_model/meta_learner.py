@@ -590,6 +590,7 @@ class TLearner(BaseEstModel):
         """
         assert is_discrete_treatment is True
 
+        self.model = clone(model)
         self.xt_model = clone(model)
         self.x0_model = clone(model)
         self._is_fitted = False
@@ -1051,6 +1052,7 @@ class XLearner(BaseEstModel):
         """
         assert is_discrete_treatment is True
 
+        self.model = clone(model)
         self.ft_model = clone(model)
         self.f0_model = clone(model)
         self.kt_model = clone(model)
