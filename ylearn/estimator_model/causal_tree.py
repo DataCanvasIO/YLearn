@@ -20,7 +20,6 @@ from sklearn.tree._tree import DepthFirstTreeBuilder
 from sklearn.tree._tree import BestFirstTreeBuilder
 from sklearn.tree._tree import Tree
 from sklearn.tree import plot_tree
-from torch import svd
 
 from ..utils import logging, Version
 from .utils import (convert2array, get_wv, get_treat_control)
