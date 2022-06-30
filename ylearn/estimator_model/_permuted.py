@@ -208,6 +208,9 @@ class PermutedLearner(BaseEstModel):
         learner, _ = self._get_learner(tc[0], tc[1])
         return learner.treat
 
+    def __repr__(self):
+        return f'Permuted{self.learner}'
+
 
 class PermutedSLearner(PermutedLearner):
     def __init__(self, model, *args, **kwargs):

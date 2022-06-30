@@ -117,6 +117,17 @@ def test_policy_interpreter():
     assert pi is not None
 
 
+def test_policy_interpreter_discrete_x2():
+    data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x2mb_y1()
+    # data[treatment] = data[treatment].astype('float32')
+    # test_data[treatment] = test_data[treatment].astype('float32')
+    why = Why()
+    why.fit(data, outcome[0], treatment=treatment, adjustment=adjustment, covariate=covariate)
+
+    pi = why.policy_interpreter(test_data)
+    assert pi is not None
+
+
 def test_discovery_treatment():
     data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x2b_y1()
     why = Why(identifier='discovery')
