@@ -296,7 +296,7 @@ class NP2SLS(BaseEstModel):
                     y_nji[:, :, i] = y_pred
 
                 y_ctrl = (
-                    y_nji[:, :, 0].reshape(n, -1, 1).repeat(len(_treatments), aixs=2)
+                    y_nji[:, :, 0].reshape(n, -1, 1).repeat(len(_treatments), axis=2)
                 )
 
         else:
