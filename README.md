@@ -17,7 +17,6 @@ conda install -c conda-forge ylearn
 
 Install YLearn with `pip`:
 
-* Typical installation:
 ```bash
 pip install ylearn
 ```
