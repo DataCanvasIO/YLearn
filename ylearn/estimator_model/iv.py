@@ -1,4 +1,5 @@
 from copy import deepcopy
+import enum
 
 import numpy as np
 
@@ -6,7 +7,7 @@ from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import OneHotEncoder, OrdinalEncoder, PolynomialFeatures
 
 from .base_models import BaseEstModel
-from .utils import convert2array, nd_kron, get_wv
+from .utils import convert2array, nd_kron, get_wv, cartesian
 
 # TODO: double check the case where is_discrete_treatment=True
 
@@ -262,23 +263,45 @@ class NP2SLS(BaseEstModel):
     def effect_nji(self, data=None):
         if self.is_discrete_treatment:
             v, w, x, n = self._check_data(data=data)
-            x_d = len(self.treatment_transformer.categories_[0])
-            y_nji = np.full((n, self._y_d, x_d), np.nan)
 
-            for treat in range(x_d):
-                xt = np.repeat(np.array([[treat]]), n, axis=0)
-                # xt = self._x_basis_func.fit_transform(xt)
-                xt = self._x_basis_func.transform(xt)
-                xv_t = nd_kron(xt, v) if v is not None else xt
-                xvw_t = get_wv(xv_t, w, np.ones((n, 1)))
-                y_pred = self.y_model.predict(xvw_t).reshape(-1, self._y_d)
+            if self._x_d == 1:
+                x_d = len(self.treatment_transformer.categories_[0])
+                y_nji = np.full((n, self._y_d, x_d), np.nan)
 
-                y_nji[:, :, treat] = y_pred
+                for treat in range(x_d):
+                    xt = np.repeat(np.array([[treat]]), n, axis=0)
+                    # xt = self._x_basis_func.fit_transform(xt)
+                    xt = self._x_basis_func.transform(xt)
+                    xv_t = nd_kron(xt, v) if v is not None else xt
+                    xvw_t = get_wv(xv_t, w, np.ones((n, 1)))
+                    y_pred = self.y_model.predict(xvw_t).reshape(-1, self._y_d)
 
-            y_ctrl = y_nji[:, :, 0].reshape(n, -1, 1).repeat(x_d, aixs=2)
+                    y_nji[:, :, treat] = y_pred
+
+                y_ctrl = y_nji[:, :, 0].reshape(n, -1, 1).repeat(x_d, aixs=2)
+            else:
+                labels = [
+                    np.arange(len(i)) for i in self.treatment_transformer.categories_
+                ]
+                _treatments = cartesian(labels)
+
+                y_nji = np.full((n, self._y_d, len(_treatments)), np.nan)
+                for i, treat in enumerate(_treatments):
+                    xt = np.repeat(treat.reshape(1, -1), n, axis=0)
+                    xt = self._x_basis_func.transform(xt)
+                    xv_t = nd_kron(xt, v) if v is not None else xt
+                    xvw_t = get_wv(xv_t, w, np.ones((n, 1)))
+                    y_pred = self.y_model.predict(xvw_t).reshape(-1, self._y_d)
+
+                    y_nji[:, :, i] = y_pred
+
+                y_ctrl = (
+                    y_nji[:, :, 0].reshape(n, -1, 1).repeat(len(_treatments), aixs=2)
+                )
+
         else:
             yt, y0 = self._prepare4est(data=data, marginal_effect=False)
-
+            # TODO: the definition of effect_nji may need to be modified in the future verison in this case
             if yt.ndim == 1:
                 yt = yt.reshape(-1, 1)
                 y0 = y0.reshape(-1, 1)
@@ -316,12 +339,19 @@ class NP2SLS(BaseEstModel):
             else:
                 treat = 1 if treat is None else treat
                 control = 0 if control is None else control
-
-            xt = np.repeat(np.array([[treat for i in range(self._x_d)]]), n, axis=0)
-            x0 = np.repeat(np.array([[control for i in range(self._x_d)]]), n, axis=0)
+            if not isinstance(treat, np.ndarray):
+                xt = np.repeat(np.array([[treat for i in range(self._x_d)]]), n, axis=0)
+                x0 = np.repeat(
+                    np.array([[control for i in range(self._x_d)]]), n, axis=0
+                )
+            else:
+                xt = treat
+                x0 = control
             # xt = np.repeat(np.array([[treat]]), n, axis=0)
             # x0 = np.repeat(np.array([[control]]), n, axis=0)
         else:
+            if self.is_discrete_treatment:
+                x = self.treatment_transformer.transform(x)
             xt = x
             x0 = deepcopy(xt)
 
