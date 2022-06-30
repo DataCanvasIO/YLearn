@@ -5,7 +5,22 @@ Documentation website: <https://ylearn.readthedocs.io/en/latest/index.html>
 
 ## Installation
 
-pass
+### Conda
+
+Install YLearn with `conda` from the channel *conda-forge*:
+
+```bash
+conda install -c conda-forge ylearn
+```
+
+### Pip
+
+Install YLearn with `pip`:
+
+* Typical installation:
+```bash
+pip install ylearn
+```
 
 ## Overview of YLearn
 
