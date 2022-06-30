@@ -790,6 +790,8 @@ class Why:
             c = xe.transform([control_i])[0]
             for treat_i in treats:
                 t = xe.transform([treat_i])[0]
+                if test_data is not None:
+                    test_data[x] = xe.transform(test_data[x])
                 effect = est.estimate(data=test_data, treat=t, control=c)
                 s = pd.Series(dict(mean=effect.mean(),
                                    min=effect.min(),
@@ -865,6 +867,8 @@ class Why:
                     effect = 0.0
                 else:
                     xe = self.x_encoders_[x]
+                    row_df = row_df.copy()
+                    row_df[x] = xe.transform(row_df[x])
                     t, c = xe.transform([treat_i, control_i]).tolist()
                     est = self.estimators_[x]
                     effect = est.estimate(data=row_df, treat=t, control=c).ravel()[0]
@@ -917,6 +921,9 @@ class Why:
         y_old = data[self.outcome_]
         old_value = data[treatment]
         xe = self.x_encoders_[treatment]
+
+        for x in self.treatment_:
+            data[x] = self.x_encoders_[x].transform(data[x])
 
         df = pd.DataFrame(dict(c=old_value, t=new_value), index=old_value.index)
         df['tc'] = df[['t', 'c']].apply(tuple, axis=1)
@@ -999,6 +1006,10 @@ class Why:
 
         if len(treatment) > 2:
             raise ValueError(f'2 treatment are supported at most.')
+
+        if self.discrete_treatment:
+            for x in self.treatment_:
+                preprocessed_data[x] = self.x_encoders_[x].transform(preprocessed_data[x])
 
         if self.discrete_treatment and len(treatment) > 1:
             estimator = self.estimators_[tuple(treatment)]
