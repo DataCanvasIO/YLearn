@@ -335,7 +335,9 @@ class NP2SLS(BaseEstModel):
             if treat is not None:
                 if not isinstance(treat, np.ndarray):
                     treat = np.array([treat]).reshape(1, -1)
-                assert treat.shape[1] == self._x_d
+                assert (
+                    treat.shape[1] == self._x_d
+                ), f"Expect dimension of treat as {self._x_d}, but was given {treat.shape[0]}"
             else:
                 treat = np.array([[1 for i in range(self._x_d)]])
 
@@ -349,7 +351,9 @@ class NP2SLS(BaseEstModel):
             if control is not None:
                 if not isinstance(control, np.ndarray):
                     control = np.array([control]).reshape(1, -1)
-                assert control.shape[1] == self._x_d
+                assert (
+                    control.shape[1] == self._x_d
+                ), f"Expect dimension of control as {self._x_d}, but was given {control.shape[0]}"
             else:
                 control = np.array([[0 for i in range(self._x_d)]])
 
