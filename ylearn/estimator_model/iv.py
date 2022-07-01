@@ -247,6 +247,7 @@ class NP2SLS(BaseEstModel):
             treat=treat,
             control=control,
             marginal_effect=marginal_effect,
+            quantity=quantity,
         )
         if quantity == "CATE":
             assert (
@@ -255,10 +256,13 @@ class NP2SLS(BaseEstModel):
             return (yt - y0).mean(dim=0)
         if quantity == "ATE":
             return (yt - y0).mean(dim=0)
-        elif quantity == "ITE" or quantity == "CITE":
+        elif quantity is None:
             return yt - y0
         else:
-            return yt
+            assert (
+                quantity == "CF"
+            ), f'quantity should be one of "ATE", "CATE", "CF", and None, but was given {quantity}'
+            return yt  # counterfactuals
 
     def effect_nji(self, data=None):
         if self.is_discrete_treatment:
@@ -323,35 +327,61 @@ class NP2SLS(BaseEstModel):
         treat,
         control,
         marginal_effect,
+        quantity=None,
     ):
         v, w, x, n = self._check_data(data=data)
 
-        if x is None:
+        if quantity != "CF":
+            if treat is not None:
+                if not isinstance(treat, np.ndarray):
+                    treat = np.array([treat]).reshape(1, -1)
+                assert treat.shape[1] == self._x_d
+            else:
+                treat = np.array([[1 for i in range(self._x_d)]])
+
+            if treat.shape[0] == 1:
+                xt = np.repeat(treat, n, axis=0)
+            else:
+                assert (
+                    xt.shape[0] == n
+                ), f"The number of treat {xt.shape[0]} does not match the number of the samples"
+
+            if control is not None:
+                if not isinstance(control, np.ndarray):
+                    control = np.array([control]).reshape(1, -1)
+                assert control.shape[1] == self._x_d
+            else:
+                control = np.array([[0 for i in range(self._x_d)]])
+
+            if control.shape[0] == 1:
+                x0 = np.repeat(control, n, axis=0)
+            else:
+                assert (
+                    x0.shape[0] == n
+                ), f"The number of control {x0.shape[0]} does not match the number of the samples"
+
             if self.is_discrete_treatment:
-                treat = (
-                    1 if treat is None else self.treatment_transformer.transform(treat)
-                )
-                control = (
-                    0
-                    if control is None
-                    else self.treatment_transformer.transform(control)
-                )
-            else:
-                treat = 1 if treat is None else treat
-                control = 0 if control is None else control
-            if not isinstance(treat, np.ndarray):
-                xt = np.repeat(np.array([[treat for i in range(self._x_d)]]), n, axis=0)
-                x0 = np.repeat(
-                    np.array([[control for i in range(self._x_d)]]), n, axis=0
-                )
-            else:
-                xt = treat
-                x0 = control
+                xt = self.treatment_transformer.transform(xt)
+                x0 = self.treatment_transformer.transform(x0)
+            # else:
+            #     if treat is not None and not isinstance(treat, np.ndarray):
+            #         treat = np.array([treat]).reshape(-1, 1)
+            #     else:
+            #         treat = np.repeat(np.array([[1 for i in range(self._x_d)]]), n, axis=0)
+            #     treat = 1 if treat is None else treat
+            #     control = 0 if control is None else control
+
+            # if not isinstance(treat, np.ndarray):
+            #     xt = np.repeat(np.array([[treat for i in range(self._x_d)]]), n, axis=0)
+            #     x0 = np.repeat(
+            #         np.array([[control for i in range(self._x_d)]]), n, axis=0
+            #     )
+            # else:
+            #     xt = treat
+            #     x0 = control
             # xt = np.repeat(np.array([[treat]]), n, axis=0)
             # x0 = np.repeat(np.array([[control]]), n, axis=0)
         else:
-            if self.is_discrete_treatment:
-                x = self.treatment_transformer.transform(x)
             xt = x
             x0 = deepcopy(xt)
 
@@ -379,15 +409,15 @@ class NP2SLS(BaseEstModel):
         if data is None:
             v = self._v_transformed
             w = self._w
-            # x = None
+            x = None
             n = self._n
         else:
-            w, v = convert2array(data, self.adjustment, self.covariate)
+            w, x, v = convert2array(
+                data, self.adjustment, self.treatment, self.covariate
+            )
             v = self._v_basis_func.transform(v) if v is not None else None
 
             n = len(data)
-
-        x = None  # TODO: modify this in the future version
 
         return v, w, x, n
 
