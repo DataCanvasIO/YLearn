@@ -36,17 +36,17 @@ def validate_it(data_generator, estimator,
     estimator.fit(data, outcome, treatment, **kwargs)
     if check_fitted:
         assert hasattr(estimator, '_is_fitted') and getattr(estimator, '_is_fitted')
-    #
-    # # estimate with None
-    # kwargs = dict(data=None, quantity=None)
-    # if estimate_kwargs:
-    #     kwargs.update(estimate_kwargs)
-    # pred = estimator.estimate(**kwargs)
-    # assert pred is not None
-    # if check_effect:
-    #     # assert isinstance(pred, (np.ndarray, pd.Series))
-    #     assert pred.min() != pred.max()
-    #
+
+    # estimate with None
+    kwargs = dict(data=None, quantity=None)
+    if estimate_kwargs:
+        kwargs.update(estimate_kwargs)
+    pred = estimator.estimate(**kwargs)
+    assert pred is not None
+    if check_effect:
+        # assert isinstance(pred, (np.ndarray, pd.Series))
+        assert pred.min() != pred.max()
+
     # estimate with test_data
     kwargs = dict(data=test_data, quantity=None)
     if estimate_kwargs:
