@@ -105,11 +105,12 @@ We present several necessary example usages of YLearn in this section. Please se
 3. Estimation of causal effect
 
    The estimation of causal effect with an `EstimatorModel` is composed of 4 steps:
-   
+
     * Given data in the form of  `pandas.DataFrame`, find the names of `treatment, outcome, adjustment, covariate`.
     * Call  `fit()` method of  `EstimatorModel` to train the model.
     * Call  `estimate()` method of  `EstimatorModel` to estimate causal effects in test data.
 
+### Case Study
 
 ## References
 
