@@ -1,5 +1,4 @@
 from copy import deepcopy
-import enum
 
 import numpy as np
 
@@ -345,6 +344,7 @@ class NP2SLS(BaseEstModel):
             if treat.shape[0] == 1:
                 xt = np.repeat(treat, n, axis=0)
             else:
+                xt = treat
                 assert (
                     xt.shape[0] == n
                 ), f"The number of treat {xt.shape[0]} does not match the number of the samples"
@@ -362,6 +362,7 @@ class NP2SLS(BaseEstModel):
             if control.shape[0] == 1:
                 x0 = np.repeat(control, n, axis=0)
             else:
+                x0 = control
                 assert (
                     x0.shape[0] == n
                 ), f"The number of control {x0.shape[0]} does not match the number of the samples"
