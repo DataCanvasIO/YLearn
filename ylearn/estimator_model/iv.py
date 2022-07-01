@@ -379,15 +379,15 @@ class NP2SLS(BaseEstModel):
         if data is None:
             v = self._v_transformed
             w = self._w
-            x = None
+            # x = None
             n = self._n
         else:
-            x, w, v = convert2array(
-                data, self.treatment, self.adjustment, self.covariate
-            )
+            w, v = convert2array(data, self.adjustment, self.covariate)
             v = self._v_basis_func.transform(v) if v is not None else None
 
             n = len(data)
+
+        x = None  # TODO: modify this in the future version
 
         return v, w, x, n
 
