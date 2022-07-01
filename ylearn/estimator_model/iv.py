@@ -337,7 +337,7 @@ class NP2SLS(BaseEstModel):
                     treat = np.array([treat]).reshape(1, -1)
                 assert (
                     treat.shape[1] == self._x_d
-                ), f"Expect dimension of treat as {self._x_d}, but was given {treat.shape[0]}"
+                ), f"Expect dimension of treat as {self._x_d}, but was given {treat.shape[1]}"
             else:
                 treat = np.array([[1 for i in range(self._x_d)]])
 
@@ -353,7 +353,7 @@ class NP2SLS(BaseEstModel):
                     control = np.array([control]).reshape(1, -1)
                 assert (
                     control.shape[1] == self._x_d
-                ), f"Expect dimension of control as {self._x_d}, but was given {control.shape[0]}"
+                ), f"Expect dimension of control as {self._x_d}, but was given {control.shape[1]}"
             else:
                 control = np.array([[0 for i in range(self._x_d)]])
 
