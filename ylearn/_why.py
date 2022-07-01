@@ -236,7 +236,7 @@ class DefaultIdentifier(Identifier):
         return adjustment, covariate, instrument
 
 
-class IdentifierWithDiscovery(Identifier):
+class IdentifierWithDiscovery(DefaultIdentifier):
     def __init__(self, random_state, **kwargs):
         self.random_state = random_state
         self.discovery_options = kwargs.copy()
@@ -251,6 +251,7 @@ class IdentifierWithDiscovery(Identifier):
         if not _is_number(y.dtype):
             y = LabelEncoder().fit_transform(y)
 
+        # preprocessor = skex.general_preprocessor(number_scaler=True)
         preprocessor = skex.general_preprocessor()
         X = preprocessor.fit_transform(X, y)
         X[outcome] = y
@@ -271,12 +272,14 @@ class IdentifierWithDiscovery(Identifier):
         if excludes is not None:
             treatment = [t for t in treatment if t not in excludes]
 
-        # # if len(treatment) > count_limit
-        # #     treatment = treatment[:count_limit]
-        if discrete_treatment is None:
-            treatment = _align_task_to_first(data, treatment, count_limit)
+        if len(treatment) > 0:
+            if discrete_treatment is None:
+                treatment = _align_task_to_first(data, treatment, count_limit)
+            else:
+                treatment = _select_by_task(data, treatment, count_limit, discrete_treatment)
         else:
-            treatment = _select_by_task(data, treatment, count_limit, discrete_treatment)
+            logger.info(f'Not found treatment with causal discovery, so identify treatment by default')
+            treatment = super().identify_treatment(data, outcome, discrete_treatment, count_limit, excludes=excludes)
 
         self.causation_matrix_ = causation
 
@@ -291,6 +294,10 @@ class IdentifierWithDiscovery(Identifier):
         # threshold = causation.values.diagonal().max()
         threshold = min(np.quantile(causation.values.diagonal(), 0.8),
                         np.mean(causation.values))
+
+        if np.isnan(threshold):
+            return super().identify_aci(data, outcome, treatment)
+
         m = CausalDiscovery().matrix2dict(causation, threshold=threshold)
         cg = CausalGraph(m)
         cm = CausalModel(cg)
@@ -787,11 +794,11 @@ class Why:
                     treats = np.unique(test_data[x]).tolist()
                 treats = filter(lambda _: _ != control_i, treats)
 
+            if test_data is not None:
+                test_data[x] = xe.transform(test_data[x])
             c = xe.transform([control_i])[0]
             for treat_i in treats:
                 t = xe.transform([treat_i])[0]
-                if test_data is not None:
-                    test_data[x] = xe.transform(test_data[x])
                 effect = est.estimate(data=test_data, treat=t, control=c)
                 s = pd.Series(dict(mean=effect.mean(),
                                    min=effect.min(),
