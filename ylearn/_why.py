@@ -348,7 +348,7 @@ class Why:
     discrete_outcome : bool, default=infer from outcome
     discrete_treatment : bool, default=infer from the first treatment
     identifier : str
-        Avaliable options: 'auto' or 'discovery'
+        Available options: 'auto' or 'discovery'
     discovery_model : str, reserved
     discovery_options : dict, default=None
         Parameters (key-values) to initialize the discovery model
