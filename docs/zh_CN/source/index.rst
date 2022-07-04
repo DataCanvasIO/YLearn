@@ -11,14 +11,14 @@ YLearn, a pun of "learn why", is a python package for causal learning which supp
 .. toctree::
     :maxdepth: 2
 
-    sub/sub_cn
+    sub/sub
     sub/causal_model
     sub/est
     sub/causal_discovery
     sub/policy
     sub/interpreter
     sub/why
-    sub/ref_cn
+    sub/ref
 
 
 Indices and tables
