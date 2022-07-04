@@ -27,7 +27,7 @@ API: Interacting with YLearn
     * - :py:class:`CausalModel`
       - Encode causations represented by the :py:class:`CausalGraph`. Mainly support causal effect identification, e.g., backdoor adjustment.
     * - :py:class:`Prob`
-      - Represent the probabiity distribution.
+      - Represent the probability distribution.
 
 .. list-table:: Estimator Models
 
@@ -38,7 +38,7 @@ API: Interacting with YLearn
     * - :py:class:`CausalTree`
       - A class for estimating causal effect with decision tree. The unconfoundedness condition is required.
     * - :py:class:`DeepIV`
-      - Instrumental variables with deep neural netowrks. Must provide the names of instrumental variables.
+      - Instrumental variables with deep neural networks. Must provide the names of instrumental variables.
     * - :py:class:`NP2SLS`
       - Nonparametric instrumental variables. Must provide the names of instrumental variables.
     * - :py:class:`DML4CATE`
@@ -50,7 +50,7 @@ API: Interacting with YLearn
     * - :py:class:`TLearner` and :py:class:`PermutedTLearner`
       - TLearner with multiple machine learning models. The permuted version considers all possible treatment-control pairs. The unconfoundedness condition is required and the treatment must be discrete.
     * - :py:class:`XLearner` and :py:class:`PermutedXLearner`
-      - XLearner with multiple machine leanring models. The permuted version considers all possible treatment-control pairs. The unconfoundedness condition is required and the treatment must be discrete.
+      - XLearner with multiple machine learning models. The permuted version considers all possible treatment-control pairs. The unconfoundedness condition is required and the treatment must be discrete.
     * - :py:class:`RLoss`
       - Effect score for measuring the performances of estimator models. The unconfoundedness condition is required.
 
@@ -59,7 +59,7 @@ API: Interacting with YLearn
     * - Class Name
       - Description
     * - :py:class:`PolicyTree`
-      - A class for finding the optimal policy for maxmizing the causal effect with the tree model.
+      - A class for finding the optimal policy for maximizing the causal effect with the tree model.
 
 .. list-table:: Interpreter
 
