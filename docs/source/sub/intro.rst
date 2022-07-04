@@ -12,7 +12,7 @@ learning partly give rise to applications of causal inference in these days.
 
 Causal inference directly models the outcome of interventions and formalizes the counterfactual reasoning.
 With the aid of machine learning, causal inference can draw causal conclusions from observational data in 
-vairous manners nowdays, rather than relying on conducting craftly designed experiments.
+various manners nowadays, rather than relying on conducting craftly designed experiments.
 
 A typical complete causal inference procedure is composed of three parts. First, it learns causal relationships
 using the technique called causal discovery. These relationships are then expressed either in the form of Structural 
@@ -22,7 +22,7 @@ known as identification. Finally, once the causal estimand is identified, causal
 estimating the causal estimand from observational data. Then policy evaluation problems and counterfactual questions
 can also be answered.
 
-YLearn, equiped with many techniques developed in recent literatures, is implemented to support the whole causal 
+YLearn, equipped with many techniques developed in recent literatures, is implemented to support the whole causal
 inference pipeline from causal discovery to causal estimand estimation with the help of machine learning. This is 
 more promising especially when there are abundant observational data. 
 
@@ -38,13 +38,13 @@ There are 5 main components in YLearn corresponding to the causal inference pipe
 
 2. *Causal Model*. Representing the causal relationships in the form of ``CausalGraph`` and doing other related operations such as identification with ``CausalModel``.
 
-3. *Estimator Model*. Estimating the causal estimands with vairous techniques.
+3. *Estimator Model*. Estimating the causal estimands with various techniques.
 
 4. *Policy Model*. Selecting the best policy for each individual.
 
 5. *Interpreters*. Explain the causal effects and polices.
 
-These components are conneted to give a full pipeline of causal inference, which are also encapsulated into a single API `Why`.
+These components are connected to give a full pipeline of causal inference, which are also encapsulated into a single API `Why`.
 
 .. figure:: flow.png
 
@@ -53,6 +53,6 @@ These components are conneted to give a full pipeline of causal inference, which
     the interested causal effects are identified and converted into statistical estimands. An `EstimatorModel` is then trained with the training data
     to model relationships between causal effects and other variables, i.e., estimating causal effects in training data. One can then
     use the trained `EstimatorModel` to predict causal effects in some new test dataset and evaluate the policy assigned to each individual or interpret
-    the estiamted causal effects.
+    the estimated causal effects.
 
 All APIs are introduced in :ref:`api`.
