@@ -8,7 +8,7 @@ causal relations in data.
 Example usages
 ==============
 
-We present several necessary example usages of YLearn in this section. Please see their specifical documentations to for more details.
+We present several necessary example usages of YLearn in this section. Please see their specifical documentations for more details.
 
 1. Representation of causal graph
    
