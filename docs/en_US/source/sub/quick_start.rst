@@ -43,6 +43,23 @@ We present several necessary example usages of YLearn in this section. Please se
     * Call :py:func:`fit()` method of :class:`EstimatorModel` to train the model.
     * Call :py:func:`estimate()` method of :class:`EstimatorModel` to estimate causal effects in test data.
 
+4. Using the all-in-one API: Why
 
-Case Study
-==========
+    :class:`Why` is an API which encapsulates almost everything in YLearn, such as identifying causal effects and scoring a trained estimator model. Create a :class:`Why` instance and :py:func:`fit()` it, then you call other utilities, such as :py:func:`causal_effect()`, :py:func:`score()`, :py:func:`whatif()`, etc.
+
+    .. code-block:: python
+
+        from sklearn.datasets import fetch_california_housing
+
+        from ylearn import Why
+
+        housing = fetch_california_housing(as_frame=True)
+        data = housing.frame
+        outcome = housing.target_names[0]
+        data[outcome] = housing.target
+
+        why = Why()
+        why.fit(data, outcome, treatment=['AveBedrms', 'AveRooms'])
+
+        print(why.causal_effect())
+
