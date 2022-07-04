@@ -1,0 +1,7 @@
+sphinx_rtd_theme
+numpy
+pandas
+scikit-learn
+torch
+IPython
+networkx
