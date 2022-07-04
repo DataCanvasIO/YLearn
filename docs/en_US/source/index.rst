@@ -19,8 +19,6 @@ YLearn, a pun of "learn why", is a python package for causal learning which supp
     sub/interpreter
     sub/why
     sub/ref
-    sub/sub_cn
-    sub/ref_cn
 
 
 Indices and tables
