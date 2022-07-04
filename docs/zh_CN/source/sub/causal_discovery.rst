@@ -1,13 +1,11 @@
-Causal Discovery: Exploring the Causal Structures in Data
+因果发现：探索数据中的因果结构
 =========================================================
 
 .. toctree::
     discovery/notears
 
-A fundamental task in causal learning is to find the underlying causal relationships, the so-called "causal structures", and apply
-them. Traditionally, these relationships might be revealed by designing randomized experiments or imposing interventions. However,
-such methods are too expansive or even impossible. Therefore, many techniques, e.g., the PC algorithm (see [Spirtes2001]_), have been suggested recently to analyze the causal
-structures by directly utilizing observational data. These techniques are named as *causal discovery*.
+在因果学习中，一个基本的任务是找到潜在的因果关系，即所谓的因果结构，并加以应用。习惯上，这些关系能够通过设计随机实验或者施加干涉从而被揭露。
+然而，这样的方法代价过于昂贵甚至是不可行的。因此，许多技术，比如，PC算法(参考 [Spirtes2001]_)，近期被提出，通过直接利用观测数据来分析因果结构。
+这些技术被命名为 *因果发现* 。
 
-The current version of YLearn implements a score-based method for causal discovery [Zheng2018]_. More methods will be added in later versions.
-
+当前版本的YLearn为因果发现 [Zheng2018]_ 实现了一个基于分数的方法。将会在之后的版本中加入更多的方法。
