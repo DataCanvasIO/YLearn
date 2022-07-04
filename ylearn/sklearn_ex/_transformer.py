@@ -7,7 +7,7 @@ from sklearn.base import BaseEstimator
 from sklearn.compose import make_column_selector
 from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import OrdinalEncoder, LabelEncoder
+from sklearn.preprocessing import OrdinalEncoder, LabelEncoder, StandardScaler
 
 from ylearn.utils import logging, const, infer_task_type
 from ._data_cleaner import DataCleaner
@@ -219,12 +219,14 @@ class FeatureImportancesSelectionTransformer(BaseEstimator):
         return selected, unselected
 
 
-def general_preprocessor():
+def general_preprocessor(*, number_scaler=None):
     cat_steps = [('imputer_cat', SimpleImputer(strategy='constant', fill_value='')),
                  ('encoder', SafeOrdinalEncoder())]
     num_steps = [('imputer_num', SimpleImputer(strategy='mean')),
                  # ('scaler', StandardScaler()),
                  ]
+    if number_scaler is True:
+        num_steps.append(('scaler', StandardScaler()))
 
     cat_transformer = Pipeline(steps=cat_steps)
     num_transformer = Pipeline(steps=num_steps)
