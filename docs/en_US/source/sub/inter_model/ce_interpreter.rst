@@ -84,7 +84,7 @@ Class Structures
         Interpret the fitted model in the test data.
 
         :param numpy.ndarray, optional, default=None v: The test covariates in the form of ndarray. If this is given, then data will be ignored and the model will use this as the test data.
-        :param pandas.DataFrame, optional, default=None data: The test data in the form of the DataFrame. The model will only use this if v is set as None. In this case, if data is also None, then the data used for trainig will be used.
+        :param pandas.DataFrame, optional, default=None data: The test data in the form of the DataFrame. The model will only use this if v is set as None. In this case, if data is also None, then the data used for training will be used.
 
         :returns: The interpreted results for all examples.
         :rtype: dict

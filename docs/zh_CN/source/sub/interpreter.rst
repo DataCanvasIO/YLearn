@@ -1,9 +1,9 @@
 ******************************************
-Interpreter: Explaining the Causal Effects
+解释器：解释因果效应
 ******************************************
 
-To interpret the causal effects estimated by various estimator models, YLearn implements tree models :class:`CEInterpreter` for causal effect 
-interpretabilities and :class:`PolicyInterpreter` for policy evaluation interpretabilities in the current version.
+为了解释由不同的估计模型估计的因果效应，当前版本的YLearn为了因果效应的可解释性实现了树模型 :class:`CEInterpreter` 并且为了策略估计的可解释性
+实现了 :class:`PolicyInterpreter` 。
 
 
 .. toctree::

@@ -4,15 +4,13 @@
 PolicyInterpreter
 *****************
 
-:class:`PolicyInterpreter` can be used to interpret the policy returned by an instance of :class:`PolicyTree`. By assigning
-different strategies to different examples, it aims to maximize the casual effects of a subgroup and separate them from those 
-with negative causal effects. 
+:class:`PolicyInterpreter` 能够被用于解释由一个实例 :class:`PolicyTree` 返回的策略。通过给不同的样例分配不同的策略，
+它的目标是最大化一个子群的因果效应并把它们与那些有负的因果效应的分开。
 
-.. topic:: Example
+.. topic:: 例子
 
-    We build a dataset where, given the covariate :math:`v` and binary treatment :math:`x`, the causal effect :math:`y` of taking the treatment is positive if the first dimension of
-    :math:`v` is positive and negative otherwise. The goal of `PolicyInterpreter` is to help making the decision of whether taking the treatment for each individual, i.e., whether the
-    causal effect is positive.
+    我们构建了一个数据集，其中给定协变量 :math:`v` 和二元的治疗方案 :math:`x`， 接受治疗的因果效应 :math:`y` 是正的如果 :math:`v` 的第一个纬度是正的，反之是负的。
+    `PolicyInterpreter` 的目标是帮助每个个体决定是否采取治疗，等价于因果效应是否是正的。
 
     .. code-block:: python
 
@@ -37,120 +35,98 @@ with negative causal effects.
     >>> 06-02 17:06:49 I ylearn.p.policy_model.py 464 - Building the policy tree with splitter BestSplitter
     >>> 06-02 17:06:49 I ylearn.p.policy_model.py 507 - Building the policy tree with builder DepthFirstTreeBuilder
 
-    The interpreted results:
+    解释的结果:
 
     .. code-block:: python
 
         for i in range(57, 60):
             print(f'the policy for the sample {i}\n --------------\n' + pit_result[f'sample_{i}'] + '\n')
-    
+
     >>> the policy for the sample 57
     >>> --------------
-    >>> decision node 0: (covariate [57, 0] = -0.0948629081249237) <= 8.582111331634223e-05 
-    >>> decision node 1: (covariate [57, 8] = 1.044342041015625) > -2.3793461322784424 
+    >>> decision node 0: (covariate [57, 0] = -0.0948629081249237) <= 8.582111331634223e-05
+    >>> decision node 1: (covariate [57, 8] = 1.044342041015625) > -2.3793461322784424
     >>> The recommended policy is treatment 0 with value 1.0
 
     >>> the policy for the sample 58
     >>> --------------
-    >>> decision node 0: (covariate [58, 0] = 0.706959068775177) > 8.582111331634223e-05 
-    >>> decision node 4: (covariate [58, 5] = 0.9160318374633789) > -2.575441598892212 
+    >>> decision node 0: (covariate [58, 0] = 0.706959068775177) > 8.582111331634223e-05
+    >>> decision node 4: (covariate [58, 5] = 0.9160318374633789) > -2.575441598892212
     >>> The recommended policy is treatment 1 with value 1.0
 
-Class Structures
+类结构
 ================
 
 .. py:class:: ylearn.interpreter.policy_interpreter.PolicyInterpreter(*, criterion='policy_reg', splitter='best', max_depth=None, min_samples_split=2, min_samples_leaf=1, random_state=2022, max_leaf_nodes=None, max_features=None, min_impurity_decrease=0.0, ccp_alpha=0.0, min_weight_fraction_leaf=0.0)
 
-    :param {'policy_reg'}, default="'policy_reg'" criterion: The function to measure the quality of a split. The criterion for
-            training the tree is (in the Einstein notation)
-            
+    :param {'policy_reg'}, default="'policy_reg'" criterion: 该函数用于测量划分的质量。训练树的准则是(使用Einstein notation)
+
             .. math::
 
                     S = \sum_i g_{ik} y^k_{i},
-        
-            where :math:`g_{ik} = \phi(v_i)_k` is a map from the covariates, :math:`v_i`, to a
-            basis vector which has only one nonzero element in the :math:`R^k` space. By
-            using this criterion, the aim of the model is to find the index of the
-            treatment which will render the max causal effect, i.e., finding the
-            optimal policy. 
-    :param {"best", "random"}, default="best" splitter: The strategy used to choose the split at each node. Supported
-        strategies are "best" to choose the best split and "random" to choose
-        the best random split.
-    :param int, default=None max_depth: The maximum depth of the tree. If None, then nodes are expanded until
-        all leaves are pure or until all leaves contain less than
-        min_samples_split samples.
-    :param int or float, default=2 min_samples_split: The minimum number of samples required to split an internal node:
-        - If int, then consider `min_samples_split` as the minimum number.
-        - If float, then `min_samples_split` is a fraction and `ceil(min_samples_split * n_samples)` are the minimum number of samples for each split.
-    :param int or float, default=1 min_samples_leaf: The minimum number of samples required to be at a leaf node.
-        A split point at any depth will only be considered if it leaves at
-        least ``min_samples_leaf`` training samples in each of the left and
-        right branches.  This may have the effect of smoothing the model,
-        especially in regression.
-            
-            - If int, then consider `min_samples_leaf` as the minimum number.
-            - If float, then `min_samples_leaf` is a fraction and `ceil(min_samples_leaf * n_samples)` are the minimum number of samples for each node.
-    
-    :param float, default=0.0 min_weight_fraction_leaf: The minimum weighted fraction of the sum total of weights (of all
-        the input samples) required to be at a leaf node. Samples have
-        equal weight when sample_weight is not provided.
-    :param int, float or {"sqrt", "log2"}, default=None max_features: The number of features to consider when looking for the best split:
-        
-            - If int, then consider `max_features` features at each split.
-            - If float, then `max_features` is a fraction and `int(max_features * n_features)` features are considered at each split.
-            - If "sqrt", then `max_features=sqrt(n_features)`.
-            - If "log2", then `max_features=log2(n_features)`.
-            - If None, then `max_features=n_features`.
 
-    :param int random_state: Controls the randomness of the estimator.
-    :param int, default to None max_leaf_nodes: Grow a tree with ``max_leaf_nodes`` in best-first fashion.
-        Best nodes are defined as relative reduction in impurity.
-        If None then unlimited number of leaf nodes.
-    :param float, default=0.0 min_impurity_decrease: A node will be split if this split induces a decrease of the impurity
-        greater than or equal to this value.
-        The weighted impurity decrease equation is the following
-            
+            其中， :math:`g_{ik} = \phi(v_i)_k` 是一个映射，从协变量， :math:`v_i`，到一个有且仅有一个非零元素的在 :math:`R^k` 空间中的基向量。
+            通过使用这个准则，模型的目标是找到能够生成最大因果效应的治疗的索引，等价于找到最优的策略。
+    :param {"best", "random"}, default="best" splitter: 用于选择每个节点划分的策略。支持的策略是"best"来选择最优划分和"random"来选择最优随机划分。
+    :param int, default=None max_depth: 树的最大深度。如果为None，那么节点一直扩展直到所有的叶子都是纯的或者所有的叶子都包含小于min_samples_split个样本。
+    :param int or float, default=2 min_samples_split: 划分内部节点所需要的最小的样本数量：
+        - 如果是int，那么考虑 `min_samples_split` 为最小数量。
+        - 如果是float, 那么 `min_samples_split` 是一个分数并且 `ceil(min_samples_split * n_samples)` 是对于每一个划分最小的样本数量。
+    :param int or float, default=1 min_samples_leaf: 在一个叶子节点需要的最小的样本数量。
+        一个在任意深度的划分点仅当它留下至少 ``min_samples_leaf`` 训练样本在它的左右分支时会被考虑。这可能有平滑模型的作用，尤其是在回归中。
+
+            - 如果是int, 那么考虑 `min_samples_leaf` 为最小数量。
+            - 如果是float, 那么 `min_samples_leaf` 是一个分数并且 `ceil(min_samples_leaf * n_samples)` 是对于每一个节点最小的样本数量。
+
+    :param float, default=0.0 min_weight_fraction_leaf: 在一个叶子节点需要的所有权重总和（所有的输入样本）的最小加权分数。如果sample_weight没有被提供时，样本具有同样的权重。
+    :param int, float or {"sqrt", "log2"}, default=None max_features: 寻找最佳划分时需要考虑的特征数量：
+
+            - 如果是int，那么考虑 `max_features` 个特征在每个划分。
+            - 如果是float，那么 `max_features` 是一个分数并且 `int(max_features * n_features)` 个特征在每个划分被考虑。
+            - 如果是"sqrt"，那么 `max_features=sqrt(n_features)` 。
+            - 如果是"log2"，那么 `max_features=log2(n_features)` 。
+            - 如果是None，那么 `max_features=n_features` 。
+
+    :param int random_state: 控制估计器的随机性。
+    :param int, default to None max_leaf_nodes: 以最佳优先的方式使用 ``max_leaf_nodes`` 生成一棵树。
+        最佳节点被定义为杂质相对减少。
+        如果是None，那么叶子节点的数量没有限制。
+    :param float, default=0.0 min_impurity_decrease: 一个节点将会被划分如果这个划分引起杂质的减少大于或者等于这个值。
+        加权的杂质减少方程如下
+
             N_t / N * (impurity - N_t_R / N_t * right_impurity - N_t_L / N_t * left_impurity)
-        
-        where ``N`` is the total number of samples, ``N_t`` is the number of
-        samples at the current node, ``N_t_L`` is the number of samples in the
-        left child, and ``N_t_R`` is the number of samples in the right child.
-        ``N``, ``N_t``, ``N_t_R`` and ``N_t_L`` all refer to the weighted sum,
-        if ``sample_weight`` is passed.
+
+        其中 ``N`` 是样本的总数， ``N_t`` 是当前节点的样本数量， ``N_t_L`` 是左孩子节点的样本数量，并且 ``N_t_R`` 是右孩子节点的样本数量。
+        ``N``, ``N_t``, ``N_t_R`` 以及 ``N_t_L`` 全都是指加权和，如果 ``sample_weight`` 被传入。
 
     .. py:method:: fit(data, est_model, *, covariate=None, effect=None, effect_array=None)
-        
-        Fit the PolicyInterpreter model to interpret the policy for the causal
-        effect estimated by the est_model on data.
 
-        :param pandas.DataFrame data: The input samples for the est_model to estimate the causal effects
-            and for the CEInterpreter to fit.
-        :param estimator_model est_model: est_model should be any valid estimator model of ylearn which was 
-            already fitted and can estimate the CATE.
-        :param list of str, optional, default=None covariate: Names of the covariate. 
-        :param list of str, optional, default=None effect: Names of the causal effect in `data`. If `effect_array` is not None, then `effect` will be ignored.
-        :param numpy.ndarray, default=None effect_array: The causal effect that waited to be interpreted by the :class:`PolicyInterpreter`. If this is not provided, then `effect` can not be None.
+        拟合PolicyInterpreter模型来解释基于数据和est_model估计的因果效应的策略。
+
+        :param pandas.DataFrame data: 输入样本，用于est_model估计因果效应和用于CEInterpreter拟合。
+        :param estimator_model est_model: est_model应该为ylearn的任何合理的估计器模型且已经拟合过了并且能够估计CATE。
+        :param list of str, optional, default=None covariate: 协变量的名字。
+        :param list of str, optional, default=None effect: 在 `data` 中因果效应的名字。如果 `effect_array` 不是None，那么 `effect` 将会被忽略。
+        :param numpy.ndarray, default=None effect_array: 等待被 :class:`PolicyInterpreter` 解释的因果效应。如果这没有被提供，那么 `effect` 不能是None.
 
         :returns: Fitted PolicyInterpreter
-        :rtype: instance of PolicyInterpreter
+        :rtype: PolicyInterpreter的实例
 
     .. py:method:: interpret(*, data=None)
 
-        Interpret the fitted model in the test data.
+        在测试数据中解释拟合的模型。
 
-        :param pandas.DataFrame, optional, default=None data: The test data in the form of the DataFrame. The model will only use this if v is set as None. In this case, if data is also None, then the data used for trainig will be used.
+        :param pandas.DataFrame, optional, default=None data: DataFrame形式的测试数据。模型将仅使用这个如果v被设置为None。在这种情况下，如果数据也是None，那么训练的数据将会被使用。
 
-        :returns: The interpreted results for all examples.
+        :returns: 对所有的样例解释的结果。
         :rtype: dict
 
     .. py:method:: plot(*, feature_names=None, max_depth=None, class_names=None, label='all', filled=False, node_ids=False, proportion=False, rounded=False, precision=3, ax=None, fontsize=None)
 
-        Plot the tree model.
-        The sample counts that are shown are weighted with any sample_weights that
-        might be present.
-        The visualization is fit automatically to the size of the axis.
-        Use the ``figsize`` or ``dpi`` arguments of ``plt.figure``  to control
-        the size of the rendering.
+        绘制树模型。
+        显示的样本计数由任何的可能存在的sample_weights加权。
+        可视化自动适应轴的大小。
+        使用 ``plt.figure`` 的 ``figsize`` 或者 ``dpi`` 参数来控制生成的大小。
 
         :returns: List containing the artists for the annotation boxes making up the
             tree.
