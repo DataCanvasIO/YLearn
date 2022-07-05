@@ -747,7 +747,7 @@ class Why:
         cg = CausalGraph(m)
         return cg
 
-    def causal_effect(self, test_data=None, treat=None, control=None):
+    def causal_effect(self, test_data=None, treat=None, control=None, return_detail=False):
         """
         Estimate the causal effect.
 
@@ -755,9 +755,11 @@ class Why:
         ----------
         test_data : pd.DataFrame, default None
             The test data to evaluate the causal effect.
-            If None, estimate effect with the training data .
+            If None, estimate effect with the training data.
         treat : int or list, default None
         control : int or list, default None
+        return_detail: bool, default False
+            Return effect details in result if True.
 
         Returns
         -------
@@ -769,11 +771,11 @@ class Why:
         control = self._safe_treat_control(control, 'control')
 
         if self.discrete_treatment:
-            return self._causal_effect_discrete(test_data, treat, control)
+            return self._causal_effect_discrete(test_data, treat, control, return_detail=return_detail)
         else:
-            return self._causal_effect_continuous(test_data, treat, control)
+            return self._causal_effect_continuous(test_data, treat, control, return_detail=return_detail)
 
-    def _causal_effect_discrete(self, test_data=None, treat=None, control=None):
+    def _causal_effect_discrete(self, test_data=None, treat=None, control=None, return_detail=False):
         dfs = []
         for i, x in enumerate(self.treatment_):
             est = self.estimators_[x]
@@ -807,12 +809,14 @@ class Why:
                                    ),
                               name=(x, f'{treat_i} vs {control_i}')
                               )
+                if return_detail:
+                    s['detail'] = effect.ravel()
                 dfs.append(s)
 
         result = pd.concat(dfs, axis=1).T
         return result
 
-    def _causal_effect_continuous(self, test_data=None, treat=None, control=None):
+    def _causal_effect_continuous(self, test_data=None, treat=None, control=None, return_detail=False):
         dfs = []
         for i, x in enumerate(self.treatment_):
             est = self.estimators_[x]
@@ -832,6 +836,8 @@ class Why:
                                max=effect.max(),
                                std=effect.std()),
                           name=x)
+            if return_detail:
+                s['detail'] = effect.ravel()
             dfs.append(s)
         return pd.concat(dfs, axis=1).T
 

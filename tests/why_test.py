@@ -145,3 +145,12 @@ def test_discovery_taci():
     why.fit(data, outcome[0])
 
     _validate_it(why, test_data, check_score=False)
+
+
+def test_default_identifier():
+    data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x2b_y1()
+    why = Why()
+    # w.fit(data, outcome[0], treatment=treatment, adjustment=adjustment, covariate=covariate)
+    why.fit(data, outcome[0])
+
+    _validate_it(why, test_data)
