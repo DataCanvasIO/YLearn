@@ -2,8 +2,8 @@
 Policy: Selecting the Best Option
 *********************************
 
-In tasks such as policy evaluation, e.g., [Athey2020]_, besides the causal effects, we may also have interets in other questions such as whether an example should be assigned to a treament and if the answer is yes, which option is
-the best among all possible treament values. YLearn implements :class:`PolicyTree` for such purpose. Given a trained estimator model or estimated causal effects, it finds the optimal polices for each
+In tasks such as policy evaluation, e.g., [Athey2020]_, besides the causal effects, we may also have interest in other questions such as whether an example should be assigned to a treatment and if the answer is yes, which option is
+the best among all possible treatment values. YLearn implements :class:`PolicyTree` for such purpose. Given a trained estimator model or estimated causal effects, it finds the optimal polices for each
 example by building a decision tree model which aims to maximize the causal effect of each example.
 
 The criterion for training the tree is 

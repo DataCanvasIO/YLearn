@@ -4,6 +4,6 @@
 .. toctree::
     :maxdepth: 2
 
-    intro_cn
-    quick_start_cn
-    api_cn
+    intro
+    quick_start
+    api

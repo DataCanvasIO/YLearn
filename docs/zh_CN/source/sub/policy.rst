@@ -1,27 +1,28 @@
 *********************************
-Policy: Selecting the Best Option
+策略：选择最佳选项
 *********************************
 
-In tasks such as policy evaluation, e.g., [Athey2020]_, besides the causal effects, we may also have interets in other questions such as whether an example should be assigned to a treament and if the answer is yes, which option is
-the best among all possible treament values. YLearn implements :class:`PolicyTree` for such purpose. Given a trained estimator model or estimated causal effects, it finds the optimal polices for each
-example by building a decision tree model which aims to maximize the causal effect of each example.
+在诸如策略评估的任务中，比如， [Athey2020]_ ，除了因果效应，我们可能也对其他的问题感兴趣。例如:是否一个样例应该被分配一个治疗方案，如果答案是肯定的，哪一个选项
+是所有可能的治疗值中最好的。YLearn为这样的目的实现了 :class:`PolicyTree` 。给定一个训练好的估计器模型或者估计的因果效应，它通过构建一个
+目标是为每一个样例最大化因果效应的决策树模型，为每一个样例找到最优的策略。
 
-The criterion for training the tree is 
+训练树的准则是
 
 .. math::
 
     S = \sum_i\sum_k g_{ik}e_{ki}
 
-where :math:`g_{ik} = \phi(v_i)_k` with :math:`\phi: \mathbb{R}^D \to \mathbb{R}^K` being a map from :math:`v_i\in \mathbb{R}^D` to a basis vector with only one nonzero element in :math:`\mathbb{R}^K` and :math:`e_{ki}` denotes
-the causal effect of taking the :math:`k`-th value of the treatment for example :math:`i`.
+其中 :math:`g_{ik} = \phi(v_i)_k` ，并且有 :math:`\phi: \mathbb{R}^D \to \mathbb{R}^K` 是一个映射，从 :math:`v_i\in \mathbb{R}^D` 到
+一个仅有一个非零元素的在 :math:`\mathbb{R}^K` 中的基向量，并且 :math:`e_{ki}` 表明
+对样本 :math:`i` 采取治疗 :math:`k`-th 值的因果效应。
 
 .. seealso::
 
-    :py:class:`BaseDecisionTree` in sklearn.
+    sklearn中 :py:class:`BaseDecisionTree` 。
 
-Note that one can use the :class:`PolicyInterpreter` to interpret the result of a policy model.
+注意：可以使用 :class:`PolicyInterpreter` 来解释策略模型的结果。
 
-.. topic:: Example
+.. topic:: 例子
 
     .. code-block:: python
 
