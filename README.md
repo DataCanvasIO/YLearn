@@ -1,9 +1,9 @@
 
 **YLearn**, a pun of "learn why", is a python package for causal inference which supports various aspects of causal inference ranging from causal effect identification, estimation, and causal graph discovery, etc.
 
-Documentation website: <ylearn.readthedocs.io>
+Documentation website: <https://ylearn.readthedocs.io/en/latest/>
 
-中文文档地址： <ylearn.readthedocs.io/zh_CN/latest/>
+中文文档地址： <https://ylearn.readthedocs.io/zh_CN/latest/>
 
 
 ## Installation
