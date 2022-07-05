@@ -2,6 +2,7 @@
 **YLearn**, a pun of "learn why", is a python package for causal inference which supports various aspects of causal inference ranging from causal effect identification, estimation, and causal graph discovery, etc.
 
 Documentation website: <https://ylearn-zh.readthedocs.io/en/latest/index.html>
+
 中文文档地址： <https://ylearn-zh.readthedocs.io/zh_CN/latest/>
 
 
@@ -83,10 +84,14 @@ We present several necessary example usages of YLearn in this section, which cov
         cg = CausalGraph(causation=causation)
     ```
 
-   `cg` will be the causal graph encoding the causal relation `X <- W -> Y` in YLearn. If there exist unobserved confounders in the causal graph, then, aside from the observed variables, we should also define a python `list` containing these causal relations. For example, a causal graph with unobserved confounders
-   ![Causal graph with unobserved confounders (green nodes)](./fig/graph_expun.png)
+   `cg` will be the causal graph encoding the causal relation `X <- W -> Y` in YLearn. If there exist unobserved confounders in the causal graph, then, aside from the observed variables, we should also define a python `list` containing these causal relations. For example, a causal graph with unobserved confounders (green nodes)
+   
+   <img src="./fig/graph_expun.png" width="400">
+
    is first converted into a graph with latent confounding arcs
-   ![Causal graph with latent confounding arcs](./fig/graph_un_arc.png)
+
+   <img src="./fig/graph_un_arc.png" width="500">
+
    To represent such causal graph, we should (1) define a python `dict` to represent the observed parts, and (2) define a `list` to encode the latent confounding arcs where each element in the `list` includes the names of start and end nodes of a latent confounding arc:
 
    ```python
