@@ -55,11 +55,11 @@ Why: 一个一体化的因果学习API
     
     .. py:attribute:: identifier_
 
-        `identifier` 对象或者None. 用于识别治疗/调整/协变量/工具，如果在 `fit` 时没有被指明
+        `identifier` 对象或者None。用于识别治疗/调整/协变量/工具，如果在 `fit` 时没有被指明
 
     .. py:attribute:: y_encoder_
 
-        `LabelEncoder` 对象或者None. 用于编码结果，如果它的dtype不是数字的。
+        `LabelEncoder` 对象或者None。用于编码结果，如果它的dtype不是数字的。
     
     .. py:attribute:: preprocessor_
         
