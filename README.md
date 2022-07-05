@@ -1,13 +1,15 @@
 
 **YLearn**, a pun of "learn why", is a python package for causal inference which supports various aspects of causal inference ranging from causal effect identification, estimation, and causal graph discovery, etc.
 
-Documentation website: <https://ylearn.readthedocs.io/en/latest/index.html>
+Documentation website: <https://ylearn-zh.readthedocs.io/en/latest/index.html>
+中文文档地址： <https://ylearn-zh.readthedocs.io/zh_CN/latest/>
+
 
 ## Installation
 
 ### Pip
 
-Install YLearn with `pip`:
+The simplest way of installing YLearn is using `pip`:
 
 ```bash
 pip install ylearn
@@ -70,23 +72,39 @@ causal relations in data.
 
 ### Example usages
 
-We present several necessary example usages of YLearn in this section. Please see their specific documentations for more details.
+We present several necessary example usages of YLearn in this section, which covers defining a causal graph, identifying the causal effect, and training an estimator model, etc. Please see their specific documentations for more details.
 
-1. Representation of causal graph
+1. Representation of the causal graph
 
-   For a given causal graph `X <- W -> Y`, the causal graph is represented by `CausalGraph`
+   Given a set of variables, the representation of its causal graph in YLearn requires a python `dict` to denote the causal relations of variables, in which the *keys* of the `dict` are children of all elements in the corresponding values which usually should be a list of names of variables. For an instance, in the simplest case, for a given causal graph `X <- W -> Y`, we first define a python `dict` for the causal relations, which will then be passed to `CausalGraph` as a parameter:
 
     ```python
         causation = {'X': ['W'], 'W':[], 'Y':['W']}
         cg = CausalGraph(causation=causation)
     ```
 
-   :py:attr:`cg` will be the causal graph represented in YLearn.
+   `cg` will be the causal graph encoding the causal relation `X <- W -> Y` in YLearn. If there exist unobserved confounders in the causal graph, then, aside from the observed variables, we should also define a python `list` containing these causal relations. For example, a causal graph with unobserved confounders
+   ![Causal graph with unobserved confounders (green nodes)](./fig/graph_expun.png)
+   is first converted into a graph with latent confounding arcs
+   ![Causal graph with latent confounding arcs](./fig/graph_un_arc.png)
+   To represent such causal graph, we should (1) define a python `dict` to represent the observed parts, and (2) define a `list` to encode the latent confounding arcs where each element in the `list` includes the names of start and end nodes of a latent confounding arc:
+
+   ```python
+        from ylearn.causal_model.graph import CausalGraph
+        causation_unob = {
+            'X': ['Z2'],
+            'Z1': ['X', 'Z2'],
+            'Y': ['Z1', 'Z3'],
+            'Z3': ['Z2'],
+            'Z2': [], 
+        }
+        arcs = [('X', 'Z2'), ('X', 'Z3'), ('X', 'Y'), ('Z2', 'Y')]
+
+        cg_unob = CausalGraph(causation=causation_unob, latent_confounding_arcs=arcs)
 
 2. Identification of causal effect
 
-   Suppose that we are interested in identifying the causal estimand `P(Y|do(X=x))` in the causal graph `cg`, then we should
-   first define an instance of :class:`CausalModel` and call the :py:func:`identify()` method:
+   It is crucial to identify the causal effect when we want to estimate it from data. The first step for identifying the causal effect is identifying the causal estimand. This can be easily done in YLearn. For an instance, suppose that we are interested in identifying the causal estimand `P(Y|do(X=x))` in the causal graph `cg` defined above, then we can simply define an instance of `CausalModel` and call the `identify()` method:
 
     ```python
 
@@ -95,44 +113,69 @@ We present several necessary example usages of YLearn in this section. Please se
 
     ```
 
+    where we use the *backdoor-adjustment* method here. YLearn also support front-door adjustment, finding instrumental variables, and, most importantly, the general identification method developed in [1].
+
 3. Estimation of causal effect
 
-   The estimation of causal effect with an `EstimatorModel` is composed of 4 steps:
+   The estimation of causal effects in YLearn is also fairly easy. It follows the common approach of deploying a machine learning model since YLearn focuses on the intersection of machine learning and causal inference in this part. Given a dataset, one can apply any `EstimatorModel` in YLearn with a procedure composed of 3 distinct steps:
 
     * Given data in the form of  `pandas.DataFrame`, find the names of `treatment, outcome, adjustment, covariate`.
     * Call  `fit()` method of  `EstimatorModel` to train the model.
     * Call  `estimate()` method of  `EstimatorModel` to estimate causal effects in test data.
 
+    One can refer to the documentation website for methodologies of many estimator models implemented by YLearn.
+
+4. Using the all-in-one API: Why
+
+    For the purpose of applying YLearn in a unified and eaiser manner, YLearn provides the API `Why`. `Why` is an API which encapsulates almost everything in YLearn, such as identifying causal effects and scoring a trained estimator model. To use `Why`, one should first create an instance of `Why` which needs to be trained by calling its method `fit()`, after which other utilities, such as `causal_effect()`, `score()`, and `whatif()`, could be used. This procedure is illustrated in the following code example:
+
+    ```python
+
+        from sklearn.datasets import fetch_california_housing
+
+        from ylearn import Why
+
+        housing = fetch_california_housing(as_frame=True)
+        data = housing.frame
+        outcome = housing.target_names[0]
+        data[outcome] = housing.target
+
+        why = Why()
+        why.fit(data, outcome, treatment=['AveBedrms', 'AveRooms'])
+
+        print(why.causal_effect())
+    ```
+
 ### Case Study
 
 ## References
 
-J. Pearl. Causality: models, reasoing, and inference.
+[1] J. Pearl. Causality: models, reasoing, and inference.
 
-S. Shpister and J. Identification of Joint Interventional Distributions in Recursive Semi-Markovian Causal Models. *AAAI 2006*.
+[2] S. Shpister and J. Identification of Joint Interventional Distributions in Recursive Semi-Markovian Causal Models. *AAAI 2006*.
 
-B. Neal. Introduction to Causal Inference.
+[3] B. Neal. Introduction to Causal Inference.
 
-M. Funk, et al. Doubly Robust Estimation of Causal Effects. *Am J Epidemiol. 2011 Apr 1;173(7):761-7.*
+[4] M. Funk, et al. Doubly Robust Estimation of Causal Effects. *Am J Epidemiol. 2011 Apr 1;173(7):761-7.*
 
-V. Chernozhukov, et al. Double Machine Learning for Treatment and Causal Parameters. *arXiv:1608.00060.*
+[5] V. Chernozhukov, et al. Double Machine Learning for Treatment and Causal Parameters. *arXiv:1608.00060.*
 
-S. Athey and G. Imbens. Recursive Partitioning for Heterogeneous Causal Effects. *arXiv: 1504.01132.*
+[6] S. Athey and G. Imbens. Recursive Partitioning for Heterogeneous Causal Effects. *arXiv: 1504.01132.*
 
-A. Schuler, et al. A comparison of methods for model selection when estimating individual treatment effects. *arXiv:1804.05146.*
+[7] A. Schuler, et al. A comparison of methods for model selection when estimating individual treatment effects. *arXiv:1804.05146.*
 
-X. Nie, et al. Quasi-Oracle estimation of heterogeneous treatment effects. *arXiv: 1712.04912.*
+[8] X. Nie, et al. Quasi-Oracle estimation of heterogeneous treatment effects. *arXiv: 1712.04912.*
 
-J. Hartford, et al. Deep IV: A Flexible Approach for Counterfactual Prediction. *ICML 2017.*
+[9] J. Hartford, et al. Deep IV: A Flexible Approach for Counterfactual Prediction. *ICML 2017.*
 
-W. Newey and J. Powell. Instrumental Variable Estimation of Nonparametric Models. *Econometrica 71, no. 5 (2003): 1565–78.*
+[10] W. Newey and J. Powell. Instrumental Variable Estimation of Nonparametric Models. *Econometrica 71, no. 5 (2003): 1565–78.*
 
-S. Kunzel2019, et al. Meta-Learners for Estimating Heterogeneous Treatment Effects using Machine Learning. *arXiv: 1706.03461.*
+[11] S. Kunzel2019, et al. Meta-Learners for Estimating Heterogeneous Treatment Effects using Machine Learning. *arXiv: 1706.03461.*
 
-J. Angrist, et al. Identification of causal effects using instrumental variables. *Journal of the American Statistical Association*.
+[12] J. Angrist, et al. Identification of causal effects using instrumental variables. *Journal of the American Statistical Association*.
 
-S. Athey and S. Wager. Policy Learning with Observational Data. *arXiv: 1702.02896.*
+[13] S. Athey and S. Wager. Policy Learning with Observational Data. *arXiv: 1702.02896.*
 
-P. Spirtes, et al. Causation, Prediction, and Search.
+[14] P. Spirtes, et al. Causation, Prediction, and Search.
 
-X. Zheng, et al. DAGs with NO TEARS: Continuous Optimization for Structure Learning. *arXiv: 1803.01422.*
+[15] X. Zheng, et al. DAGs with NO TEARS: Continuous Optimization for Structure Learning. *arXiv: 1803.01422.*
