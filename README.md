@@ -118,7 +118,7 @@ We present several necessary example usages of YLearn in this section, which cov
 
     ```
 
-    where we use the *backdoor-adjustment* method here. YLearn also support front-door adjustment, finding instrumental variables, and, most importantly, the general identification method developed in [1].
+    where we use the *backdoor-adjustment* method here. YLearn also support front-door adjustment, finding instrumental variables, and, most importantly, the general identification method developed in [1] which is able to identify any causal effect if it is identifiable.
 
 3. Estimation of causal effect
 
