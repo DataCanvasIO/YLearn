@@ -1,10 +1,10 @@
+<img src="./fig/YLearn1.png" width="200">
 
 **YLearn**, a pun of "learn why", is a python package for causal inference which supports various aspects of causal inference ranging from causal effect identification, estimation, and causal graph discovery, etc.
 
-Documentation website: <https://ylearn.readthedocs.io/en/latest/>
+Documentation website: <https://ylearn.readthedocs.io>
 
 中文文档地址： <https://ylearn.readthedocs.io/zh_CN/latest/>
-
 
 ## Installation
 
@@ -85,14 +85,14 @@ We present several necessary example usages of YLearn in this section, which cov
     ```
 
    `cg` will be the causal graph encoding the causal relation `X <- W -> Y` in YLearn. If there exist unobserved confounders in the causal graph, then, aside from the observed variables, we should also define a python `list` containing these causal relations. For example, a causal graph with unobserved confounders (green nodes)
-   
+
    <img src="./fig/graph_expun.png" width="400">
 
-   is first converted into a graph with latent confounding arcs
+   is first converted into a graph with latent confounding arcs (black dotted llines with two directions)
 
    <img src="./fig/graph_un_arc.png" width="500">
 
-   To represent such causal graph, we should (1) define a python `dict` to represent the observed parts, and (2) define a `list` to encode the latent confounding arcs where each element in the `list` includes the names of start and end nodes of a latent confounding arc:
+   To represent such causal graph, we should (1) define a python `dict` to represent the observed parts, and (2) define a `list` to encode the latent confounding arcs where each element in the `list` includes the names of the start node and the end node of a latent confounding arc:
 
    ```python
         from ylearn.causal_model.graph import CausalGraph
@@ -118,9 +118,31 @@ We present several necessary example usages of YLearn in this section, which cov
 
     ```
 
-    where we use the *backdoor-adjustment* method here. YLearn also support front-door adjustment, finding instrumental variables, and, most importantly, the general identification method developed in [1] which is able to identify any causal effect if it is identifiable.
+    where we use the *backdoor-adjustment* method here. YLearn also supports front-door adjustment, finding instrumental variables, and, most importantly, the general identification method developed in [1] which is able to identify any causal effect if it is identifiable.
 
-3. Estimation of causal effect
+3. Instrumental variables
+
+   Instrumental variable is an important technique in causal inference. The approach of using YLearn to find valid instrumental variables is very straightforward. For example, suppose that we have a causal graph
+
+   <img src="./fig/iv2.png" width="400">,
+
+   we can follow the common procedure of utilizing `CausalModel` to find the instrumental variables: (1) define the `dict` and `list` of the causal relations; (2) define an instance of `CausalGraph` to build the related causal graph in YLearn; (3) define an instance of `CausalModel` with the instance of `CausalGraph` in last step being the input; (4) call the `get_iv()` method of `CausalModel` to find the instrumental variables
+
+   ```python
+        
+        causation = {
+            'p': [],
+            't': ['p', 'l'],
+            'l': [],
+            'g': ['t', 'l']
+        }
+        arc = [('t', 'g')]
+        cg = CausalGraph(causation=causation, latent_confounding_arcs=arc)
+        cm = CausalModel(causal_graph=cg)
+        cm.get_iv('t', 'g')
+   ```
+
+4. Estimation of causal effect
 
    The estimation of causal effects in YLearn is also fairly easy. It follows the common approach of deploying a machine learning model since YLearn focuses on the intersection of machine learning and causal inference in this part. Given a dataset, one can apply any `EstimatorModel` in YLearn with a procedure composed of 3 distinct steps:
 
@@ -130,9 +152,9 @@ We present several necessary example usages of YLearn in this section, which cov
 
     One can refer to the documentation website for methodologies of many estimator models implemented by YLearn.
 
-4. Using the all-in-one API: Why
+5. Using the all-in-one API: Why
 
-    For the purpose of applying YLearn in a unified and eaiser manner, YLearn provides the API `Why`. `Why` is an API which encapsulates almost everything in YLearn, such as identifying causal effects and scoring a trained estimator model. To use `Why`, one should first create an instance of `Why` which needs to be trained by calling its method `fit()`, after which other utilities, such as `causal_effect()`, `score()`, and `whatif()`, could be used. This procedure is illustrated in the following code example:
+    For the purpose of applying YLearn in a unified and eaiser manner, YLearn provides the API `Why`. `Why` is an API which encapsulates almost everything in YLearn, such as identifying causal effects and scoring a trained estimator model. To use `Why`, one should first create an instance of `Why` which needs to be trained by calling its method `fit()`, after which other utilities, such as `causal_effect()`, `score()`, and `whatif()`, can be used. This procedure is illustrated in the following code example:
 
     ```python
 
@@ -152,6 +174,8 @@ We present several necessary example usages of YLearn in this section, which cov
     ```
 
 ### Case Study
+
+In the notebook [CaseStudy](https://github.com/DataCanvasIO/YLearn/blob/main/example_usages/case_study_bank.ipynb), we utilize a typical bank customer dataset to demonstrate the usage of the all-in-one API `Why` of YLearn. `Why` covers the full processing pipeline of causal learning, including causal discovery, causal effect identification, causal effect estimation, counterfactual inference, and policy learning. Please refer to [CaseStudy](https://github.com/DataCanvasIO/YLearn/blob/main/example_usages/case_study_bank.ipynb) for more details.
 
 ## References
 
