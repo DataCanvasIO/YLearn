@@ -9,13 +9,13 @@ This is a class for representing DAGs of causal structures.
 Generally, for a 
 set of variables :math:`V`, a variable :math:`V_i` is said to be a cause of a variable :math:`V_j`
 if :math:`V_j` can change in response to changes in :math:`V_i`. In a DAG for causal
-structures, every parent is a direct causae of all its children. And we refer to these DAGs for 
-causal structurs as causal graphs. For the terminologies of graph, one can see, for example, 
+structures, every parent is a direct causes of all its children. And we refer to these DAGs for
+causal structures as causal graphs. For the terminologies of graph, one can see, for example,
 Chapter 1.2 in [Pearl]_.
 
 There are five basic structures composed of two or three nodes for building causal graphs. Besides the structures, 
 there are flows of association and causation in causal graphs in the probability language. Any two nodes 
-:math:`X` and :math:`Y` connected by the flow of association implies that they are statistically independent, i.e., 
+:math:`X` and :math:`Y` connected by the flow of association implies that they are statistically dependent, i.e.,
 :math:`P(X, Y) \neq P(X)P(Y)`. Let :math:`X, Y` and :math:`W` be three distinct nodes, then the five basics
 structures include:
 
@@ -35,7 +35,7 @@ structures include:
 
 :math:`X` and :math:`Y` are statistically dependent;
 
-3. *coliders*:
+3. *colliders*:
 
 .. math::
 
@@ -198,7 +198,7 @@ Class Structures
         Remove all edges in the edge_list in the graph.
 
         :param list edge_list: list of edges to be removed.
-        :param bool, default=False new: If new, creat a new CausalGraph and remove edges.
+        :param bool, default=False new: If new, create a new CausalGraph and remove edges.
         :param bool, default=True observed: Remove unobserved latent confounding arcs if not observed.
 
         :returns: Modified causal graph
@@ -261,7 +261,7 @@ Class Structures
     
     .. py:property:: topo_order
 
-        Retrun the topological order of the nodes in the observed graph.
+        Return the topological order of the nodes in the observed graph.
         
         :returns: Nodes in the topological order
         :rtype: generator          

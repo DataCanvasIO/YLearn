@@ -2,7 +2,7 @@
 Why: An All-in-One Causal Learning API
 ***************************************
 
-Want to use YLearn in a much eaiser way? Try the all-in-one API `Why`!
+Want to use YLearn in a much easier way? Try the all-in-one API `Why`!
 
 `Why` is an API which encapsulates almost everything in YLearn, such as *identifying causal effects* and *scoring a trained estimator model*. It provides to users a simple
 and efficient way to use our package: one can directly pass the only thing you have, the data, into
@@ -25,7 +25,7 @@ Class Structures
 
     :param bool, default=infer from outcome discrete_outcome:
     :param bool, default=infer from the first treatment discrete_treatment:
-    :param str, default=auto' identifier: Avaliable options: 'auto' or 'discovery'
+    :param str, default=auto' identifier: Available options: 'auto' or 'discovery'
     :param str, optional, default=None discovery_model:
     :param dict, optional, default=None discovery_options: Parameters (key-values) to initialize the discovery model
     :param str, optional, default='auto' estimator: Name of a valid EstimatorModel. One can also pass an instance of a valid estimator model.
@@ -121,7 +121,7 @@ Class Structures
  
     .. py:method:: score(test_data=None, treat=None, control=None, scorer='auto')
 
-        :returns: Socre of the estimator models
+        :returns: Score of the estimator models
         :rtype: float
    
     .. py:method:: policy_tree(data, control=None, **kwargs)

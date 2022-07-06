@@ -123,7 +123,7 @@ all causal effects can be converted to statistical estimands. We refer to such c
         arcs = [('X', 'Z2'), ('X', 'Z3'), ('X', 'Y'), ('Z2', 'Y')]
         cg = CausalGraph(causation=causation, latent_confounding_arcs=arcs)
 
-    Then we need to define an instance of :class:`CausalModel` for the causal structure encoded in :py:attr:`cg` to preform the identification.
+    Then we need to define an instance of :class:`CausalModel` for the causal structure encoded in :py:attr:`cg` to perform the identification.
 
     .. code-block:: python
 
@@ -239,7 +239,7 @@ Class Structures
         :param Prob, optional, default=None prob: Probability distribution encoded in the graph.
         :param CausalGraph graph: CausalGraph encodes the information of corresponding causal structures.
 
-        :returns: The probabiity distribution of the converted casual effect.
+        :returns: The probability distribution of the converted casual effect.
         :rtype: Prob
         :raises IdentificationError: If the interested causal effect is not identifiable, then raise IdentificationError.
 
@@ -262,7 +262,7 @@ Class Structures
 
         :param set or list of str treatment: Names of the treatment. str is also acceptable for single treatment.
         :param set or list of str outcome: Names of the outcome. str is also acceptable for single outcome.
-        :param str adjust: Set style of the backdoor set. Avaliable options are
+        :param str adjust: Set style of the backdoor set. Available options are
                 
                 simple: directly return the parent set of treatment
                 
@@ -297,7 +297,7 @@ Class Structures
         :param list of str path: A list containing nodes in the path.
         :param bool, default=True backdoor_path: Whether the path is a backdoor path.
 
-        :returns: True if the path has a colider.
+        :returns: True if the path has a collider.
         :rtype: bool
 
     .. py:method:: is_connected_backdoor_path(path)
@@ -329,7 +329,7 @@ Class Structures
 
         :param set of str or str treatment: Name of the treatment. Should contain only one element.
         :param set of str or str outcome: Name of the outcome. Should contain only one element.
-        :param str, default='simple' adjust: Avaliable options include 
+        :param str, default='simple' adjust: Available options include
                 'simple': Return the frontdoor set with minimal number of elements.
                 
                 'minimal': Return the frontdoor set with minimal number of elements.
@@ -339,7 +339,7 @@ Class Structures
         :returns: 2 elements (adjustment_set, Prob)
         :rtype: tuple
         :raises IdentificationError: Raise error if the style is not in simple, minimal or all or no
-                set can satisfy the backdoor criterion.
+                set can satisfy the frontdoor criterion.
 
     .. py:method:: get_iv(treatment, outcome)
 
@@ -391,15 +391,15 @@ Class Structures
                     adjustment set.
                     
                     *('backdoor', 'minimal')*: Return all possible backdoor adjustment sets with
-                    minial number of elements.
+                    minimal number of elements.
                     
                     *('backdoor', 'all')*: Return all possible backdoor adjustment sets.
                     
                     *('frontdoor', 'simple')*: Return all possible frontdoor adjustment sets with
-                    minial number of elements.
+                    minimal number of elements.
                     
                     *('frontdoor', 'minimal')*: Return all possible frontdoor adjustment sets with
-                    minial number of elements.
+                    minimal number of elements.
                     
                     *('frontdoor', 'all')*: Return all possible frontdoor adjustment sets.
 
@@ -418,9 +418,9 @@ Class Structures
                 which is used for discovering causal graph.
         :param  set or list, optional, default=None treatment: Names of the treatment. If None, the treatment used for backdoor adjustment
                 will be taken as the treatment.
-        :param set or list, optional, default=None outcome: Names of the outcome. If None, the treatment used for backdoor adjustment
+        :param set or list, optional, default=None outcome: Names of the outcome. If None, the outcome used for backdoor adjustment
                 will be taken as the outcome.
-        :param set or list, optional, default=None adjustment: Names of the adjustment set. If None, the ajustment set is given by
+        :param set or list, optional, default=None adjustment: Names of the adjustment set. If None, the adjustment set is given by
                 the simplest backdoor set found by CausalModel.
         :param set or list, optional, default=None covariate: Names of covariate set. Ignored if set as None.
         :param str, optional, default=None quantity: The interested quantity when evaluating causal effects.
@@ -430,10 +430,10 @@ Class Structures
 
     .. py:method:: identify_estimate(data, outcome, treatment, estimator_model=None, quantity=None, identify_method='auto', **kwargs)
 
-        Combination of the identifiy method and the estimate method. However,
+        Combination of the identify method and the estimate method. However,
         since current implemented estimator models assume (conditionally)
         unconfoundness automatically (except for methods related to iv), we may
-        only consider using backdoor set adjustment to fullfill the unconfoundness
+        only consider using backdoor set adjustment to fulfill the unconfoundness
         condition.
 
         :param set or list of str, optional treatment: Set of names of treatments.
@@ -451,13 +451,13 @@ Class Structures
                     *('backdoor', 'simple')*: Return the set of all direct confounders of
                     both treatments and outcomes as a backdoor adjustment set.
                     
-                    *('backdoor', 'minimal')*: Return all possible backdoor adjustment sets with minial number of elements.
+                    *('backdoor', 'minimal')*: Return all possible backdoor adjustment sets with minimal number of elements.
                     
                     *('backdoor', 'all')*: Return all possible backdoor adjustment sets.
                     
-                    *('frontdoor', 'simple')*: Return all possible frontdoor adjustment sets with minial number of elements.
+                    *('frontdoor', 'simple')*: Return all possible frontdoor adjustment sets with minimal number of elements.
                     
-                    *('frontdoor', 'minimal')*: Return all possible frontdoor adjustment sets with minial number of elements.
+                    *('frontdoor', 'minimal')*: Return all possible frontdoor adjustment sets with minimal number of elements.
                     
                     *('frontdoor', 'all')*: Return all possible frontdoor adjustment sets.
         

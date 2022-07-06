@@ -1,5 +1,5 @@
 *****************************************************
-Causal Model: The Representation of Causal Structures
+因果模型：表示因果结构
 *****************************************************
 
 .. toctree::
@@ -10,45 +10,30 @@ Causal Model: The Representation of Causal Structures
     causal_model/prob
     
 
-For a set of variables :math:`V`, its **causal structure** can be represented by a directed acylic 
-graph (DAG), where each node corresponds to an element of :math:`V` while each direct functional 
-relationship among the corresponding variables can be represented by a link in the DAG. A causal
-structure guides the precise specification of how each variable is influenced by its parents in the
-DAG. For an instance, :math:`X \leftarrow W \rightarrow Y` denotes that :math:`W` is a parent, thus 
-also a common cause, of :math:`X` and :math:`Y`. More specifically, for two distinct variables :math:`V_i` 
-and :math:`V_j`, if their functional relationship is
+对于一组变量 :math:`V`，它的 **因果结构** 能够被一个有向无环图（DAG）表示，其中每个节点对应于 :math:`V` 中的一个元素，同时对应变量之间
+每个直接的函数关系能够由DAG中的一个连接表示。一个因果结构精确的说明了每一个变量是怎么被它在DAG中的父节点影响的。举个例子， :math:`X \leftarrow W \rightarrow Y` 表明
+:math:`W` 是一个父节点，因此是 :math:`X` 和 :math:`Y` 共同的因。更具体一点，对于两个不同的变量 :math:`V_i` 和 :math:`V_j`，如果它们的函数关系是
 
 .. math::
     
     V_j = f(V_i, \eta_{ij})
 
-for some function :math:`f` and noise :math:`\eta`, then in the DAG representing the causal structure of the set of variables 
-:math:`V`, there should be an arrow pointing to :math:`V_i` from :math:`V_j`. A detailed introduction to
-such DAGs for causal structures can be found in [Pearl]_.
+对于一些函数 :math:`f` 和噪声 :math:`\eta`,那么在一组变量 :math:`V` 的表示因果结构的DAG中，
+应该有一个箭头从 :math:`V_j` 指向 :math:`V_i` 。详细的介绍这种因果结构的DAGs可以在 [Pearl]_ 中找到。
 
-A causal effect, also named as causal estimand, can be expressed with the :math:`do`-operator according to
-[Pearl]_. As an example,
+因果效应，也称为因果估计量，根据 [Pearl]_ ，能够被 :math:`do`-operator 表示。举个例子，
 
 .. math::
 
     P(y|do(x))
 
-denotes the probability function of :math:`y` after imposing the intervention :math:`x`. Causal structures
-are crucial to expressing and estimating interested causal estimands. YLearn implements an object, 
-``CausalGraph``, to support representations for causal structures and related operations of the 
-causal structures. Please see :ref:`causal_graph` for details.
+表明在施加干涉 :math:`x` 之后 :math:`y` 的概率函数。因果结构对于表达和估计感兴趣的因果估计量很重要。YLearn实现了一个对象 ``CausalGraph``
+来支持表示因果结构和对因果结构的相关操作。请参考 :ref:`causal_graph` 来获得更多细节。
 
-YLearn concerns the intersection of causal inference and machine learning. Therefore we assume that we have
-abundant observational data rather than having the access to design randomized experiments. Then Given a DAG
-for some causal structure, the causal estimands, e.g., the average treatment effects (ATEs), usually can not
-be directly estimated from the data due to the counterfactuals which can never be observed. Thus it is 
-necessary to convert these causal estimands into other quantities, which can be called as statistical estimands
-and can be estimated from data, before proceeding to any estimation. The procedure of converting a causal
-estimand into the corresponding statistical estimand is called **identification**.
+YLearn关心因果推断和机器学习的交叉。因此我们假设我们有足够的观测数据而不是可以设计随机实验。因此对某些因果结构给一个DAG，因果估计量，比如平均
+治疗效果（ATEs），通常不能被直接的从数据中估计出来，因为反事实不能够被观测到。因此有必要在进行任何估计之前，将这些因果估计量转化为其他的能够从
+数据中估计出来的被称为统计估计量的数量。把因果估计量转化为对应的统计估计量的过程称为 **识别**。
 
-The object for supporting identification and other related operations of causal structures is ``CausalModel``.
-More details can be found in :ref:`causal_model`.
+支持识别和其他因果结构相关操作的对象是 ``CausalModel``。更多的细节可以在 :ref:`causal_model` 中找到。
 
-In the language of Pearl's causal inference, it is also necessary to represent the results
-in the language of probability. For this purpose, YLearn also implements an object :class:`Prob` which is introduced in 
-:ref:`prob`.
+在Pearl的因果推断语言中，也有必要把结果表示为概率的语言。为了这个目的，YLearn也实现了一个对象 :class:`Prob`， 其在 :ref:`prob` 中介绍。
