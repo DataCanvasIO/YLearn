@@ -10,7 +10,7 @@ Causal Model: The Representation of Causal Structures
     causal_model/prob
     
 
-For a set of variables :math:`V`, its **causal structure** can be represented by a directed acylic 
+For a set of variables :math:`V`, its **causal structure** can be represented by a directed acyclic
 graph (DAG), where each node corresponds to an element of :math:`V` while each direct functional 
 relationship among the corresponding variables can be represented by a link in the DAG. A causal
 structure guides the precise specification of how each variable is influenced by its parents in the
@@ -50,5 +50,5 @@ The object for supporting identification and other related operations of causal 
 More details can be found in :ref:`causal_model`.
 
 In the language of Pearl's causal inference, it is also necessary to represent the results
-in the language of probability. For this purpose, YLearn also implements an object :class:`Prob` which is introduced in 
+in the language of probability. For this purpose, YLearn also implements an object :class:`Prob` which is introduced in
 :ref:`prob`.

@@ -1,35 +1,32 @@
 .. _causal_model:
 
 ************
-Causal Model
+因果模型
 ************
 
-:class:`CausalModel` is a core object for performing :ref:`identification` and finding
-Instrumental Variables. 
+:class:`CausalModel` 是一个核心对象来执行 :ref:`identification` 和寻找工具变量。
 
-Before introducing the causal model, we should clarify the definition of **interventions** first.
-Interventions would be to take the whole population and give every one some operation. 
-[Pearl]_ defined the :math:`do`-operator to describe such operations. Probabilistic models can not serve 
-to predict the effect of interventions which leads to the need for causal model. 
+在介绍因果模型之前，我们首先需要阐明 **干涉** 的定义。干涉是对整个人群的，并给每一个人一些操作。
+[Pearl]_ 定义了 :math:`do`-operator 来描述了这样的操作。概率模型不能够服务预测干涉效果，这导致了对因果模型的需求。
 
-The formal definition of **causal model** is due to [Pearl]_. A causal model is a triple
+对 **causal model** 的正式定义归因于 [Pearl]_ 。一个因果模型是一个三元组
 
 .. math::
     
     M = \left< U, V, F\right>
 
-where
+其中
 
-* :math:`U` are **exogenous** (variables that are determined by factors outside the model);
-* :math:`V` are **endogenous** that are determined by :math:`U \cup V`, and :math:`F` is a set of functions such that
+* :math:`U` 是 **外生的** （由模型外的因素决定的变量）；
+* :math:`V` 是 **内生的** 决定于 :math:`U \cup V`, 和 :math:`F` 是这样的一组函数
 
 .. math::
         
         V_i = F_i(pa_i, U_i)
 
-with :math:`pa_i \subset V \backslash V_i`. 
+其中 :math:`pa_i \subset V \backslash V_i`.
 
-For example, :math:`M = \left< U, V, F\right>` is a causal model where
+例如， :math:`M = \left< U, V, F\right>` 是一个因果模型其中
 
 .. math::
     
@@ -39,75 +36,68 @@ For example, :math:`M = \left< U, V, F\right>` is a causal model where
     
     F = \{F_1, F_2 \}
 
-such that
+这样
 
 .. math::
 
     V_1 = F_1(I, U_1) = \theta_1 I + U_1\\
     V_2 = F_2(V_1, J, U_2, ) = \phi V_1 + \theta_2 J + U_2.
 
-Note that every causal model can be associated with a DAG and encodes necessary information of the causal relationships between variables.
-YLearn uses :class:`CausalModel` to represent a causal model and support many operations related to the causal
-model such as :ref:`identification`.
+注意每个因果模型都可以和一个DAG关联并编码变量之间必要的因果关系信息。
+YLearn使用 :class:`CausalModel` 来表示一个因果模型并支持许多关于因果模型的操作比如 :ref:`identification` 。
 
 .. _identification:
 
-Identification
+识别
 ==============
 
-To characterize the effect of the intervention, one needs to consider the **causal effect** which is a 
-causal estimand including the :math:`do`-operator. The action that converts the causal effect into corresponding 
-statistical estimands is called :ref:`identification` and is implemented in :class:`CausalModel` in YLearn. Note that not 
-all causal effects can be converted to statistical estimands. We refer to such causal effects as not identifiable. We list several identification methods supported by `CausalModel`.
+为了表征干涉的效果，需要考虑 **因果效应** ，其是一个因果估计量包含 :math:`do`-operator 。把因果效应转变为对应的统计估计量的行为被称为 :ref:`identification` 且
+在YLearn中的 :class:`CausalModel` 里实现。注意不是所有的因果效应都能被转变为统计估计量的。我们把这样的因果效应称为不可识别的。我们列出几个 `CausalModel` 支持的识别方法。
 
-.. topic:: Backdoor adjustment
+.. topic:: 后门调整
 
-    The causal effect of :math:`X` on :math:`Y` is given by
+    :math:`X` 对 :math:`Y` 的因果效应由下式给出
 
     .. math::
 
         P(y|do(x)) = \sum_w P(y|x, w)P(w)
     
-    if the set of variables :math:`W` satisfies the back-door criterion relative to :math:`(X, Y)`.
+   如果变量的集合 :math:`W` 满足后门准则关于 :math:`(X, Y)`.
 
-.. topic:: Frontdoor adjustment
+.. topic:: 前门调整
 
-    The causal effect of :math:`X` on :math:`Y` is given by
+    :math:`X` 对 :math:`Y` 的因果效应由下式给出
 
     .. math::
 
         P(y|do(x)) = \sum_w P(w|x) \sum_{x'}P(y|x', w)P(x')
     
-    if the set of variables :math:`W` satisfies the front-door criterion relative to :math:`(X, Y)` and if
+    如果变量的集合 :math:`W` 满足前门准则关于 :math:`(X, Y)` and if
     :math:`P(x, w) > 0`.
 
-.. topic:: General identification
+.. topic:: 通用识别
 
-    [Shpitser2006]_ gives a necessary and sufficient graphical condition such that the causal effect
-    of an arbitrary set of variables on another arbitrary set can be identified uniquely whenever its identifiable. We 
-    call the corresponding action of verifying this condition as **general identification**.
+    [Shpitser2006]_ 给出一个必要充分的图的条件这样任意一个集合的变量对另一个任意集合的因果效应能够被唯一的识别无论它是不是可识别的。
+    我们称验证这个条件对应的行动为 **通用识别**。
 
-.. topic:: Finding Instrumental Variables
+.. topic:: 找到工具变量
 
-    Instrumental variables are useful to identify and estimate the causal effect of :math:`X` on :math:`Y` when there are 
-    unobserved confoundings of :math:`X` and :math:`Y`. A set of variables :math:`Z` is said to be a set of **instrumental variables**
-    if for any :math:`z` in :math:`Z`:
+    当有未观测到的 :math:`X` 和 :math:`Y` 的混淆因素时，工具变量在识别和估计 :math:`X` 对 :math:`Y` 的因果效应很有用处。
+    一组变量 :math:`Z` 被称为一组 **工具变量** 如果 :math:`Z` 中任意的 :math:`z` ：
     
-    1. :math:`z` has a causal effect on :math:`X`.
+    1. :math:`z` 对 :math:`X` 有因果效应。
     
-    2. The causal effect of :math:`z` on :math:`Y` is fully mediated by :math:`X`.
+    2. :math:`z` 对 :math:`Y` 的因果效应完全由于 :math:`X` 。
     
-    3. There are no back-door paths from :math:`z` to :math:`Y`.
+    3. 没有后门路径从 :math:`z` 到 :math:`Y` 。
 
-.. topic:: Example 1: Identify the causal effect with the general identification method
+.. topic:: 例子1: 用通用识别方法识别因果效应
 
     .. figure:: graph_un_arc.png
         
-        Causal structures where all unobserved variables are removed and their related causations are replaced by
-        the confounding arcs (black doted lines with two arrows).
+        因果结构，其中所有的未观察到的变量都被移除了，它们相关的因果关系都被混淆的弧线（有两个箭头的黑色虚线）取代了。
     
-    For the causal structure in the figure, we want to identify the causal effect of :math:`X` on :math:`Y` using the *general identification* method. The first
-    step is to represent the causal structure with :class:`CausalModel`.
+    对于图中的因果结构，我们想要使用 *通用识别* 方法识别 :math:`X` 对 :math:`Y` 的因果效应。第一步是用 :class:`CausalModel` 表示因果结构。
     
     .. code-block:: python
         
@@ -123,7 +113,7 @@ all causal effects can be converted to statistical estimands. We refer to such c
         arcs = [('X', 'Z2'), ('X', 'Z3'), ('X', 'Y'), ('Z2', 'Y')]
         cg = CausalGraph(causation=causation, latent_confounding_arcs=arcs)
 
-    Then we need to define an instance of :class:`CausalModel` for the causal structure encoded in :py:attr:`cg` to preform the identification.
+    然后我们需要为编码在 :py:attr:`cg` 中的因果结构定义一个 :class:`CausalModel` 的实例，从而进行识别。
 
     .. code-block:: python
 
@@ -134,15 +124,15 @@ all causal effects can be converted to statistical estimands. We refer to such c
 
     >>> :math:`\sum_{Z3, Z1, Z2}[P(Z2)P(Y|Z3, Z2)][P(Z1|Z2, X)][P(Z3|Z2)]`
 
-    The result is the desired identified causal effect of :math:`X` on :math:`Y` in the given causal structure.
+    结果是想要的识别的在给定的因果结构中 :math:`X` 对 :math:`Y` 的因果效应。
 
-.. topic:: Example 2: Identify the causal effect with the back-door adjustment
+.. topic:: 例子2: 使用后门调整识别因果效应
 
     .. figure:: backdoor.png
 
-        All nodes are observed variables.
+        所有节点都是观测到的变量。
     
-    For the causal structure in the figure, we want to identify the causal effect of :math:`X` on :math:`Y` using the *back-door adjustment* method.
+    对于图中的因果结构，我们想要使用 *后门调整* 方法识别 :math:`X` 对 :math:`Y` 的因果效应。
     
     .. code-block:: python
         
@@ -169,13 +159,13 @@ all causal effects can be converted to statistical estimands. We refer to such c
 
     >>> ['X3', 'X4']
 
-.. topic:: Example 3: Find the valid instrumental variables
+.. topic:: 例子3: 找到合理的工具变量
 
     .. figure:: iv1.png
 
-        Causal structure for the variables :math:`p, t, l, g`
+        变量 :math:`p, t, l, g` 的因果结构
 
-    We want to find the valid instrumental variables for the causal effect of :math:`t` on :math:`g`.
+    我们想要为 :math:`t` 对 :math:`g` 的因果效应找到合理的工具变量。
 
     .. code-block:: python
 
@@ -195,10 +185,9 @@ all causal effects can be converted to statistical estimands. We refer to such c
 
     .. figure:: iv2.png
 
-        Another causal structure for the variables :math:`p, t, l, g`
+        对变量 :math:`p, t, l, g` 的另一个因果结构
 
-    We still want to find the valid instrumental variables for the causal effect of :math:`t` on :math:`g`
-    in this new causal structure.
+    我们依然想要在这个新的因果结构中，为 :math:`t` 对 :math:`g` 的因果效应找到合理的工具变量。
 
     .. code-block:: python
 
@@ -216,252 +205,213 @@ all causal effects can be converted to statistical estimands. We refer to such c
     
     >>> {'p'}
 
-Class Structures
+类结构
 ================
 
 .. py:class:: ylearn.causal_model.CausalModel(causal_graph=None, data=None)
 
-    :param CausalGraph, optional, default=None causal_graph: An instance of CausalGraph which encodes the causal structures.
-    :param pandas.DataFrame, optional, default=None data: The data used to discover the causal structures if causal_graph is not provided.
+    :param CausalGraph, optional, default=None causal_graph: CausalGraph的实例，编码了因果结构
+    :param pandas.DataFrame, optional, default=None data: 用于发现因果结构的数据，如果causal_graph没有提供。
 
     .. py:method:: id(y, x, prob=None, graph=None)
         
-        Identify the causal quantity :math:`P(y|do(x))` if identifiable else return
-        raise :class:`IdentificationError`. 
-        Note that here we only consider semi-Markovian causal model, where
-        each unobserved variable is a parent of exactly two nodes. This is
-        because any causal model with unobserved variables can be converted
-        to a semi-Markovian causal model encoding the same set of conditional
-        independences.
+        识别因果量 :math:`P(y|do(x))` 如果可识别否则返回 raise :class:`IdentificationError` 。
+        注意这里我们仅考虑半马尔可夫因果模型，其中每个未观测到的变量正好是两个节点的父节点。这是因为任何的有未观测的变量的因果模型可以被转变为
+        一个编码了同样集合的条件独立性的半马尔可夫模型。
 
-        :param set of str y: Set of names of outcomes.
-        :param set of str x: Set of names of treatments.
-        :param Prob, optional, default=None prob: Probability distribution encoded in the graph.
-        :param CausalGraph graph: CausalGraph encodes the information of corresponding causal structures.
+        :param set of str y: 结果的名字的集合。
+        :param set of str x: 治疗的名字的集合。
+        :param Prob, optional, default=None prob: 编码在图中的概率分布。
+        :param CausalGraph graph: CausalGraph编码了对应的因果结构中的信息。
 
-        :returns: The probabiity distribution of the converted casual effect.
+        :returns: 转变的因果效应的概率分布。
         :rtype: Prob
-        :raises IdentificationError: If the interested causal effect is not identifiable, then raise IdentificationError.
+        :raises IdentificationError: 如果感兴趣的因果效应不能识别，则raise IdentificationError。
 
     .. py:method:: is_valid_backdoor_set(set_, treatment, outcome)
 
-        Determine if a given set is a valid backdoor adjustment set for
-        causal effect of treatments on the outcomes.
+        决定给定的集合是否是对结果的治疗的因果效应的一个合理的后门调整集合。
 
-        :param set set_: The adjustment set.
-        :param set or list of str treatment: Names of the treatment. str is also acceptable for single treatment.
-        :param set or list of str outcome: Names of the outcome. str is also acceptable for single outcome.
+        :param set set_: 调整集合。
+        :param set or list of str treatment: 治疗的名字。对单个治疗，str也是可以接受的。
+        :param set or list of str outcome: 结果的名字。对单个结果，str也是可以接受的。
 
-        :returns: True if the given set is a valid backdoor adjustment set for the 
-                causal effect of treatment on outcome in the current causal graph.
+        :returns: True，如果在现在的因果图中，给定的集合是对结果的治疗的因果效应的一个合理的后门调整集合。
         :rtype: bool
 
     .. py:method::  get_backdoor_set(treatment, outcome, adjust='simple', print_info=False)
         
-        Return the backdoor adjustment set for the given treatment and outcome.
+        对给定的治疗和结果返回后门调整集合。
 
-        :param set or list of str treatment: Names of the treatment. str is also acceptable for single treatment.
-        :param set or list of str outcome: Names of the outcome. str is also acceptable for single outcome.
-        :param str adjust: Set style of the backdoor set. Avaliable options are
+        :param set or list of str treatment: 治疗的名字。对单个治疗，str也是可以接受的。
+        :param set or list of str outcome: 结果的名字。对单个结果，str也是可以接受的。
+        :param str adjust: 设置后门集合的样式。可选的选项是
                 
-                simple: directly return the parent set of treatment
+                simple: 直接返回治疗的父节点集合
                 
-                minimal: return the minimal backdoor adjustment set
+                minimal: 返回最小的后门调整集合
                 
-                all: return all valid backdoor adjustment set.
+                all: 返回所有合理的后门调整集合。
         
-        :param bool, default=False print_info: If True, print the identified results.
+        :param bool, default=False print_info: 如果为True，打印识别的结果。
 
-        :returns: The first element is the adjustment list, while the second is the
-                encoded Prob.
-        :rtype: tuple of two element
-        :raises IdentificationError: Raise error if the style is not in simple, minimal or all or no
-                set can satisfy the backdoor criterion.
+        :returns: 第一个元素是调整列表，同时第二个是编码的Prob。
+        :rtype: 两个元素的元组
+        :raises IdentificationError: Raise error如果样式不在simple，minimal或者all或者没有集合能满足后门准则。
 
     .. py:method:: get_backdoor_path(treatment, outcome)
 
-        Return all backdoor paths connecting treatment and outcome.
+        返回所有的连接治疗和结果的后门路径。
 
-        :param str treatment: Name of the treatment.
-        :param str outcome: Name of the outcome
+        :param str treatment: 治疗的名字。
+        :param str outcome: 结果的名字。
 
-        :returns: A list containing all valid backdoor paths between the treatment and
-                outcome in the graph.
+        :returns: 一个包含图中所有合理的治疗和结果之间的后门路径的列表。
         :rtype: list
 
     .. py:method:: has_collider(path, backdoor_path=True)
 
-        If the path in the current graph has a collider, return True, else
-        return False.
+        如果现在图的path中有一个对撞，返回True，否则返回False。
 
-        :param list of str path: A list containing nodes in the path.
-        :param bool, default=True backdoor_path: Whether the path is a backdoor path.
+        :param list of str path: 包含路径中节点的列表。
+        :param bool, default=True backdoor_path: 该路径是否是一个后门路径。
 
-        :returns: True if the path has a colider.
+        :returns: True，如果path有一个对撞。
         :rtype: bool
 
     .. py:method:: is_connected_backdoor_path(path)
 
-        Test whether a backdoor path is connected.
+        测试是否一个后门路径是连接的。
 
-        :param list of str path: A list describing the path.
+        :param list of str path: 描述这个路径的列表。
 
-        :returns: True if path is a d-connected backdoor path and False otherwise.
+        :returns: True，如果路径是一个d-connected的后门路径，否则False。
         :rtype: bool
 
     .. py:method:: is_frontdoor_set(set_, treatment, outcome)
 
-        Determine if the given set is a valid frontdoor adjustment set for the
-        causal effect of treatment on outcome.
+        决定给定的集合是否是对结果的治疗的因果效应的一个合理的前门调整集合。
 
-        :param set set_: The set waited to be determined as a valid front-door adjustment set.
-        :param str treatment: Name of the treatment.
-        :param str outcome: Name of the outcome.
+        :param set set_: 等待决定是否是合理的前门调整集合的集合。
+        :param str treatment: 治疗的名字。
+        :param str outcome: 结果的名字。
 
-        :returns: True if the given set is a valid frontdoor adjustment set for causal effects
-                of treatments on outcomes.
+        :returns: True如果给定的集合是对结果的治疗的因果效应的一个合理的前门调整集合。
         :rtype: bool
 
     .. py:method:: get_frontdoor_set(treatment, outcome, adjust='simple')
 
-        Return the frontdoor set for adjusting the causal effect between
-        treatment and outcome.
+        返回用于调整治疗和结果之间因果效应的前门集合。
 
-        :param set of str or str treatment: Name of the treatment. Should contain only one element.
-        :param set of str or str outcome: Name of the outcome. Should contain only one element.
-        :param str, default='simple' adjust: Avaliable options include 
-                'simple': Return the frontdoor set with minimal number of elements.
+        :param set of str or str treatment: 治疗的名字。应该只包含一个元素。
+        :param set of str or str outcome: 结果的名字。应该只包含一个元素。
+        :param str, default='simple' adjust: 可选的选项包括
+                'simple': 返回有最少数量元素的前门集合。
                 
-                'minimal': Return the frontdoor set with minimal number of elements.
+                'minimal': 返回有最少数量元素的前门集合。
                 
-                'all': Return all possible frontdoor sets.
+                'all': 返回所有可能的前门集合。
         
-        :returns: 2 elements (adjustment_set, Prob)
-        :rtype: tuple
-        :raises IdentificationError: Raise error if the style is not in simple, minimal or all or no
-                set can satisfy the backdoor criterion.
+        :returns: 2个元素（adjustment_set, Prob）
+        :rtype: 元组
+        :raises IdentificationError: Raise error如果样式不在simple，minimal或者all或者没有集合能满足前门准则。
 
     .. py:method:: get_iv(treatment, outcome)
 
-        Find the instrumental variables for the causal effect of the
-        treatment on the outcome.
+        为结果的治疗的因果效应找到工具变量。
 
-        :param iterable treatment: Name(s) of the treatment.
-        :param iterable outcome: Name(s) of the outcome.
+        :param iterable treatment: 治疗的名字（们）。
+        :param iterable outcome: 结果的名字（们）。
 
-        :returns: A valid instrumental variable set that will be an empty one if
-                there is no such set.
+        :returns: 一个合理的工具变量集合将会是空的如果没有这样的集合。
         :rtype: set
 
     .. py:method:: is_valid_iv(treatment, outcome, set_)
 
-        Determine whether a given set is a valid instrumental variable set.
+        决定给出的集合是否是一个合法的工具变量集合。
 
-        :param iterable treatment: Name(s) of the treatment.
-        :param iterable outcome: Name(s) of the outcome.
-        :param set set_: The set waited to be tested.
+        :param iterable treatment: 治疗的名字（们）。
+        :param iterable outcome: 结果的名字（们）。
+        :param set set_: 等待测试的集合。
 
-        :returns: True if the set is a valid instrumental variable set and False
-                otherwise.
+        :returns: True如果集合是一个合理的工具变量集合否则False。
         :rtype: bool
 
     .. py:method:: identify(treatment, outcome, identify_method='auto')
         
-        Identify the causal effect expression. Identification is an operation that
-        converts any causal effect quantity, e.g., quantities with the do operator, into
-        the corresponding statistical quantity such that it is then possible
-        to estimate the causal effect in some given data. However, note that not all
-        causal quantities are identifiable, in which case an IdentificationError
-        will be raised.
+        识别因果效应表达式。识别是转变任何因果效应量的操作。比如，用do operator的量，变为对应的统计量这样它就可以用给出的数据估计因果效应。但是，
+        注意不是所有的因果量都是可识别的，这种情况下，一个IdentificationError被抛出。
 
-        :param set or list of str treatment: Set of names of treatments.
-        :param set or list of str outcome: Set of names of outcomes.
-        :param tuple of str or str, optional, default='auto' identify_method: If the passed value is a tuple or list, then it should have two
-                elements where the first one is for the identification methods
-                and the second is for the returned set style.
+        :param set or list of str treatment: 治疗名字的集合。
+        :param set or list of str outcome: 结果名字的集合。
+        :param tuple of str or str, optional, default='auto' identify_method: 如果传入的值是元组或者列表，那么它应该有两个元素，
+                其中第一个是识别方法，第二个是返回的集合样式。
 
-                Available options:
+                可选的选项：
                 
-                    'auto' : Perform identification with all possible methods
+                    'auto' : 使用所有可能的方法进行识别
                     
-                    'general': The general identification method, see id()
+                    'general': 通用识别方法，看id()
                     
-                    *('backdoor', 'simple')*: Return the set of all direct confounders of
-                    both treatments and outcomes as a backdoor
-                    adjustment set.
+                    *('backdoor', 'simple')*: 返回治疗和结果的所有的直接的混淆因素的集合作为后门调整集合。
                     
-                    *('backdoor', 'minimal')*: Return all possible backdoor adjustment sets with
-                    minial number of elements.
+                    *('backdoor', 'minimal')*: 返回所有的可能的有最小数量元素的后门调整集合。
                     
-                    *('backdoor', 'all')*: Return all possible backdoor adjustment sets.
+                    *('backdoor', 'all')*: 返回所有的可能的后门调整集合。
                     
-                    *('frontdoor', 'simple')*: Return all possible frontdoor adjustment sets with
-                    minial number of elements.
+                    *('frontdoor', 'simple')*: 返回所有的可能的有最小数量元素的前门调整集合。
                     
-                    *('frontdoor', 'minimal')*: Return all possible frontdoor adjustment sets with
-                    minial number of elements.
+                    *('frontdoor', 'minimal')*: 返回所有的可能的有最小数量元素的前门调整集合。
                     
-                    *('frontdoor', 'all')*: Return all possible frontdoor adjustment sets.
+                    *('frontdoor', 'all')*: 返回所有的可能的前门调整集合。
 
-        :returns: A python dict where keys of the dict are identify methods while the values are the
-                corresponding results.
+        :returns: 一个python字典，其中字典中的键是识别方法，值是对应的结果。
         :rtype: dict
-        :raises IdentificationError: If the causal effect is not identifiable or if the identify_method was not given properly.
+        :raises IdentificationError: 如果因果效应不可识别或者identify_method给的不正确。
 
     .. py:method:: estimate(estimator_model, data=None, *, treatment=None, outcome=None, adjustment=None, covariate=None, quantity=None, **kwargs)
 
-        Estimate the identified causal effect in a new dataset.
+        估计新的数据集中识别的因果效应。
 
-        :param EstimatorModel estimator_model: Any suitable estimator models implemented in the EstimatorModel can
-                be applied here. 
-        :param pandas.DataFrame, optional, default=None data: The data set for causal effect to be estimated. If None, use the data
-                which is used for discovering causal graph.
-        :param  set or list, optional, default=None treatment: Names of the treatment. If None, the treatment used for backdoor adjustment
-                will be taken as the treatment.
-        :param set or list, optional, default=None outcome: Names of the outcome. If None, the treatment used for backdoor adjustment
-                will be taken as the outcome.
-        :param set or list, optional, default=None adjustment: Names of the adjustment set. If None, the ajustment set is given by
-                the simplest backdoor set found by CausalModel.
-        :param set or list, optional, default=None covariate: Names of covariate set. Ignored if set as None.
-        :param str, optional, default=None quantity: The interested quantity when evaluating causal effects.
+        :param EstimatorModel estimator_model: 任何在EstimatorModel中实现的合适的估计器模型可以在这里使用。
+        :param pandas.DataFrame, optional, default=None data: 用于估计的因果效应的数据集。如果是None，使用用于因果图发现的数据。
+        :param  set or list, optional, default=None treatment: 治疗的名字们。如果是None，用于后门调整的治疗被当作治疗。
+        :param set or list, optional, default=None outcome: 结果的名字们。如果是None，用于后门调整的结果被当作结果。
+        :param set or list, optional, default=None adjustment: 调整集合的名字们。如果是None，调整集合由CausalModel找到的最简单的后门集合给出。
+        :param set or list, optional, default=None covariate: 协变量集合的名字。如果是None则忽略。
+        :param str, optional, default=None quantity: 估计因果效应时，感兴趣的量。
 
-        :returns: The estimated causal effect in data.
+        :returns: 估计的数据中的因果效应。
         :rtype: np.ndarray or float
 
     .. py:method:: identify_estimate(data, outcome, treatment, estimator_model=None, quantity=None, identify_method='auto', **kwargs)
 
-        Combination of the identifiy method and the estimate method. However,
-        since current implemented estimator models assume (conditionally)
-        unconfoundness automatically (except for methods related to iv), we may
-        only consider using backdoor set adjustment to fullfill the unconfoundness
-        condition.
+        组合识别方法和估计方法。然而，既然现在实现的估计器模型自动假设（有条件地）无混淆（除了有关iv的方法）。我们可能仅考虑使用后门集合调整来实现无混淆条件。
 
-        :param set or list of str, optional treatment: Set of names of treatments.
-        :param set or list of str, optional outcome: Set of names of outcome.
-        :param tuple of str or str, optional, default='auto' identify_method: If the passed value is a tuple or list, then it should have two
-                elements where the first one is for the identification methods
-                and the second is for the returned set style.
+        :param set or list of str, optional treatment: 治疗的名字们。
+        :param set or list of str, optional outcome: 结果的名字们。
+        :param tuple of str or str, optional, default='auto' identify_method: 如果传入的值是元组或者列表，那么它应该有两个元素，
+                其中第一个是识别方法，第二个是返回的集合样式。
 
-                Available options:
+                可选的选项：
                 
-                    'auto' : Perform identification with all possible methods
+                    'auto' : 使用所有可能的方法进行识别
                     
-                    'general': The general identification method, see id()
+                    'general': 通用识别方法，看id()
                     
-                    *('backdoor', 'simple')*: Return the set of all direct confounders of
-                    both treatments and outcomes as a backdoor adjustment set.
+                    *('backdoor', 'simple')*: 返回治疗和结果的所有的直接的混淆因素的集合作为后门调整集合。
                     
-                    *('backdoor', 'minimal')*: Return all possible backdoor adjustment sets with minial number of elements.
+                    *('backdoor', 'minimal')*: 返回所有的可能的有最小数量元素的后门调整集合。
                     
-                    *('backdoor', 'all')*: Return all possible backdoor adjustment sets.
+                    *('backdoor', 'all')*: 返回所有的可能的后门调整集合。
                     
-                    *('frontdoor', 'simple')*: Return all possible frontdoor adjustment sets with minial number of elements.
+                    *('frontdoor', 'simple')*: 返回所有的可能的有最小数量元素的前门调整集合。
                     
-                    *('frontdoor', 'minimal')*: Return all possible frontdoor adjustment sets with minial number of elements.
+                    *('frontdoor', 'minimal')*: 返回所有的可能的有最小数量元素的前门调整集合。
                     
-                    *('frontdoor', 'all')*: Return all possible frontdoor adjustment sets.
+                    *('frontdoor', 'all')*: 返回所有的可能的前门调整集合。
         
-        :param str, optional, default=None quantity: The interested quantity when evaluating causal effects.
+        :param str, optional, default=None quantity: 估计因果效应时，感兴趣的量。
 
-        :returns: The estimated causal effect in data.
+        :returns: 估计的数据中的因果效应。
         :rtype: np.ndarray or float
