@@ -42,7 +42,7 @@ YLearn, equipped with many techniques developed in recent literatures, is implem
 
 ### Concepts in YLearn
 
-![Concepts in YLearn](./fig/structure_ylearn.png)
+![Concepts in YLearn](./fig/structure_ylearn.png#pic_center)
 
 There are 5 main concepts in YLearn corresponding to the causal inference pipeline.
 
@@ -60,7 +60,7 @@ These components are connected to give a full pipeline of causal inference, whic
 
 ### Pipeline in YLearn
 
-![A typical pipeline in YLearn](./fig/flow.png)
+![A typical pipeline in YLearn](./fig/flow.png#pic_center)
 *The pipeline of causal inference in YLearn.*
 
 Starting from the training data:
@@ -74,8 +74,7 @@ to model relationships between causal effects and other variables, i.e., estimat
 
 It is also helpful to use the following flow chart in many causal inference tasks
 
-![Helpful flow chart when using YLearn](./fig/flow_chart.png)
-
+![Helpful flow chart when using YLearn](./fig/flow_chart.png#pic_center)
 
 ## Quick Start
 
@@ -97,11 +96,15 @@ We present several necessary example usages of YLearn in this section, which cov
 
    `cg` will be the causal graph encoding the causal relation `X <- W -> Y` in YLearn. If there exist unobserved confounders in the causal graph, then, aside from the observed variables, we should also define a python `list` containing these causal relations. For example, a causal graph with unobserved confounders (green nodes)
 
+   <div align="center">
    <img src="./fig/graph_expun.png" width="400">
+   <div>
 
    is first converted into a graph with latent confounding arcs (black dotted llines with two directions)
 
+   <div align="center">
    <img src="./fig/graph_un_arc.png" width="500">
+   <div>
 
    To represent such causal graph, we should (1) define a python `dict` to represent the observed parts, and (2) define a `list` to encode the latent confounding arcs where each element in the `list` includes the names of the start node and the end node of a latent confounding arc:
 
@@ -123,7 +126,6 @@ We present several necessary example usages of YLearn in this section, which cov
    It is crucial to identify the causal effect when we want to estimate it from data. The first step for identifying the causal effect is identifying the causal estimand. This can be easily done in YLearn. For an instance, suppose that we are interested in identifying the causal estimand `P(Y|do(X=x))` in the causal graph `cg` defined above, then we can simply define an instance of `CausalModel` and call the `identify()` method:
 
     ```python
-
         cm = CausalModel(causal_graph=cg)
         cm.identify(treatment={'X'}, outcome={'Y'}, identify_method=('backdoor', 'simple'))
 
@@ -135,12 +137,13 @@ We present several necessary example usages of YLearn in this section, which cov
 
    Instrumental variable is an important technique in causal inference. The approach of using YLearn to find valid instrumental variables is very straightforward. For example, suppose that we have a causal graph
 
+   <div align="center">
    <img src="./fig/iv2.png" width="400">,
+   <div>
 
    we can follow the common procedure of utilizing `CausalModel` to find the instrumental variables: (1) define the `dict` and `list` of the causal relations; (2) define an instance of `CausalGraph` to build the related causal graph in YLearn; (3) define an instance of `CausalModel` with the instance of `CausalGraph` in last step being the input; (4) call the `get_iv()` method of `CausalModel` to find the instrumental variables
 
    ```python
-        
         causation = {
             'p': [],
             't': ['p', 'l'],
@@ -168,7 +171,6 @@ We present several necessary example usages of YLearn in this section, which cov
     For the purpose of applying YLearn in a unified and eaiser manner, YLearn provides the API `Why`. `Why` is an API which encapsulates almost everything in YLearn, such as identifying causal effects and scoring a trained estimator model. To use `Why`, one should first create an instance of `Why` which needs to be trained by calling its method `fit()`, after which other utilities, such as `causal_effect()`, `score()`, and `whatif()`, can be used. This procedure is illustrated in the following code example:
 
     ```python
-
         from sklearn.datasets import fetch_california_housing
 
         from ylearn import Why
