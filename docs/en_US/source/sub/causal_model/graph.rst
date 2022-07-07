@@ -187,7 +187,7 @@ Class Structures
 
     .. py:method:: remove_edge(edge, observed=True)
         
-        Remove the edge in the CausalGraph. If observed, remove the unobserved
+        Remove the edge in the CausalGraph. If not observed, remove the unobserved
         latent confounding arcs.
 
         :param tuple edge: 2 elements denote the start and end of the edge, respectively.
