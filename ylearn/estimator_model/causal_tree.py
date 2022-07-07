@@ -21,7 +21,7 @@ from ylearn.sklearn_ex.cloned.tree._tree import BestFirstTreeBuilder
 from ylearn.sklearn_ex.cloned.tree._tree import Tree
 from sklearn.tree import plot_tree
 
-from ..utils import logging, Version
+from ..utils import logging
 from .utils import (convert2array, get_wv, get_treat_control)
 from .base_models import BaseEstModel
 
@@ -31,11 +31,10 @@ from ylearn.estimator_model._tree.tree_criterion import CMSE, MSE, HonestCMSE
 
 logger = logging.get_logger(__name__)
 
-_is_sk10 = Version(sklearn.__version__) >= Version('1.0')
-
 SPLITTERS = {"best": BestSplitter, "random": RandomSplitter}
 
 EPS = 1e-5
+
 
 class CausalTree(BaseEstModel):
     # TODO: add support for multi-output causal tree
@@ -587,25 +586,14 @@ class CausalTree(BaseEstModel):
 
         # Build tree step 3. Build the tree
         if max_leaf_nodes < 0:
-            if _is_sk10:
-                builder = DepthFirstTreeBuilder(
-                    splitter,
-                    min_samples_split,
-                    min_samples_leaf,
-                    min_weight_leaf,
-                    max_depth,
-                    self.min_impurity_decrease,
-                )
-            else:
-                builder = DepthFirstTreeBuilder(
-                    splitter,
-                    min_samples_split,
-                    min_samples_leaf,
-                    min_weight_leaf,
-                    max_depth,
-                    self.min_impurity_decrease,
-                    1e-7,
-                )
+            builder = DepthFirstTreeBuilder(
+                splitter,
+                min_samples_split,
+                min_samples_leaf,
+                min_weight_leaf,
+                max_depth,
+                self.min_impurity_decrease,
+            )
         else:
             builder = BestFirstTreeBuilder(
                 splitter,
