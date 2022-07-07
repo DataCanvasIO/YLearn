@@ -1,1 +1,1 @@
-from sklearn.tree._criterion cimport RegressionCriterion
+from ylearn.sklearn_ex.cloned.tree._criterion cimport RegressionCriterion

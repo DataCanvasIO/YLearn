@@ -14,14 +14,14 @@ import sklearn
 from sklearn.utils import check_random_state
 from sklearn.utils import check_scalar
 
-from sklearn.tree._splitter import Splitter
-from sklearn.tree._splitter import BestSplitter
-from sklearn.tree._splitter import RandomSplitter
-from sklearn.tree._criterion import Criterion
-# from sklearn.tree._criterion import MSE
-from sklearn.tree._tree import Tree
-from sklearn.tree._tree import DepthFirstTreeBuilder
-from sklearn.tree._tree import BestFirstTreeBuilder
+from ylearn.sklearn_ex.cloned.tree._splitter import Splitter
+from ylearn.sklearn_ex.cloned.tree._splitter import BestSplitter
+from ylearn.sklearn_ex.cloned.tree._splitter import RandomSplitter
+from ylearn.sklearn_ex.cloned.tree._criterion import Criterion
+# from ylearn.sklearn_ex.cloned.tree._criterion import MSE
+from ylearn.sklearn_ex.cloned.tree._tree import Tree
+from ylearn.sklearn_ex.cloned.tree._tree import DepthFirstTreeBuilder
+from ylearn.sklearn_ex.cloned.tree._tree import BestFirstTreeBuilder
 from sklearn.tree import plot_tree
 
 from ..utils import logging

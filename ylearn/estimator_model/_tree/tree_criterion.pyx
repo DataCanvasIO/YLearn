@@ -1,3 +1,7 @@
+# cython: cdivision=True
+# cython: boundscheck=False
+# cython: wraparound=False
+
 """
 By writing a criterion class inherited from the sklearn.tree._criterion, we can
 implement the causal tree more directly.
@@ -14,10 +18,10 @@ np.import_array()
 
 cdef double INFINITY = np.inf
 
-from sklearn.tree._tree cimport DOUBLE_t
-from sklearn.tree._tree cimport SIZE_t
+from ylearn.sklearn_ex.cloned.tree._tree cimport DOUBLE_t
+from ylearn.sklearn_ex.cloned.tree._tree cimport SIZE_t
 
-from sklearn.tree._criterion cimport RegressionCriterion
+from ylearn.sklearn_ex.cloned.tree._criterion cimport RegressionCriterion
 from libc.stdio cimport printf
 #-------------------------------------start of the implementation
 cdef double eps = 1e-5
