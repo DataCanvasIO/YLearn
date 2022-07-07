@@ -85,7 +85,7 @@ causal relations in data.
 
 We present several necessary example usages of YLearn in this section, which covers defining a causal graph, identifying the causal effect, and training an estimator model, etc. Please see their specific documentations for more details.
 
-1. Representation of the causal graph
+1. **Representation of the causal graph**
 
    Given a set of variables, the representation of its causal graph in YLearn requires a python `dict` to denote the causal relations of variables, in which the *keys* of the `dict` are children of all elements in the corresponding values which usually should be a list of names of variables. For an instance, in the simplest case, for a given causal graph `X <- W -> Y`, we first define a python `dict` for the causal relations, which will then be passed to `CausalGraph` as a parameter:
 
@@ -96,15 +96,11 @@ We present several necessary example usages of YLearn in this section, which cov
 
    `cg` will be the causal graph encoding the causal relation `X <- W -> Y` in YLearn. If there exist unobserved confounders in the causal graph, then, aside from the observed variables, we should also define a python `list` containing these causal relations. For example, a causal graph with unobserved confounders (green nodes)
 
-   <div align="center">
-   <img src="./fig/graph_expun.png" width="400">
-   <div>
+    <img src="./fig/graph_expun.png" width="400">
 
    is first converted into a graph with latent confounding arcs (black dotted llines with two directions)
 
-   <div align="center">
-   <img src="./fig/graph_un_arc.png" width="500">
-   <div>
+    <img src="./fig/graph_un_arc.png" width="500">
 
    To represent such causal graph, we should (1) define a python `dict` to represent the observed parts, and (2) define a `list` to encode the latent confounding arcs where each element in the `list` includes the names of the start node and the end node of a latent confounding arc:
 
@@ -120,26 +116,24 @@ We present several necessary example usages of YLearn in this section, which cov
         arcs = [('X', 'Z2'), ('X', 'Z3'), ('X', 'Y'), ('Z2', 'Y')]
 
         cg_unob = CausalGraph(causation=causation_unob, latent_confounding_arcs=arcs)
+   ```
 
-2. Identification of causal effect
+2. **Identification of causal effect**
 
    It is crucial to identify the causal effect when we want to estimate it from data. The first step for identifying the causal effect is identifying the causal estimand. This can be easily done in YLearn. For an instance, suppose that we are interested in identifying the causal estimand `P(Y|do(X=x))` in the causal graph `cg` defined above, then we can simply define an instance of `CausalModel` and call the `identify()` method:
 
-    ```python
+   ```python
         cm = CausalModel(causal_graph=cg)
         cm.identify(treatment={'X'}, outcome={'Y'}, identify_method=('backdoor', 'simple'))
-
-    ```
+   ```
 
     where we use the *backdoor-adjustment* method here. YLearn also supports front-door adjustment, finding instrumental variables, and, most importantly, the general identification method developed in [1] which is able to identify any causal effect if it is identifiable.
 
-3. Instrumental variables
+3. **Instrumental variables**
 
    Instrumental variable is an important technique in causal inference. The approach of using YLearn to find valid instrumental variables is very straightforward. For example, suppose that we have a causal graph
 
-   <div align="center">
-   <img src="./fig/iv2.png" width="400">,
-   <div>
+    <img src="./fig/iv2.png" width="400">,
 
    we can follow the common procedure of utilizing `CausalModel` to find the instrumental variables: (1) define the `dict` and `list` of the causal relations; (2) define an instance of `CausalGraph` to build the related causal graph in YLearn; (3) define an instance of `CausalModel` with the instance of `CausalGraph` in last step being the input; (4) call the `get_iv()` method of `CausalModel` to find the instrumental variables
 
