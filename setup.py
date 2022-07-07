@@ -9,8 +9,10 @@ from os import path as P
 import numpy
 from setuptools import setup, Extension, find_packages
 
+my_name = 'ylearn'
 
-def read_requirements(file_path='requirements.txt'):
+
+def read_requirements(file_path=f'{my_name}/requirements.txt'):
     if not os.path.exists(file_path):
         return []
 
@@ -29,8 +31,8 @@ def read_extra_requirements():
 
     extra = {}
 
-    for file_name in glob.glob('requirements-*.txt'):
-        key = re.search('requirements-(.+).txt', file_name).group(1)
+    for file_name in glob.glob(f'{my_name}/requirements-*.txt'):
+        key = re.search(f'{my_name}/requirements-(.+).txt', file_name).group(1)
         req = read_requirements(file_name)
         if req:
             extra[key] = req
@@ -50,13 +52,13 @@ except NameError:
 
 HERE = P.dirname((P.abspath(__file__)))
 version_ns = {}
-execfile(P.join(HERE, 'ylearn', '_version.py'), version_ns)
+execfile(P.join(HERE, my_name, '_version.py'), version_ns)
 version = version_ns['__version__']
 print("__version__=" + version)
 
 np_include = numpy.get_include()
-pyx_files = glob("ylearn/**/*.pyx", recursive=True)
-c_files = glob("ylearn/**/*.c", recursive=True)
+pyx_files = glob(f"{my_name}/**/*.pyx", recursive=True)
+c_files = glob(f"{my_name}/**/*.cpp", recursive=True)
 build_ext = any(map(lambda s: s == 'build_ext', sys.argv[1:]))
 
 if build_ext:
@@ -72,12 +74,15 @@ else:
     pyx_modules = []
 print('pyx extensions:', pyx_modules)
 print('c extensions:', c_modules)
+print('np_include', np_include)
 
-c_modules = list(map(lambda f: Extension(f.replace(os.sep, '.'), [f'{f}.c'], include_dirs=[np_include]), c_modules))
+c_modules = list(map(lambda f: Extension(f.replace(os.sep, '.'), [f'{f}.cpp'], include_dirs=[np_include]), c_modules))
 if pyx_modules:
     from Cython.Build import cythonize
 
-    pyx_modules = list(map(lambda f: Extension(f.replace(os.sep, '.'), [f'{f}.pyx'], include_dirs=[np_include]),
+    pyx_modules = list(map(lambda f: Extension(f.replace(os.sep, '.'), [f'{f}.pyx'],
+                                               include_dirs=[np_include],
+                                               language="c++"),
                            pyx_modules))
     pyx_modules = cythonize(pyx_modules, compiler_directives={'language_level': "3"})
 
@@ -90,7 +95,7 @@ extras_require = read_extra_requirements()
 print('requirements:', requires)
 
 setup(
-    name='ylearn',
+    name=my_name,
     version=version,
     description='A python package for causal inference',
     long_description=long_description,
@@ -120,13 +125,14 @@ setup(
     ],
     packages=find_packages(exclude=('docs', 'tests', 'example_usages')),
     package_data={
-        # 'hypergbm': ['examples/*', 'examples/**/*', 'examples/**/**/*'],
+        'ylearn': ['*.txt', '**/**.txt', ],
     },
     ext_modules=c_modules + pyx_modules,
+    include_dirs=[np_include],
     zip_safe=False,
     # entry_points={
     #     # 'console_scripts': [
-    #     #     'hypergbm = hypergbm.utils.tool:main',
+    #     #     'why = ylearn.foo:main',
     #     # ],
     # },
     include_package_data=True,
