@@ -25,7 +25,6 @@ from ylearn.sklearn_ex.cloned.tree._tree import BestFirstTreeBuilder
 from sklearn.tree import plot_tree
 
 from ..utils import logging
-from ..utils import Version
 from ..utils._common import convert2array
 
 from ._tree.tree_criterion import PRegCriteria
@@ -34,7 +33,6 @@ from ..estimator_model._tree.tree_criterion import MSE
 
 logger = logging.get_logger(__name__)
 
-_is_sk10 = Version(sklearn.__version__) >= Version('1.0')
 
 CRITERIA = {
     "policy_reg": PRegCriteria,
@@ -478,24 +476,13 @@ class PolicyTree:
 
         # Build tree step 3. Build the tree
         if max_leaf_nodes < 0:
-            if _is_sk10:
-                builder = DepthFirstTreeBuilder(
+            builder = DepthFirstTreeBuilder(
                     splitter,
                     min_samples_split,
                     min_samples_leaf,
                     min_weight_leaf,
                     max_depth,
                     self.min_impurity_decrease,
-                )
-            else:
-                builder = DepthFirstTreeBuilder(
-                    splitter,
-                    min_samples_split,
-                    min_samples_leaf,
-                    min_weight_leaf,
-                    max_depth,
-                    self.min_impurity_decrease,
-                    1e-7,
                 )
         else:
             builder = BestFirstTreeBuilder(
