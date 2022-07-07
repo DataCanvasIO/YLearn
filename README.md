@@ -76,6 +76,7 @@ It is also helpful to use the following flow chart in many causal inference task
 
 ![Helpful flow chart when using YLearn](./fig/flow_chart.png)
 
+
 ## Quick Start
 
 In this part, we first show several simple example usages of YLearn. These examples cover the most common functionalities. Then we present a case stuy with `Why` to unveil the hidden
