@@ -31,7 +31,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -q -r ylearn/requirements.txt cython igraph pytest-cov==2.4.0  python-coveralls  codacy-coverage
+        pip install -q -r requirements.txt cython igraph pytest-cov==2.4.0  python-coveralls  codacy-coverage
         pip list
     - name: Build extensions
       run: |

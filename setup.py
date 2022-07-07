@@ -12,7 +12,7 @@ from setuptools import setup, Extension, find_packages
 my_name = 'ylearn'
 
 
-def read_requirements(file_path=f'{my_name}/requirements.txt'):
+def read_requirements(file_path='requirements.txt'):
     if not os.path.exists(file_path):
         return []
 
@@ -31,8 +31,8 @@ def read_extra_requirements():
 
     extra = {}
 
-    for file_name in glob.glob(f'{my_name}/requirements-*.txt'):
-        key = re.search(f'{my_name}/requirements-(.+).txt', file_name).group(1)
+    for file_name in glob.glob('requirements-*.txt'):
+        key = re.search('requirements-(.+).txt', file_name).group(1)
         req = read_requirements(file_name)
         if req:
             extra[key] = req
@@ -73,7 +73,7 @@ else:
                                     f'run "python setup.py build_ext --inplace" to generate c files.')
     pyx_modules = []
 print('pyx extensions:', pyx_modules)
-print('c extensions:', c_modules)
+print('cpp extensions:', c_modules)
 print('np_include', np_include)
 
 c_modules = list(map(lambda f: Extension(f.replace(os.sep, '.'), [f'{f}.cpp'], include_dirs=[np_include]), c_modules))
