@@ -1,4 +1,4 @@
-<img src="./fig/YLearn1.png" width="200">
+<img src="./fig/YLearn1.png" width="300">
 
 [English](https://github.com/DataCanvasIO/YLearn/blob/main/README.md)
 
