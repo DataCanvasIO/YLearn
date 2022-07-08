@@ -122,13 +122,9 @@ YLearn 有5个主要的因果推断相关概念，如下所示
         cm.identify(treatment={'X'}, outcome={'Y'}, identify_method=('backdoor', 'simple'))
    ```
 
-    where we use the *backdoor-adjustment* method here. YLearn also supports front-door adjustment, finding instrumental variables, and, most importantly, the general identification method developed in [1] which is able to identify any causal effect if it is identifiable.
-
     在上面的例子中我们使用了 *后门调整*，YLearn 也支持包括前门调整，工具变量识别，一般因果效应识别[1]（如果任意因果量可以被识别，返回识别后的结果，如果不可识别，则返回不可识别）等各类识别算法。
 
 3. **工具变量**
-
-   Instrumental variable is an important technique in causal inference. The approach of using YLearn to find valid instrumental variables is very straightforward. For example, suppose that we have a causal graph
 
    工具变量是一种因果推断中很重要的手段，利用 YLearn 去寻找工具变量十分方便直接，例如，我们有如下的因果图
 
@@ -153,17 +149,15 @@ YLearn 有5个主要的因果推断相关概念，如下所示
 
    使用 YLearn 进行因果效应估计十分方便直接（与通常的机器学习模型使用方式十分类似，因为 YLearn 主要着眼于机器学习与因果推断的交叉），它是一个包括3个步骤的流程：
 
-    * Given data in the form of  `pandas.DataFrame`, find the names of `treatment, outcome, adjustment, covariate`. 给定 `pandas.DataFrame` 形式的数据，确定 `treatment, outcome, adjustment, covariate` 的变量名。
+   给定 `pandas.DataFrame` 形式的数据，确定 `treatment, outcome, adjustment, covariate` 的变量名。
     * 调用 `EstimatorModel` 的 `fit()` 方法训练模型。
     * 调用 `EstimatorModel` 的 `estimate()` 方法得到估计好的因果效应
 
-    用户可以查看文档中的[相关页面](https://ylearn.readthedocs.io/en/latest/sub/est.html#)查阅各类估计模型的细节。
+   用户可以查看文档中的[相关页面](https://ylearn.readthedocs.io/en/latest/sub/est.html#)查阅各类估计模型的细节。
 
 5. **使用统一接口API: Why**
 
-    For the purpose of *applying YLearn in a unified and eaiser manner*, YLearn provides the API `Why`. `Why` is an API which encapsulates almost everything in YLearn, such as identifying causal effects and scoring a trained estimator model. To use `Why`, one should first create an instance of `Why` which needs to be trained by calling its method `fit()`, after which other utilities, such as `causal_effect()`, `score()`, and `whatif()`, can be used. This procedure is illustrated in the following code example:
-
-    为了能*以一种统一且方便的方式使用 YLearn*，YLearn 提供了一个接口 `Why`，它几乎封装了 YLearn 中的所有内容，包括因果效应识别和评估训练得到的估计模型等。在使用`Why` 的过程中，用户可以先创建一个 `Why` 的实例，然后调用 `Why` 的 `fit()` 方法训练这个实例，之后其他的各类方法（如`causal_effect()`, `score()`, `whatif()`）就可以使用了。下面的代码是一个简单的使用样例
+    为了能*以一种统一且方便的方式使用 YLearn*，YLearn 提供了一个接口 `Why`，它几乎封装了 YLearn 中的所有内容，包括因果效应识别和评估训练得到的估计模型等。在使用`Why` 的过程中，用户可以先创建一个 `Why` 的实例，然后调用 `Why` 的 `fit()` 方法训练这个实例，之后其他的各类方法（如`causal_effect()`, `score()`, `whatif()`）就可以使用了。下面的代码是一个简单的使用样例：
 
     ```python
         from sklearn.datasets import fetch_california_housing
@@ -182,8 +176,6 @@ YLearn 有5个主要的因果推断相关概念，如下所示
     ```
 
 ### 案例
-
-In the notebook [CaseStudy](https://github.com/DataCanvasIO/YLearn/blob/main/example_usages/case_study_bank.ipynb), we utilize a typical bank customer dataset to further demonstrate the usage of the all-in-one API `Why` of YLearn. `Why` covers the full processing pipeline of causal learning, including causal discovery, causal effect identification, causal effect estimation, counterfactual inference, and policy learning. Please refer to [CaseStudy](https://github.com/DataCanvasIO/YLearn/blob/main/example_usages/case_study_bank.ipynb) for more details.
 
 在 notebook [CaseStudy](https://github.com/DataCanvasIO/YLearn/blob/main/example_usages/case_study_bank.ipynb) 中, 我们用一个银行客户相关的数据集进一步阐述了 `Why` 的各类用法和 YLearn 的实际场景使用举例。 请参考 [CaseStudy](https://github.com/DataCanvasIO/YLearn/blob/main/example_usages/case_study_bank.ipynb) 查看更多的细节。
 
