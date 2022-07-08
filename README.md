@@ -30,15 +30,15 @@ Causal inference directly models the outcome of interventions and formalizes the
 With the aid of machine learning, causal inference can draw causal conclusions from observational data in
 various manners nowadays, rather than relying on conducting craftly designed experiments.
 
-A typical complete causal inference procedure is composed of three parts. First, it learns causal relationships
+A typical complete causal inference procedure is composed of three parts. *First*, it learns causal relationships
 using the technique called causal discovery. These relationships are then expressed either in the form of Structural
-Causal Models or Directed Acyclic Graphs (DAG). Second, it expresses the causal estimands, which are clarified by the
+Causal Models or Directed Acyclic Graphs (DAG). *Second*, it expresses the causal estimands, which are clarified by the
 interested causal questions such as the average treatment effects, in terms of the observed data. This process is
-known as identification. Finally, once the causal estimand is identified, causal inference proceeds to focus on
+known as identification. *Finally*, once the causal estimand is identified, causal inference proceeds to focus on
 estimating the causal estimand from observational data. Then policy evaluation problems and counterfactual questions
 can also be answered.
 
-YLearn, equipped with many techniques developed in recent literatures, is implemented to support the whole causal inference pipeline from causal discovery to causal estimand estimation with the help of machine learning. This is more promising especially when there are abundant observational data.
+YLearn, equipped with many techniques developed in recent literatures, is implemented to **support the whole causal inference pipeline from causal discovery to causal estimand estimation with the help of machine learning**. This is more promising especially when there are abundant observational data.
 
 ### Concepts in YLearn
 
@@ -87,14 +87,14 @@ We present several necessary example usages of YLearn in this section, which cov
 
 1. **Representation of the causal graph**
 
-   Given a set of variables, the representation of its causal graph in YLearn requires a python `dict` to denote the causal relations of variables, in which the *keys* of the `dict` are children of all elements in the corresponding values which usually should be a list of names of variables. For an instance, in the simplest case, for a given causal graph `X <- W -> Y`, we first define a python `dict` for the causal relations, which will then be passed to `CausalGraph` as a parameter:
+   Given a set of variables, the representation of its causal graph in YLearn *requires a python `dict` to denote the causal relations of variables*, in which the *keys* of the `dict` are children of all elements in the corresponding values which usually should be a list of names of variables. For an instance, in the simplest case, for a given causal graph `X <- W -> Y`, we first define a python `dict` for the causal relations, which will then be passed to `CausalGraph` as a parameter:
 
     ```python
         causation = {'X': ['W'], 'W':[], 'Y':['W']}
         cg = CausalGraph(causation=causation)
     ```
 
-   `cg` will be the causal graph encoding the causal relation `X <- W -> Y` in YLearn. If there exist unobserved confounders in the causal graph, then, aside from the observed variables, we should also define a python `list` containing these causal relations. For example, a causal graph with unobserved confounders (green nodes)
+   `cg` will be the causal graph encoding the causal relation `X <- W -> Y` in YLearn. If there exist *unobserved confounders* in the causal graph, then, aside from the observed variables, we should also define a python `list` containing these causal relations. For example, a causal graph with unobserved confounders (green nodes)
 
     <img src="./fig/graph_expun.png" width="400">
 
@@ -102,7 +102,11 @@ We present several necessary example usages of YLearn in this section, which cov
 
     <img src="./fig/graph_un_arc.png" width="500">
 
-   To represent such causal graph, we should (1) define a python `dict` to represent the observed parts, and (2) define a `list` to encode the latent confounding arcs where each element in the `list` includes the names of the start node and the end node of a latent confounding arc:
+   To represent such causal graph, we should
+
+   **(1)** define a python `dict` to represent the observed parts, and
+
+   **(2)** define a `list` to encode the latent confounding arcs where each element in the `list` includes the names of the start node and the end node of a latent confounding arc:
 
    ```python
         from ylearn.causal_model.graph import CausalGraph
@@ -150,7 +154,7 @@ We present several necessary example usages of YLearn in this section, which cov
         cm.get_iv('t', 'g')
    ```
 
-4. Estimation of causal effect
+4. **Estimation of causal effect**
 
    The estimation of causal effects in YLearn is also fairly easy. It follows the common approach of deploying a machine learning model since YLearn focuses on the intersection of machine learning and causal inference in this part. Given a dataset, one can apply any `EstimatorModel` in YLearn with a procedure composed of 3 distinct steps:
 
@@ -160,9 +164,9 @@ We present several necessary example usages of YLearn in this section, which cov
 
     One can refer to the documentation website for methodologies of many estimator models implemented by YLearn.
 
-5. Using the all-in-one API: Why
+5. **Using the all-in-one API: Why**
 
-    For the purpose of applying YLearn in a unified and eaiser manner, YLearn provides the API `Why`. `Why` is an API which encapsulates almost everything in YLearn, such as identifying causal effects and scoring a trained estimator model. To use `Why`, one should first create an instance of `Why` which needs to be trained by calling its method `fit()`, after which other utilities, such as `causal_effect()`, `score()`, and `whatif()`, can be used. This procedure is illustrated in the following code example:
+    For the purpose of *applying YLearn in a unified and eaiser manner*, YLearn provides the API `Why`. `Why` is an API which encapsulates almost everything in YLearn, such as identifying causal effects and scoring a trained estimator model. To use `Why`, one should first create an instance of `Why` which needs to be trained by calling its method `fit()`, after which other utilities, such as `causal_effect()`, `score()`, and `whatif()`, can be used. This procedure is illustrated in the following code example:
 
     ```python
         from sklearn.datasets import fetch_california_housing
@@ -182,7 +186,7 @@ We present several necessary example usages of YLearn in this section, which cov
 
 ### Case Study
 
-In the notebook [CaseStudy](https://github.com/DataCanvasIO/YLearn/blob/main/example_usages/case_study_bank.ipynb), we utilize a typical bank customer dataset to demonstrate the usage of the all-in-one API `Why` of YLearn. `Why` covers the full processing pipeline of causal learning, including causal discovery, causal effect identification, causal effect estimation, counterfactual inference, and policy learning. Please refer to [CaseStudy](https://github.com/DataCanvasIO/YLearn/blob/main/example_usages/case_study_bank.ipynb) for more details.
+In the notebook [CaseStudy](https://github.com/DataCanvasIO/YLearn/blob/main/example_usages/case_study_bank.ipynb), we utilize a typical bank customer dataset to further demonstrate the usage of the all-in-one API `Why` of YLearn. `Why` covers the full processing pipeline of causal learning, including causal discovery, causal effect identification, causal effect estimation, counterfactual inference, and policy learning. Please refer to [CaseStudy](https://github.com/DataCanvasIO/YLearn/blob/main/example_usages/case_study_bank.ipynb) for more details.
 
 ## References
 

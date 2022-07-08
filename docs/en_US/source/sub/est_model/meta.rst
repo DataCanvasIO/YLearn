@@ -3,10 +3,10 @@ Meta-Learner
 ************
 
 Meta-Learners [Kunzel2019]_ are estimator models that aim to estimate the CATE by taking advantage of machine learning
-models when the treatment is discrete, e.g., the treatment has only two values 1 and 0, and when the unconfoundedness is satisified. Generally speaking,
+models when the treatment is discrete, e.g., the treatment has only two values 1 and 0, and when the unconfoundedness condition is satisified. Generally speaking,
 it employs multiple machine learning models with the flexibility on the choice of models.
 
-YLearn implements 3 Meta-Learners: S-Learner, T-Learner, and X-Learner.
+YLearn implements 3 Meta-Learners: **S-Learner, T-Learner, and X-Learner**. We provide below several useful examples before introducing their class structures.
 
 .. topic:: Example
 
@@ -19,8 +19,7 @@ YLearn implements 3 Meta-Learners: S-Learner, T-Learner, and X-Learner.
         
         import matplotlib.pyplot as plt
 
-        from ylearn.estimator_model.meta_learner import SLearner, TLearner, XLearner
-        from ylearn.estimator_model.doubly_robust import DoublyRobust
+        from ylearn.estimator_model import SLearner, TLearner, XLearner
         from ylearn.exp_dataset.exp_data import binary_data
         from ylearn.utils import to_df
 
@@ -88,7 +87,7 @@ The causal effect :math:`\tau(w)` is then calculated as
 
     :param estimator, optional model: The base machine learning model for training SLearner. Any model
             should be some valid machine learning model with fit() and
-            predict_proba() functions.
+            predict() functions.
     :param int, default=2022 random_state:
     :param bool, default=True is_discrete_treatment: Treatment must be discrete for SLearner.
     :param str, optional, default='auto' categories:
@@ -108,7 +107,7 @@ The causal effect :math:`\tau(w)` is then calculated as
                 treatments are combined to give a single new group of discrete treatment if
                 set as True. When combined_treatment is set to True, then if there are multiple
                 treatments, we can use the combined_treatment technique to covert
-                the multiple discrete classification tasks into a single discrete
+                multiple discrete classification tasks into a single discrete
                 classification task. For an example, if there are two different
                 binary treatments:
                     
@@ -192,14 +191,14 @@ adjustment set (or covariate), we
 
     :param estimator, optional model: The base machine learning model for training SLearner. Any model
             should be some valid machine learning model with fit() and
-            predict_proba() functions.
+            predict() functions.
     :param int, default=2022 random_state:
     :param bool, default=True is_discrete_treatment: Treatment must be discrete for SLearner.
     :param str, optional, default='auto' categories:
     
     .. py:method:: fit(data, outcome, treatment, adjustment=None, covariate=None, treat=None, control=None, combined_treatment=True, **kwargs)
         
-        Fit the SLearner in the dataset.
+        Fit the TLearner in the dataset.
 
         :param pandas.DataFrame data: Training dataset for training the estimator.
         :param list of str, optional outcome: Names of the outcome.
@@ -266,36 +265,37 @@ adjustment set (or covariate), we
 X-Learner
 =========
 
-TLearnr does not use all data efficiently, which can be addressed by the XLearner. Training a XLearner is composed of 3 steps:
+TLearner does not use all data efficiently. This issue can can be addressed by the XLearner which utilities all data to train several models. 
+Training a XLearner is composed of 3 steps:
 
 1. As in the case of TLearner, we first train two different models for the control group and treated group,  respectively:
 
     .. math::
 
         & f_0(w) \text{for the control group}\\
-        & f_1(w) \text{for the treat group}.
+        & f_t(w) \text{for the treat group}.
 
-2. Generate two new datasets :math:`\{(h_0, w)\}` using the control group and :math:`\{(h_1, w)\}` using the treated group where
+2. Generate two new datasets :math:`\{(h_0, w)\}` using the control group and :math:`\{(h_t, w)\}` using the treated group where
     
     .. math::
 
-        h_0 & = f_1(w) - y_0,\\ 
-        h_1 & = y_1 - f_0(w). 
+        h_0 & = f_t(w) - y_0,\\ 
+        h_t & = y_t - f_0(w). 
     
-    Then train two new machine learing models :math:`k_0(w)` and :math:`k_1(w)` in these datasets such that
+    Then train two new machine learing models :math:`k_0(w)` and :math:`k_t(w)` in these datasets such that
 
     .. math::
 
         h_0 & = k_0(w) \\
-        h_1 & = k_1(w).
+        h_t & = k_t(w).
 
 3. Get the final model by combining the above two models:
 
     .. math::
 
-        g(w) = k_0(w)a(w) + k_1(w)(1 - a(w))
+        g(w) = k_0(w)a(w) + k_t(w)(1 - a(w))
 
-    where :math:`a(w)` is a coefficient adjusting the weight of :math:`k_0` and :math:`k_1`.
+    where :math:`a(w)` is a coefficient adjusting the weight of :math:`k_0` and :math:`k_t`.
 
 Finally,  the casual effect :math:`\tau(w)` can be estimated as follows:
 
@@ -305,16 +305,16 @@ Finally,  the casual effect :math:`\tau(w)` can be estimated as follows:
 
 .. py:class:: ylearn.estimator_model.meta_learner.XLearner(model, random_state=2022, is_discrete_treatment=True, categories='auto', *args, **kwargs)
 
-    :param estimator, optional model: The base machine learning model for training SLearner. Any model
+    :param estimator, optional model: The base machine learning model for training XLearner. Any model
             should be some valid machine learning model with fit() and
-            predict_proba() functions.
+            predict() functions.
     :param int, default=2022 random_state:
     :param bool, default=True is_discrete_treatment: Treatment must be discrete for SLearner.
     :param str, optional, default='auto' categories:
     
     .. py:method:: fit(data, outcome, treatment, adjustment=None, covariate=None, treat=None, control=None, combined_treatment=True, **kwargs)
         
-        Fit the SLearner in the dataset.
+        Fit the XLearner in the dataset.
 
         :param pandas.DataFrame data: Training dataset for training the estimator.
         :param list of str, optional outcome: Names of the outcome.
