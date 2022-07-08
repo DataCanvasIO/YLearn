@@ -3,7 +3,7 @@ Instrumental Variables
 **********************
 
 
-Instrumental Variables (IV) deal with the case for estimating causal effects in the presense of unobserved confounding, variables that simultaneously
+Instrumental Variables (IV) deal with the case for estimating causal effects in the presence of unobserved confounding variables that simultaneously
 have effects on the treatment :math:`X` and the outcome :math:`Y`. A set of variables :math:`Z` is said to be a set of **instrumental variables**
 if for any :math:`z` in :math:`Z`:
     
@@ -14,7 +14,7 @@ if for any :math:`z` in :math:`Z`:
     3. There are no back-door paths from :math:`z` to :math:`Y`.
 
 In such case, we must first find the IV (which can be done by using the :class:`CausalModel`, see :ref:`identification`). For an instance, the variable
-:math:`Z` in the following figure can serve as a valid IV for estimating the causal effects of :math:`X` on :math:`Y` in the presense of the unobserved confounder
+:math:`Z` in the following figure can serve as a valid IV for estimating the causal effects of :math:`X` on :math:`Y` in the presence of the unobserved confounder
 :math:`U`.
 
 .. figure:: iv3.png
@@ -25,7 +25,7 @@ YLearn implements two different methods related to IV: deepiv [Hartford]_, which
 
 The IV Framework and Problem Setting
 ====================================
-The IV framework aims to predict the value of the outcome :math:`y` when the treament :math:`x` is given. Besides, there also exist some covariates vectors :math:`v` that
+The IV framework aims to predict the value of the outcome :math:`y` when the treatment :math:`x` is given. Besides, there also exist some covariates vectors :math:`v` that
 simultaneously affect both :math:`y` and :math:`x`. There also are some unobserved confounders :math:`e` that potentially also affect :math:`y`, :math:`x` and :math:`v`. The core part
 of causal questions lies in estimating the causal quantity
 

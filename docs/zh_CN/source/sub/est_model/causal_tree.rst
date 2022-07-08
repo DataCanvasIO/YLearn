@@ -1,30 +1,28 @@
 ***********
-Causal Tree
+因果树
 ***********
 
-Causal Tree is a data-driven approach to partition the data into subpopulations which differ in the magnitude
-of their causal effects [Athey2015]_. This method is applicable when the unconfoundness is satisified given the adjustment
-set (covariate) :math:`V`. The interested causal effects is the CATE:
+因果树是一个数据驱动的方法，用来把数据划分为因果效应幅度不同的亚群 [Athey2015]_ 。这个方法在给定调整集（协变量） :math:`V` 无混淆满足时适用。
+感兴趣的因果效应是CATE：
 
 .. math::
 
     \tau(v) := \mathbb{}[Y_i(do(X=x_t)) - Y_i(do(X=x_0)) | V_i = v]
 
-Due to the fact that the counterfactuals can never be observed, [Athey2015]_ developed an honest approach where the loss
-function (criterion for building a tree) is designed as
+因为事实上反事实无法被观测到， [Athey2015]_ 开发了一个诚实的方法，其中损失函数（构建树的准则）被设计为
 
 .. math::
 
     e (S_{tr}, \Pi) := \frac{1}{N_{tr}} \sum_{i \in S_{tr}} \hat{\tau}^2 (V_i; S_{tr}, \Pi) - \frac{2}{N_{tr}} \cdot \sum_{\ell \in \Pi} \left( \frac{\Sigma^2_{S_{tr}^{treat}}(\ell)}{p} + \frac{\Sigma^2_{S_{tr}^{control}}(\ell)}{1 - p}\right)
 
-where :math:`N_{tr}` is the nubmer of samples in the training set :math:`S_{tr}`, :math:`p` is the ratio of the nubmer of samples in the treat group to that of the control group in the trainig set, and
+其中 :math:`N_{tr}` 是训练集 :math:`S_{tr}` 中样本的数量, :math:`p` 是训练集中治疗组和控制组样本个数的比，且
 
 .. math::
 
     \hat{\tau}(v) = \frac{1}{\#(\{i\in S_{treat}: V_i \in \ell(v; \Pi)\})} \sum_{ \{i\in S_{treat}: V_i \in \ell(v; \Pi)\}} Y_i \\
     - \frac{1}{\#(\{i\in S_{control}: V_i \in \ell(v; \Pi)\})} \sum_{ \{i\in S_{control}: V_i \in \ell(v; \Pi)\}} Y_i.
 
-.. topic:: Example
+.. topic:: 例子
 
     .. code-block:: python
 
@@ -52,7 +50,7 @@ where :math:`N_{tr}` is the nubmer of samples in the training set :math:`S_{tr}`
         v_test[:, 0] = np.linspace(np.percentile(v[:, 0], 1), np.percentile(v[:, 0], 99), min(100, n))
         test_data = to_df(v=v_test)
     
-    Train the `CausalTree` and use it in the test data:
+    训练 `CausalTree` 并在测试数据中使用它：
 
     .. code-block:: python
 
@@ -61,107 +59,87 @@ where :math:`N_{tr}` is the nubmer of samples in the training set :math:`S_{tr}`
         ct_pred = ct.estimate(data=test_data)
 
 
-Class Structures
+类结构
 ================
 
 .. py:class:: ylearn.estimator_model.causal_tree.CausalTree(*, splitter='best', max_depth=None, min_samples_split=2, min_samples_leaf=1, random_state=2022, max_leaf_nodes=None, max_features=None, min_impurity_decrease=0.0, min_weight_fraction_leaf=0.0, ccp_alpha=0.0, categories='auto')
 
-    :param {"best", "random"}, default="best" splitter: The strategy used to choose the split at each node. Supported
-        strategies are "best" to choose the best split and "random" to choose
-        the best random split.
-    :param int, default=None max_depth: The maximum depth of the tree. If None, then nodes are expanded until
-        all leaves are pure or until all leaves contain less than
-        min_samples_split samples.
-    :param int or float, default=2 min_samples_split: The minimum number of samples required to split an internal node:
-        - If int, then consider `min_samples_split` as the minimum number.
-        - If float, then `min_samples_split` is a fraction and `ceil(min_samples_split * n_samples)` are the minimum number of samples for each split.
-    :param int or float, default=1 min_samples_leaf: The minimum number of samples required to be at a leaf node.
-        A split point at any depth will only be considered if it leaves at
-        least ``min_samples_leaf`` training samples in each of the left and
-        right branches.  This may have the effect of smoothing the model,
-        especially in regression.
+    :param {"best", "random"}, default="best" splitter: 用于选择每个节点划分的策略。支持的策略为选择最佳划分的"best"和选择最佳随机划分的"random"。
+    :param int, default=None max_depth: 树的最大深度。如果为None，那么节点可以一直扩展直到所有的叶子都是纯的或者所有的叶子都包含小于min_samples_split个样本。
+    :param int or float, default=2 min_samples_split: 划分内部节点所需要的最小的样本数量：
+        - 如果是int，那么考虑 `min_samples_split` 为最小数量。
+        - 如果是float, 那么 `min_samples_split` 是一个分数并且 `ceil(min_samples_split * n_samples)` 是对于每一个划分最小的样本数量。
+    :param int or float, default=1 min_samples_leaf: 在一个叶子节点需要的最小的样本数量。
+        一个在任意深度的划分点仅当它留下至少 ``min_samples_leaf`` 训练样本在它的左右分支时会被考虑。这可能有平滑模型的作用，尤其是在回归中。
             
-            - If int, then consider `min_samples_leaf` as the minimum number.
-            - If float, then `min_samples_leaf` is a fraction and `ceil(min_samples_leaf * n_samples)` are the minimum number of samples for each node.
+            - 如果是int, 那么考虑 `min_samples_leaf` 为最小数量。
+            - 如果是float, 那么 `min_samples_leaf` 是一个分数并且 `ceil(min_samples_leaf * n_samples)` 是对于每一个节点最小的样本数量。
     
-    :param float, default=0.0 min_weight_fraction_leaf: The minimum weighted fraction of the sum total of weights (of all
-        the input samples) required to be at a leaf node. Samples have
-        equal weight when sample_weight is not provided.
-    :param int, float or {"sqrt", "log2"}, default=None max_features: The number of features to consider when looking for the best split:
+    :param float, default=0.0 min_weight_fraction_leaf: 在一个叶子节点需要的所有权重总和（所有的输入样本）的最小加权分数。如果sample_weight没有被提供时，样本具有同样的权重。
+    :param int, float or {"sqrt", "log2"}, default=None max_features: 寻找最佳划分时需要考虑的特征数量：
         
-            - If int, then consider `max_features` features at each split.
-            - If float, then `max_features` is a fraction and `int(max_features * n_features)` features are considered at each split.
-            - If "sqrt", then `max_features=sqrt(n_features)`.
-            - If "log2", then `max_features=log2(n_features)`.
-            - If None, then `max_features=n_features`.
+            - 如果是int，那么考虑 `max_features` 个特征在每个划分。
+            - 如果是float，那么 `max_features` 是一个分数并且 `int(max_features * n_features)` 个特征在每个划分被考虑。
+            - 如果是"sqrt"，那么 `max_features=sqrt(n_features)` 。
+            - 如果是"log2"，那么 `max_features=log2(n_features)` 。
+            - 如果是None，那么 `max_features=n_features` 。
 
-    :param int random_state: Controls the randomness of the estimator.
-    :param int, default to None max_leaf_nodes: Grow a tree with ``max_leaf_nodes`` in best-first fashion.
-        Best nodes are defined as relative reduction in impurity.
-        If None then unlimited number of leaf nodes.
-    :param float, default=0.0 min_impurity_decrease: A node will be split if this split induces a decrease of the impurity
-        greater than or equal to this value.
-        The weighted impurity decrease equation is the following
+    :param int random_state: 控制估计器的随机性。
+    :param int, default to None max_leaf_nodes: 以最佳优先的方式使用 ``max_leaf_nodes`` 生成一棵树。
+        最佳节点被定义为杂质相对减少。
+        如果是None，那么叶子节点的数量没有限制。
+    :param float, default=0.0 min_impurity_decrease: 一个节点将会被划分如果这个划分引起杂质的减少大于或者等于这个值。
+        加权的杂质减少方程如下
             
             N_t / N * (impurity - N_t_R / N_t * right_impurity - N_t_L / N_t * left_impurity)
-        
-        where ``N`` is the total number of samples, ``N_t`` is the number of
-        samples at the current node, ``N_t_L`` is the number of samples in the
-        left child, and ``N_t_R`` is the number of samples in the right child.
-        ``N``, ``N_t``, ``N_t_R`` and ``N_t_L`` all refer to the weighted sum,
-        if ``sample_weight`` is passed.
+
+        其中 ``N`` 是样本的总数， ``N_t`` 是当前节点的样本数量， ``N_t_L`` 是左孩子节点的样本数量，并且 ``N_t_R`` 是右孩子节点的样本数量。
+        ``N``, ``N_t``, ``N_t_R`` 以及 ``N_t_L`` 全都是指加权和，如果 ``sample_weight`` 被传入。
 
     :param str, optional, default='auto' categories: 
 
     .. py:method:: fit(data, outcome, treatment, adjustment=None, covariate=None, treat=None, control=None)
         
-        Fit the model on data to estimate the causal effect.
+        基于数据拟合模型来估计因果效应。
 
-        :param pandas.DataFrame data: The input samples for the est_model to estimate the causal effects
-            and for the CEInterpreter to fit.
-        :param list of str, optional outcome: Names of the outcomes.
-        :param list of str, optional treatment: Names of the treatments.
-        :param list of str, optional, default=None covariate: Names of the covariate vectors.
-        :param list of str, optional, default=None adjustment: Names of the covariate vectors. Note that we may only need the covariate
-            set, which usually is a subset of the adjustment set.
-        :param int or list, optional, default=None treat: If there is only one discrete treament, then treat indicates the
-            treatment group. If there are multiple treatment groups, then treat
-            should be a list of str with length equal to the number of treatments. 
-            For example, when there are multiple discrete treatments,
-                
+        :param pandas.DataFrame data: 输入样本，用于est_model估计因果效应和用于CEInterpreter拟合。
+        :param list of str, optional outcome: 结果的名字。
+        :param list of str, optional treatment: 治疗的名字。
+        :param list of str, optional, default=None covariate: 协变量向量的名字。
+        :param list of str, optional, default=None adjustment: 协变量向量的名字。注意我们可能只需要协变量集合，其通常是调整集合的一个子集。
+        :param int or list, optional, default=None treat: 如果只有一个离散的治疗，那么treat表示治疗组。如果有多个治疗组，
+            那么treat应该是一个str列表，其长度等于治疗的数量。比如，当有多个离散的治疗时，
+
                 array(['run', 'read'])
-            
-            means the treat value of the first treatment is taken as 'run' and
-            that of the second treatment is taken as 'read'.
-        :param int or list, optional, default=None control: See treat.
+
+            意味着第一个治疗的治疗值为 'run' 且第二个治疗为 'read'。
+        :param int or list, optional, default=None control: 参考treat。
         
-        :returns: Fitted CausalTree
-        :rtype: instance of CausalTree
+        :returns: 拟合的CausalTree
+        :rtype: CausalTree的实例
 
     .. py:method:: estimate(data=None, quantity=None)
 
-        Estimate the causal effect of the treatment on the outcome in data.
+        估计数据中治疗对结果的因果效应。
 
-        :param pandas.DataFrame, optional, default=None data: If None, data will be set as the training data.
-        :param str, optional, default=None quantity: Option for returned estimation result. The possible values of quantity include:
+        :param pandas.DataFrame, optional, default=None data: 如果为None，数据将被设置为训练数据。
+        :param str, optional, default=None quantity: 返回的估计结果的选项。量的可能值包括：
                 
-                1. *'CATE'* : the estimator will evaluate the CATE;
+                1. *'CATE'* : 估计器将会估计CATE；
                 
-                2. *'ATE'* : the estimator will evaluate the ATE;
+                2. *'ATE'* : 估计器将会估计ATE；
                 
-                3. *None* : the estimator will evaluate the ITE or CITE.
+                3. *None* : 估计器将会估计ITE或CITE。
 
-        :returns: The estimated causal effect with the type of the quantity.
+        :returns: 量类型的估计的因果效应。
         :rtype: ndarray or float, optional
 
     .. py:method:: plot_causal_tree(feature_names=None, max_depth=None, class_names=None, label='all', filled=False, node_ids=False, proportion=False, rounded=False, precision=3, ax=None, fontsize=None)
 
-        Plot a policy tree.
-        The sample counts that are shown are weighted with any sample_weights that
-        might be present.
-        The visualization is fit automatically to the size of the axis.
-        Use the ``figsize`` or ``dpi`` arguments of ``plt.figure``  to control
-        the size of the rendering.
+        绘制策略树。
+        显示的样本计数由任何的可能存在的sample_weights加权。
+        可视化自动适应轴的大小。
+        使用 ``plt.figure`` 的 ``figsize`` 或者 ``dpi`` 参数来控制生成的大小。
 
         :returns: List containing the artists for the annotation boxes making up the
             tree.
@@ -169,34 +147,25 @@ Class Structures
     
     .. py:method:: decision_path(*, data=None, wv=None)
 
-        Return the decision path.
+        返回决策路径。
 
-        :param numpy.ndarray, default=None wv: The input samples as an ndarray. If None, then the DataFrame data
-            will be used as the input samples.
-        :param pandas.DataFrame, default=None data: The input samples. The data must contains columns of the covariates
-            used for training the model. If None, the training data will be
-            passed as input samples.
+        :param numpy.ndarray, default=None wv: 输入样本是一个ndarray。 如果是None，那么DataFrame的数据将会被用作输入样本。
+        :param pandas.DataFrame, default=None data: 输入样本。数据必须包含用于训练模型的协变量的列。如果为None，训练数据将会被传入作为输入样本。
 
-        :returns: Return a node indicator CSR matrix where non zero elements
-            indicates that the samples goes through the nodes.
-        :rtype: indicator : sparse matrix of shape (n_samples, n_nodes)
+        :returns: Return a node indicator CSR matrix，其中非零元素表示穿过节点的样本。
+        :rtype: indicator : shape为(n_samples, n_nodes)的稀疏矩阵
 
     .. py:method:: apply(*, data=None, wv=None)
 
-        Return the index of the leaf that each sample is predicted as.
+        返回每个样本被预测为的叶子的索引。
         
-        :param numpy.ndarray, default=None wv: The input samples as an ndarray. If None, then the DataFrame data
-            will be used as the input samples.
-        :param pandas.DataFrame, default=None data: The input samples. The data must contains columns of the covariates
-            used for training the model. If None, the training data will be
-            passed as input samples.
+        :param numpy.ndarray, default=None wv: 输入样本是一个ndarray。 如果是None，那么DataFrame的数据将会被用作输入样本。
+        :param pandas.DataFrame, default=None data: 输入样本。数据必须包含用于训练模型的协变量的列。如果为None，训练数据将会被传入作为输入样本。
 
-        :returns: For each datapoint v_i in v, return the index of the leaf v_i
-            ends up in. Leaves are numbered within ``[0; self.tree_.node_count)``, possibly with gaps in the
-            numbering.
+        :returns: 对于v中每个数据点v_i，返回v_i结束在的叶子的索引。叶子在 ``[0; self.tree_.node_count)`` 中编号，可能编号有间隙。
         :rtype: v_leaves : array-like of shape (n_samples, )
 
     .. py:property:: feature_importance
 
-        :returns: Normalized total reduction of criteria by feature (Gini importance).
+        :returns: 按特征的归一化的总减少标准(Gini importance)。
         :rtype: ndarray of shape (n_features,)

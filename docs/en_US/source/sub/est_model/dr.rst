@@ -12,21 +12,21 @@ Training a doubly robust model is composed of 3 steps.
 
         \{(x_i, w_i, v_i, y_i)\}_{i = 1}^n = D_k \cup T_k
 
-   where :math:`D_k` stands for the trainig data while :math:`T_k` stands for the test data and :math:`\cup_{k = 1}^K T_k = \{(X_i, W_i, V_i, Y_i)\}_{i = 1}^n`.
+   where :math:`D_k` stands for the training data while :math:`T_k` stands for the test data and :math:`\cup_{k = 1}^K T_k = \{(X_i, W_i, V_i, Y_i)\}_{i = 1}^n`.
 
 2. For each :math:`k`, train two models :math:`f(X, W, V)` and :math:`g(W, V)` on :math:`D_k` to predict :math:`y` and :math:`x`, respectively. Then evaluate
    their performances in :math:`T_k` whoes results will be saved as :math:`\{(\hat{X}, \hat{Y})\}_k`. All :math:`\{(\hat{X}, \hat{Y})\}_k` will be combined to
    give the new dataset :math:`\{(\hat{X}_i, \hat{Y}_i(X, W, V))\}_{i = 1}^n`. 
 
 3. For any given pair of treat group where :math:`X=x` and control group where :math:`X = x_0`, we build the final dataset :math:`\{(V, \tilde{Y}_x - \tilde{Y}_0)\}` where :math:`\tilde{Y}_x`
-   is difined as
+   is defined as
 
    .. math::
 
         \tilde{Y}_x & = \hat{Y}(X=x, W, V) + \frac{(Y - \hat{Y}(X=x, W, V)) * \mathbb{I}(X=x)}{P[X=x| W, V]} \\
         \tilde{Y}_0 & = \hat{Y}(X=x_0, W, V) + \frac{(Y - \hat{Y}(X=x_0, W, V)) * \mathbb{I}(X=x_0)}{P[X=x_0| W, V]}
     
-   and train the final machine learing model :math:`h(W, V)` on this dataset to predict the causal effect :math:`\tau(V)`
+   and train the final machine learning model :math:`h(W, V)` on this dataset to predict the causal effect :math:`\tau(V)`
 
    .. math::
 
@@ -94,7 +94,7 @@ Class Structures
     :param estimator, optional y_model: The machine learning model which is trained to modeling the outcome with covariates (possibly adjustment) and the  treatment. Any valid y_model should implement the :py:func:`fit()` and :py:func:`predict()` methods.
     :param estimator, optional yx_model: The machine learning model which is trained in the final stage of doubly robust method to modeling the causal effects with covariates (possibly adjustment). Any valid yx_model should implement the :py:func:`fit()` and :py:func:`predict()` methods.
     
-    :param int, default=1 cf_fold: The nubmer of folds for performing cross fit in the first stage.
+    :param int, default=1 cf_fold: The number of folds for performing cross fit in the first stage.
     :param int, default=2022 random_state:
     :param str, optional, default='auto' categories:
     
