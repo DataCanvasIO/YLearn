@@ -88,7 +88,7 @@ The causal effect :math:`\tau(w)` is then calculated as
 
     :param estimator, optional model: The base machine learning model for training SLearner. Any model
             should be some valid machine learning model with fit() and
-            predict_proba() functions.
+            predict() functions.
     :param int, default=2022 random_state:
     :param bool, default=True is_discrete_treatment: Treatment must be discrete for SLearner.
     :param str, optional, default='auto' categories:
@@ -192,7 +192,7 @@ adjustment set (or covariate), we
 
     :param estimator, optional model: The base machine learning model for training SLearner. Any model
             should be some valid machine learning model with fit() and
-            predict_proba() functions.
+            predict() functions.
     :param int, default=2022 random_state:
     :param bool, default=True is_discrete_treatment: Treatment must be discrete for SLearner.
     :param str, optional, default='auto' categories:
@@ -307,7 +307,7 @@ Finally,  the casual effect :math:`\tau(w)` can be estimated as follows:
 
     :param estimator, optional model: The base machine learning model for training SLearner. Any model
             should be some valid machine learning model with fit() and
-            predict_proba() functions.
+            predict() functions.
     :param int, default=2022 random_state:
     :param bool, default=True is_discrete_treatment: Treatment must be discrete for SLearner.
     :param str, optional, default='auto' categories:
