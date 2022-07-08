@@ -11,7 +11,7 @@ When the relationship between the outcome :math:`y`, treatment :math:`x` and cov
     y & = \alpha x + \beta v + e \\
     x & = \gamma z + \lambda v + \eta,
 
-then the IV framework becomes direct: it will first train a linear model for :math:`x` given :math:`z` and :math:`v`, then it repalces :math:`x`
+then the IV framework becomes direct: it will first train a linear model for :math:`x` given :math:`z` and :math:`v`, then it replaces :math:`x`
 with the predicted values :math:`\hat{x}` to train a linear model for :math:`y` in the second stage. This procedure is called the two-stage least-squares (2SLS).
 
 Nonparametric IV
@@ -26,7 +26,7 @@ This method is similar to the conventional 2SLS and is also composed of 2 stages
     \tilde{z}_d & = f_d(z)\\
     \tilde{v}_{\mu} & = g_{\mu}(v),
 
-which are represented by some non-linear functions (basis functions) :math:`f_d` and :math:`g_{\mu}`. After transorming into the new spaces, we then
+which are represented by some non-linear functions (basis functions) :math:`f_d` and :math:`g_{\mu}`. After transforming into the new spaces, we then
     
     1. Fit the treatment model:
     
@@ -55,7 +55,7 @@ Class structures
 .. py:class:: ylearn.estimator_model.iv.NP2SLS(x_model=None, y_model=None, random_state=2022, is_discrete_treatment=False, is_discrete_outcome=False, categories='auto')
 
     :param estimator, optional, default=None x_model: The machine learning model to model the treatment. Any valid x_model should implement the `fit` and `predict` methods, by default None
-    :param estimator, optional, default=None y_model: The machine learning model to model the treatment. Any valid x_model should implement the `fit` and `predict` methods, by default None
+    :param estimator, optional, default=None y_model: The machine learning model to model the outcome. Any valid y_model should implement the `fit` and `predict` methods, by default None
     :param int, default=2022 random_state:
     :param bool, default=False is_discrete_treatment: 
     :param bool, default=False is_discrete_outcome: 
@@ -68,7 +68,7 @@ Class structures
 
         :param DataFrame data: Training data for the model.
         :param str or list of str, optional outcome: Names of the outcomes.
-        :param str or list of str, optional treatment: Names of the treament.
+        :param str or list of str, optional treatment: Names of the treatment.
         :param str or list of str, optional, default=None covariate: Names of the covariate vectors.
         :param str or list of str, optional instrument: Names of the instrument variables.
         :param str or list of str, optional, default=None adjustment: Names of the adjustment variables.

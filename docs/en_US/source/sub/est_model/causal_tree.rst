@@ -3,7 +3,7 @@ Causal Tree
 ***********
 
 Causal Tree is a data-driven approach to partition the data into subpopulations which differ in the magnitude
-of their causal effects [Athey2015]_. This method is applicable when the unconfoundness is satisified given the adjustment
+of their causal effects [Athey2015]_. This method is applicable when the unconfoundness is satisfied given the adjustment
 set (covariate) :math:`V`. The interested causal effects is the CATE:
 
 .. math::
@@ -17,7 +17,7 @@ function (criterion for building a tree) is designed as
 
     e (S_{tr}, \Pi) := \frac{1}{N_{tr}} \sum_{i \in S_{tr}} \hat{\tau}^2 (V_i; S_{tr}, \Pi) - \frac{2}{N_{tr}} \cdot \sum_{\ell \in \Pi} \left( \frac{\Sigma^2_{S_{tr}^{treat}}(\ell)}{p} + \frac{\Sigma^2_{S_{tr}^{control}}(\ell)}{1 - p}\right)
 
-where :math:`N_{tr}` is the nubmer of samples in the training set :math:`S_{tr}`, :math:`p` is the ratio of the nubmer of samples in the treat group to that of the control group in the trainig set, and
+where :math:`N_{tr}` is the number of samples in the training set :math:`S_{tr}`, :math:`p` is the ratio of the number of samples in the treat group to that of the control group in the training set, and
 
 .. math::
 
@@ -124,7 +124,7 @@ Class Structures
         :param list of str, optional, default=None covariate: Names of the covariate vectors.
         :param list of str, optional, default=None adjustment: Names of the covariate vectors. Note that we may only need the covariate
             set, which usually is a subset of the adjustment set.
-        :param int or list, optional, default=None treat: If there is only one discrete treament, then treat indicates the
+        :param int or list, optional, default=None treat: If there is only one discrete treatment, then treat indicates the
             treatment group. If there are multiple treatment groups, then treat
             should be a list of str with length equal to the number of treatments. 
             For example, when there are multiple discrete treatments,

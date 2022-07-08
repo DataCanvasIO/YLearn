@@ -6,7 +6,7 @@ Estimator Model: Estimating the Causal Effects
 
 For a causal effect with :math:`do`-operator, after converting it into the corresponding statistical estimand with the approach called 
 :ref:`identification`, the task of causal inference now becomes estimating the statistical estimand, the converted causal effect. 
-Before diving into any specifical estimation methods for causal effects, we briefly introduce the problem settings of the estimation
+Before diving into any specific estimation methods for causal effects, we briefly introduce the problem settings of the estimation
 of causal effects. 
 
 Problem Setting
@@ -29,14 +29,14 @@ the back-door criterion (see :ref:`identification`), the causal effect of :math:
 
 In such case, variables :math:`X` for which the above equality is valid are also named *"conditionally ignorable given* :math:`W`" in 
 the *potential outcome* framework. The set of variables :math:`W` satisfying this condition is called **adjustment set**. And in
-the language of strucutral equation model, these relations are encoded by
+the language of structural equation model, these relations are encoded by
 
 .. math::
 
     X & = F_1 (W, \epsilon),\\
     Y & = F_2 (W, X, \eta).
 
-Our problems can be expressed with the strucutral equation model.
+Our problems can be expressed with the structural equation model.
 
 .. topic:: ATE
 
@@ -110,9 +110,9 @@ in ATE and
     
     \mathbb{E}[F_2(x_1, W, V, \eta) - F_2(x_0, W, V, \eta)]
 
-in CATE will be the tasks of vairous suitable **estimator models** in YLearn. The concept :class:`EstimatorModel` in YLearn is designed for this purpose.
+in CATE will be the tasks of various suitable **estimator models** in YLearn. The concept :class:`EstimatorModel` in YLearn is designed for this purpose.
 
-A typical :class:`EstimatorModel` should have the follwing structure:
+A typical :class:`EstimatorModel` should have the following structure:
 
 .. code-block:: python
 

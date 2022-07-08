@@ -1,60 +1,54 @@
 .. _estimator_model:
 
 **********************************************
-Estimator Model: Estimating the Causal Effects
+估计器模型：估计因果效应
 **********************************************
 
-For a causal effect with :math:`do`-operator, after converting it into the corresponding statistical estimand with the approach called 
-:ref:`identification`, the task of causal inference now becomes estimating the statistical estimand, the converted causal effect. 
-Before diving into any specifical estimation methods for causal effects, we briefly introduce the problem settings of the estimation
-of causal effects. 
+对于有 :math:`do`-operator 的因果效应，用被称为 :ref:`identification` 的方法把它转变为对应的统计估计量之后，因果推断的任务现在变成估计统计估计量，
+即转变后的因果效应。在深入到任何具体的因果效应估计方法之前，我们简要的介绍因果效应估计的问题设置。
 
-Problem Setting
+问题设置
 ===============
 
-It is introduced in :ref:`causal_model` that every causal structure has a corresponding DAG called causal graph. Furthermore, 
-each child-parent family in a DAG :math:`G` represents a deterministic function
+在 :ref:`causal_model` 中介绍了每个因果结构都有对应的被称为因果图的DAG。此外，一个DAG :math:`G` 的每一个子父家庭表示一个确定性函数。
 
 .. math::
 
     X_i = F_i (pa_i, \eta_i), i = 1, \dots, n,
 
-where :math:`pa_i` are parents of :math:`x_i` in :math:`G` and :math:`\eta_i` are random disturbances representing exogeneous not present in the
-analysis. We call these functions **Structural Equation Model** related to the causal structures. For a set of variables :math:`W` that satisfies
-the back-door criterion (see :ref:`identification`), the causal effect of :math:`X` on :math:`Y` is given by the formula
+其中， :math:`pa_i` 是 :math:`x_i` 在 :math:`G` 中的父节点，且 :math:`\eta_i` 是随机扰动，表示外生的未在分析中出现的。我们称这些函数为
+关于因果结构的 **Structural Equation Model** 。对于一组满足后门准则（参考 :ref:`identification`）的变量 :math:`W`，:math:`X` 对 :math:`Y` 的因果效应由公式给出
 
 .. math::
 
     P(y|do(x))  = \sum_w P(y| x, w)P(w).
 
-In such case, variables :math:`X` for which the above equality is valid are also named *"conditionally ignorable given* :math:`W`" in 
-the *potential outcome* framework. The set of variables :math:`W` satisfying this condition is called **adjustment set**. And in
-the language of strucutral equation model, these relations are encoded by
+在这样的情况下，上述等式有效的变量 :math:`X` 也被命名为 *"条件可忽略的给定* :math:`W`" 在 *潜在结果* 的框架中。 满足这个条件的变量组 :math:`W` 被
+称为 **调整集合** 。在结构化方程模型的语言里，这些关系编码如
 
 .. math::
 
     X & = F_1 (W, \epsilon),\\
     Y & = F_2 (W, X, \eta).
 
-Our problems can be expressed with the strucutral equation model.
+我们的问题可以用结构化方程模型表示。
 
 .. topic:: ATE
 
-    Specifically, one particular important causal quantity in YLearn is the difference
+    具体来说，YLearn中一个尤其重要的因果量是差
 
     .. math::
 
         \mathbb{E}(Y|do(X=X_1)) - \mathbb{E}(Y|do(X=X_0))
 
-    which is also called **average treatment effect (ATE)**, where :math:`Y` is called the *outcome* and :math:`X` is called the *treatment*. Furthermore,
-    when the conditional independence (conditional ignorability) holds given a set of variables :math:`W` potentially having effects on both outcome
-    :math:`Y`` and treatment :math:`X`, the ATE can be evaluated as
+    也被称为 **平均治疗效果 (ATE)**，其中 :math:`Y` 被称为 *结果* 而 :math:`X` 被称为 *治疗* 。此外，当条件独立（条件可忽略性）成立时，给定一组
+    变量 :math:`W` 对结果 :math:`Y`` 和治疗 :math:`X` 都有潜在的影响，ATE能够这样估计
 
     .. math::
 
         E(Y|X=x_1, w) - E(Y|X=x_0, w).
 
-    Using structural equation model we can describe the above relation as
+    使用结构化方程模型，我们可以把上述关系描述为
 
     .. math::
         
@@ -64,8 +58,8 @@ Our problems can be expressed with the strucutral equation model.
 
 .. topic:: CATE
 
-    Suppose that we assign special roles to a subset of variables in the adjustment set :math:`W`` and name them as **covariates** :math:`V`, 
-    then, in the structural equation model, the **CATE** (also called **heterogeneous treatment effect**) is defined by
+    假如我们给调整集合 :math:`W`` 的一个子集的变量分配了特殊的角色并把它们命名为 **协变量** :math:`V` ，那么，在结构化方程模型
+    中， **CATE** （也被称为 **异质治疗效果**）被定义为
     
     .. math::
     
@@ -73,19 +67,18 @@ Our problems can be expressed with the strucutral equation model.
         Y & = F_2 (X, W, V, \eta) \\
         \text{CATE} & = \mathbb{E}\left[ f_2(x_1, W, V, \eta) - f_2(x_0, W, V, \eta)| V =v\right].
 
-.. topic:: Counterfactual
+.. topic:: 反事实
 
-    Besides casual estimands which are differences of effects, there is also a causal quantity **counterfactual**.
-    For such quantity, we estimate the following causal estimand:
+    除了是效应的差的因果估计量，还有一个因果量 **反事实** 。对于这个量，我们估计如下的因果估计量：
 
     .. math::
 
         \mathbb{E} [Y|do(x), V=v].
 
 
-Estimator Models
+估计器模型
 ==========================
-YLearn implements several estimator models for the estimation of causal effects:
+YLearn实现了几个用于估计因果效应的估计器模型
 
 .. toctree::
     :maxdepth: 2
@@ -98,21 +91,21 @@ YLearn implements several estimator models for the estimation of causal effects:
     est_model/iv
     est_model/score
     
-The evaluations of 
+对
 
 .. math::
     
     \mathbb{E}[F_2(x_1, W, \eta) - F_2(x_0, W, \eta)]
     
-in ATE and 
+在ATE中和
 
 .. math::
     
     \mathbb{E}[F_2(x_1, W, V, \eta) - F_2(x_0, W, V, \eta)]
 
-in CATE will be the tasks of vairous suitable **estimator models** in YLearn. The concept :class:`EstimatorModel` in YLearn is designed for this purpose.
+在CATE中的估计将会成为YLearn中不同的合适的  **估计器模型** 的任务。YLearn中概念 :class:`EstimatorModel` 就是为这个目的设计的
 
-A typical :class:`EstimatorModel` should have the follwing structure:
+一个常见的 :class:`EstimatorModel` 应该有如下结构：
 
 .. code-block:: python
 
@@ -194,12 +187,12 @@ A typical :class:`EstimatorModel` should have the follwing structure:
                 data if data is None, by default None
             """
 
-.. topic:: Usage
+.. topic:: 用法
 
-    One can apply any :class:`EstimatorModel` in the following procedure:
+    可以在以下过程中应用任何 :class:`EstimatorModel`
 
-    1. For the data in the form of :class:`pandas.DataFrame`, find the names of *treatment*, *outcome*, *adjustment*, and *covariate*.
+    1. 对于 :class:`pandas.DataFrame` 形式的数据，找到 *治疗* ， *结果* ， *调整* ，和 *协变量* 的名字。
 
-    2. Pass the data along with names of treatments, outcomes, adjustment set, and covariates into the :meth:`fit()` method of :class:`EstimatorModel` and call it.
+    2. 把数据和治疗，结果，调整集合，协变量的名字传入 :class:`EstimatorModel` 的 :meth:`fit()` 方法并调用它。
 
-    3. Call the :meth:`estimate()` method to use the fitted :class:`EstimatorModel` on test data.
+    3. 调用 :meth:`estimate()` 方法在测试数据上使用拟合的 :class:`EstimatorModel`。

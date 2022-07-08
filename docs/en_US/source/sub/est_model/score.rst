@@ -4,7 +4,7 @@ Scoring Estimated Causal Effects
 
 Estimator models for estimating causal effects can not be easily evaluated
 due to the fact that the true effects are not directly observed. This differs
-from the usual machine learning tasks whoes results can be easily evaluated by, for example, the value of loss functions.
+from the usual machine learning tasks whose results can be easily evaluated by, for example, the value of loss functions.
 
 Authors in [Schuler]_ proposed a framework, a schema suggested by [Nie]_, to evaluate causal
 effects estimated by different estimator models. Roughly speaking, this
@@ -84,7 +84,7 @@ Class Structures
     :param estimator, optional y_model: The machine learning model which is trained to modeling the outcome. Any valid y_model should implement the :py:func:`fit()` and :py:func:`predict()` methods.
     :param estimator, optional yx_model: Machine learning models for fitting the residual of y on residual of x. *Only support linear regression model in the current version.*
     
-    :param int, default=1 cf_fold: The nubmer of folds for performing cross fit in the first stage.
+    :param int, default=1 cf_fold: The number of folds for performing cross fit in the first stage.
     :param transormer, optional, default=None, adjustment_transformer: Transformer for adjustment variables which can be used to generate new features of adjustment variables.
     :param transormer, optional, default=None, covariate_transformer: Transformer for covariate variables which can be used to generate new features of covariate variables.
     :param int, default=2022 random_state:
@@ -93,7 +93,7 @@ Class Structures
     
     .. py:method:: fit(data, outcome, treatment, adjustment=None, covariate=None, combined_treatment=True, **kwargs)
         
-        Fit the RLoss estimator model. Note that the trainig of a DML has two stages, where we implement them in 
+        Fit the RLoss estimator model. Note that the training of a DML has two stages, where we implement them in
         :py:func:`_fit_1st_stage` and :py:func:`_fit_2nd_stage`.
 
         :param pandas.DataFrame data: Training dataset for training the estimator.
@@ -118,7 +118,7 @@ Class Structures
 
                 treatment: x | x \in \{0, 1, 2, 3\},
             
-            where, for example, 1 stands for ('sleep' and 'stuy').
+            where, for example, 1 stands for ('sleep' and 'study').
 
         :returns: instance of RLoss
         :rtype: The fitted RLoss model for evaluating other estimator models in the validation set.

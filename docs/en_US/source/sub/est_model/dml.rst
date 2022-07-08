@@ -87,7 +87,7 @@ now becomes
 
         Then form the new dataset :math:`(\tilde{y}, \tilde{x})`.
 
-        4. Perform linear regression on the dataset :math:`(\tilde{y}, \tilde{x})` whoes
+        4. Perform linear regression on the dataset :math:`(\tilde{y}, \tilde{x})` whose
         coefficients will be saved in a vector :math:`f`. The estimated CATE given :math:`v`
         will just be
 
@@ -128,7 +128,7 @@ Class Structures
     :param estimator, optional y_model: The machine learning model which is trained to modeling the outcome. Any valid y_model should implement the :py:func:`fit()` and :py:func:`predict()` methods.
     :param estimator, optional yx_model: Machine learning models for fitting the residual of y on residual of x. *Only support linear regression model in the current version.*
     
-    :param int, default=1 cf_fold: The nubmer of folds for performing cross fit in the first stage.
+    :param int, default=1 cf_fold: The number of folds for performing cross fit in the first stage.
     :param transormer, optional, default=None, adjustment_transformer: Transformer for adjustment variables which can be used to generate new features of adjustment variables.
     :param transormer, optional, default=None, covariate_transformer: Transformer for covariate variables which can be used to generate new features of covariate variables.
     :param int, default=2022 random_state:
@@ -137,7 +137,7 @@ Class Structures
     
     .. py:method:: fit(data, outcome, treatment, adjustment=None, covariate=None, **kwargs)
         
-        Fit the DML4CATE estimator model. Note that the trainig of a DML has two stages, where we implement them in 
+        Fit the DML4CATE estimator model. Note that the training of a DML has two stages, where we implement them in
         :py:func:`_fit_1st_stage` and :py:func:`_fit_2nd_stage`.
 
         :param pandas.DataFrame data: Training dataset for training the estimator.

@@ -2,7 +2,7 @@
 DeepIV
 ******
 
-DeepIV, developed in [Hartford]_, is a method for estimating the causal effects in the presense of the unobserved confounder
+DeepIV, developed in [Hartford]_, is a method for estimating the causal effects in the presence of the unobserved confounder
 between treatment and outcome variables. It applies deep learning methods to accurately characterize the causal relationships
 between the treatment and outcome when the instrumental variables (IV) are present. Due to the representation powers of deep learning
 models, it does not assume any parametric forms for the causal relationships. 
@@ -11,7 +11,7 @@ Training a DeepIV has two steps and resembles the estimation procedure of a norm
 
     1. train a neural network, which we refer to as the *treatment network* :math:`F(Z, V)`, to estimate the distribution of the treatment :math:`X` given the IV :math:`Z` and covariate variables :math:`V`
 
-    2. train another neural network, which we refer to as the *outcome network* :math:`H(X, V)`, to estiamte the outcome :math:`Y` givn treatment :math:`X` and covariate variables :math:`V`.
+    2. train another neural network, which we refer to as the *outcome network* :math:`H(X, V)`, to estimate the outcome :math:`Y` given treatment :math:`X` and covariate variables :math:`V`.
 
 The final causal effect can then be estimated by the outcome network :math:`H(X, W)`. For an instance, the CATE :math:`\tau(v)` is estimated as
 

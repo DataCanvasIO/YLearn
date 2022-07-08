@@ -10,7 +10,7 @@
 一个因果结构的DAG中，每个父节点都是它所有的孩子的直接的因。我们把这些因果结构的DAGs称为因果图。对于图的术语，举个例子，可以参考 [Pearl]_ 的Chapter 1.2。
 
 有五个基本的由两到三个节点组成的结构用于构建因果图。除了这些结构，还有用概率的语言描述的在因果图中的关联和因果关系的流。任意两个节点 :math:`X`
-和 :math:`Y` ，如果被关联流连接在一起，则表示它们是统计相关的。等价于 :math:`P(X, Y) \neq P(X)P(Y)` 。令 :math:`X, Y` 和 :math:`W`
+和 :math:`Y` ，如果被关联流连接在一起，则表示它们是统计不独立的。等价于 :math:`P(X, Y) \neq P(X)P(Y)` 。令 :math:`X, Y` 和 :math:`W`
 为三个不同的节点，那么五个基本的结构包括：
 
 1. *链*:
@@ -19,7 +19,7 @@
 
     X \rightarrow W \rightarrow Y,
 
-:math:`X` 和 :math:`Y` 是统计相关的;
+:math:`X` 和 :math:`Y` 是统计不独立的;
 
 2. *叉*:
 
@@ -27,7 +27,7 @@
 
     X \leftarrow W \rightarrow Y,
 
-:math:`X` 和 :math:`Y` 是统计相关的;
+:math:`X` 和 :math:`Y` 是统计不独立的;
 
 3. *对撞*:
 
@@ -51,7 +51,7 @@
 
     X \rightarrow Y,
 
-:math:`X` 和 :math:`Y` 是统计相关的。
+:math:`X` 和 :math:`Y` 是统计不独立的。
 
 在YLearn中，使用 :class:`CausalGraph` 来表示因果结构，首先给一个python的字典，其中每个键都是它对应的通常由字符串的列表表示的值的每个元素的子节点。
 
@@ -166,7 +166,7 @@
 
     .. py:method:: remove_edge(edge, observed=True)
         
-        移除CausalGraph中的边。如果观察到，移除未观察到的潜在的混淆弧线。
+        移除CausalGraph中的边。如果未观察到，移除未观察到的潜在的混淆弧线。
 
         :param tuple edge: 2个元素分别表示边的起点和终点。
         :param bool, default=True observed: 如果未观察到，移除未观察到的潜在的混淆弧线。

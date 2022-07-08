@@ -1,39 +1,35 @@
 **********************
-Instrumental Variables
+工具变量
 **********************
 
-
-Instrumental Variables (IV) deal with the case for estimating causal effects in the presense of unobserved confounding, variables that simultaneously
-have effects on the treatment :math:`X` and the outcome :math:`Y`. A set of variables :math:`Z` is said to be a set of **instrumental variables**
-if for any :math:`z` in :math:`Z`:
+工具变量（IV）处理这样的情况：在存在未观察到的混淆变量，其同时影响治疗 :math:`X` 和结果 :math:`Y` 时，对因果效应进行估计。一组变量 :math:`Z` 被称为一组 **工具变量** 如果对于
+任何在 :math:`Z` 中的 :math:`z` 。
     
-    1. :math:`z` has a causal effect on :math:`X`.
+    1. :math:`z` 对 :math:`X` 有因果效应。
 
-    2. The causal effect of :math:`z` on :math:`Y` is fully mediated by :math:`X`.
+    2. :math:`z` 对 :math:`Y` 的因果效应完全由 :math:`X` 调节。
 
-    3. There are no back-door paths from :math:`z` to :math:`Y`.
+    3. 从 :math:`z` 到 :math:`Y` 没有后门路径。
 
-In such case, we must first find the IV (which can be done by using the :class:`CausalModel`, see :ref:`identification`). For an instance, the variable
-:math:`Z` in the following figure can serve as a valid IV for estimating the causal effects of :math:`X` on :math:`Y` in the presense of the unobserved confounder
-:math:`U`.
+在这样的情况下，我们必须首先找到IV（其可以通过使用 :class:`CausalModel` 完成，参考 :ref:`identification` ）。举个例子，变量 :math:`Z` 在下面的图中
+可以作为一个合理的IV，在存在未观察到的混淆变量 :math:`U` 时估计 :math:`X` 对 :math:`Y` 的因果效应。
 
 .. figure:: iv3.png
 
     Causal graph with IV
 
-YLearn implements two different methods related to IV: deepiv [Hartford]_, which utilizes the deep learning models to IV, and IV of nonparametric models [Newey2002]_.
+YLearn关于IV实现两个不同的方法：deepiv [Hartford]_ ，对IV使用深度学习模型和IV的无参数模型 [Newey2002]_ 。
 
-The IV Framework and Problem Setting
+IV框架和问题设置
 ====================================
-The IV framework aims to predict the value of the outcome :math:`y` when the treament :math:`x` is given. Besides, there also exist some covariates vectors :math:`v` that
-simultaneously affect both :math:`y` and :math:`x`. There also are some unobserved confounders :math:`e` that potentially also affect :math:`y`, :math:`x` and :math:`v`. The core part
-of causal questions lies in estimating the causal quantity
+IV框架的目的是预测结果 :math:`y` 的值当治疗 :math:`x` 给定时。除此之外，还存在一些协变量向量 :math:`v` 其同时影响 :math:`y` 和 :math:`x`。
+还有一些未观察到的混淆因素 :math:`e` 其潜在影响 :math:`y` ，:math:`x` 和 :math:`v` 。因果问题的核心部分是估计因果量。
 
 .. math::
 
     \mathbb{E}[y| do(x)]
 
-in the following causal graph, where the set of causal relationships are determined by the set of functions
+下面的因果图，其中因果关系的集合由函数的集合决定
 
 .. math::
 
@@ -45,13 +41,13 @@ in the following causal graph, where the set of causal relationships are determi
 
     Causal graph with IV and both observed and unobserved confounders
 
-The IV framework solves this problem by doing a two-stage estimation:
+IV框架通过做两步估计解决这个问题：
 
-    1. Estimate :math:`\hat{H}(z, v)` that captures the relationship between :math:`x` and the variables :math:`(z, v)`.
+    1. 估计 :math:`\hat{H}(z, v)` 其捕获在 :math:`x` 和变量 :math:`(z, v)` 之间的关系。
 
-    2. Replace :math:`x` with the predicted result of :math:`\hat{H}(z, v)` given :math:`(v, z)`. Then estimate :math:`\hat{G}(x, v)` to build the relationship between :math:`y` and :math:`(x, v)`.
+    2. 用预测的结果 :math:`\hat{H}(z, v)` 取代 :math:`x` 给定 :math:`(v, z)` 。接着估计 :math:`\hat{G}(x, v)` 来构建 :math:`y` 和 :math:`(x, v)` 之间的关系。
 
-The final casual effects can then be calculated.
+最终的因果效应能够被计算。
 
 IV Classes
 ===========
