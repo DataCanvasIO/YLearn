@@ -1,5 +1,7 @@
 <img src="./fig/YLearn1.png" width="200">
 
+[中文](https://github.com/DataCanvasIO/YLearn/blob/main/README_zh_CN.md)  
+
 **YLearn**, a pun of "learn why", is a python package for causal inference which supports various aspects of causal inference ranging from causal effect identification, estimation, and causal graph discovery, etc.
 
 **Documentation website**: <https://ylearn.readthedocs.io>
@@ -46,15 +48,15 @@ YLearn, equipped with many techniques developed in recent literatures, is implem
 
 There are 5 main concepts in YLearn corresponding to the causal inference pipeline.
 
-1. *Causal Discovery*. Discovering the causal relationships in the observational data.
+1. *CausalDiscovery*. Discovering the causal relationships in the observational data.
 
-2. *Causal Model*. Representing the causal relationships in the form of ``CausalGraph`` and doing other related operations such as identification with ``CausalModel``.
+2. *CausalModel*. Representing the causal relationships in the form of ``CausalGraph`` and doing other related operations such as identification with ``CausalModel``.
 
-3. *Estimator Model*. Estimating the causal estimand with various techniques.
+3. *EstimatorModel*. Estimating the causal estimand with various techniques.
 
-4. *Policy Model*. Selecting the best policy for each individual.
+4. *Policy*. Selecting the best policy for each individual.
 
-5. *Interpreters*. Explaining the causal effects and polices.
+5. *Interpreter*. Explaining the causal effects and polices.
 
 These components are connected to give a full pipeline of causal inference, which are also encapsulated into a single API `Why`.
 
@@ -162,7 +164,7 @@ We present several necessary example usages of YLearn in this section, which cov
     * Call  `fit()` method of  `EstimatorModel` to train the model.
     * Call  `estimate()` method of  `EstimatorModel` to estimate causal effects in test data.
 
-    One can refer to the documentation website for methodologies of many estimator models implemented by YLearn.
+    One can refer to the documentation website for [methodologies](https://ylearn.readthedocs.io/en/latest/sub/est.html#) of many estimator models implemented by YLearn.
 
 5. **Using the all-in-one API: Why**
 
@@ -188,13 +190,9 @@ We present several necessary example usages of YLearn in this section, which cov
 
 In the notebook [CaseStudy](https://github.com/DataCanvasIO/YLearn/blob/main/example_usages/case_study_bank.ipynb), we utilize a typical bank customer dataset to further demonstrate the usage of the all-in-one API `Why` of YLearn. `Why` covers the full processing pipeline of causal learning, including causal discovery, causal effect identification, causal effect estimation, counterfactual inference, and policy learning. Please refer to [CaseStudy](https://github.com/DataCanvasIO/YLearn/blob/main/example_usages/case_study_bank.ipynb) for more details.
 
-
-## Contributing 
+## Contributing
 
 We welcome community contributors to the project. Before you start, please firstly read our [code of conduct](CODE_OF_CONDUCT.md) and [contributing guidelines](CONTRIBUTING.md).
-
-
-
 
 ## References
 
