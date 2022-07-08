@@ -1,14 +1,12 @@
 ************
-Meta-Learner
+元学习器
 ************
+元学习器是一种估计模型，旨在当处理手段为离散变量时通过机器学习模型去评估CATE。治疗方案为离散变量的意思也就是当无混淆条件下非1即0。通常来讲，它利用多个可灵活选择的机器学习模型。
 
-Meta-Learners [Kunzel2019]_ are estimator models that aim to estimate the CATE by taking advantage of machine learning
-models when the treatment is discrete, e.g., the treatment has only two values 1 and 0, and when the unconfoundedness is satisified. Generally speaking,
-it employs multiple machine learning models with the flexibility on the choice of models.
 
-YLearn implements 3 Meta-Learners: S-Learner, T-Learner, and X-Learner.
+YLearn 实现了3个元学习器: S-Learner, T-Learner, and X-Learner.
 
-.. topic:: Example
+.. topic:: 示例
 
     .. code-block:: python
 
@@ -69,15 +67,13 @@ YLearn implements 3 Meta-Learners: S-Learner, T-Learner, and X-Learner.
 S-Learner
 =========
 
-SLearner uses one machine learning model to estimate the causal effects. Specifically, we fit a model to predict outcome
-:math:`y` from treatment :math:`x` and adjustment set (or covariate) :math:`w` with a machine learning model
-:math:`f`:
+SLearner 采用一个机器学习模型来评估因果效应。具体来说，我们用机器学习模型 :math:`f` 从治疗方案 :math:`x` 和调整集 (或者协变量) :math:`w` 中拟合一个模型去预测结果 :math:`y`:
 
 .. math::
 
     y = f(x, w).
 
-The causal effect :math:`\tau(w)` is then calculated as
+因果效应 :math:`\tau(w)` 被计算为:
 
 .. math::
 
@@ -162,27 +158,25 @@ The causal effect :math:`\tau(w)` is then calculated as
 T-Learner
 =========
 
-The problem of SLearner is that the treatment vector is only 1-dimensional while the adjustment vector could be 
-multi-dimensional. Thus if the dimension of the adjustment is much larger than 1, then the estimated results will always be close to 0. 
-TLearner uses two machine learning models to estimate the causal effect. Specifically, let :math:`w` denote the
-adjustment set (or covariate), we
+TLearner的问题是当调整集向量为多维时治疗方案向量仅为一维。因此，如果调整集的维度超过1，那么评估结果将总是逼近于0。
+TLearner用两个机器学习模型去评估因果效应。具体来讲，令 :math:`w` 为调整集（或协变量），我们
 
-1. Fit two models :math:`f_t(w)` for the treatment group (:math:`x=` treat) and :math:`f_0(w)` for the control group (:math:`x=` control), respectively:
+1. 分别拟合两个模型 :math:`f_t(w)` 对于治疗组 (:math:`x=` treat) 和 :math:`f_0(w)` 对于控制组 (:math:`x=` control):
 
     .. math::
 
         y_t = f_t(w)
 
-  with data where :math:`x=` treat and
+  其中, :math:`x=` treat.
 
     .. math:: 
 
         y_0 = f_0(w)
     
-  with data where :math:`x=` control.
+  其中, :math:`x=` control.
 
 
-2. Compute the causal effect :math:`\tau(w)` as the difference between predicted results of these two models:
+2. 计算因果效应 :math:`\tau(w)` 作为两个模型预测结果的差异:
 
     .. math::
 
@@ -190,7 +184,7 @@ adjustment set (or covariate), we
 
 .. py:class:: ylearn.estimator_model.meta_learner.TLearner(model, random_state=2022, is_discrete_treatment=True, categories='auto', *args, **kwargs)
 
-    :param estimator, optional model: The base machine learning model for training SLearner. Any model
+    :param estimator, optional model: The base machine learning model for training TLearner. Any model
             should be some valid machine learning model with fit() and
             predict() functions.
     :param int, default=2022 random_state:
@@ -266,38 +260,38 @@ adjustment set (or covariate), we
 X-Learner
 =========
 
-TLearnr does not use all data efficiently, which can be addressed by the XLearner. Training a XLearner is composed of 3 steps:
+TLearner未能完全有效地利用数据，XLearner可以解决这个问题。训练一个XLearner可以分为3步:
 
-1. As in the case of TLearner, we first train two different models for the control group and treated group,  respectively:
+1. 与TLearner类似, 我们首先分别训练两个不同的模型对于控制组和治疗组:
 
     .. math::
 
         & f_0(w) \text{for the control group}\\
         & f_1(w) \text{for the treat group}.
 
-2. Generate two new datasets :math:`\{(h_0, w)\}` using the control group and :math:`\{(h_1, w)\}` using the treated group where
+2. 生成两个新数据集 :math:`\{(h_0, w)\}` 用控制组, :math:`\{(h_1, w)\}`用治疗组。 其中
     
     .. math::
 
         h_0 & = f_1(w) - y_0,\\ 
         h_1 & = y_1 - f_0(w). 
     
-    Then train two new machine learing models :math:`k_0(w)` and :math:`k_1(w)` in these datasets such that
+   然后，训练两个机器学习模型在这些数据集中 :math:`k_0(w)` 和 :math:`k_1(w)`
 
     .. math::
 
         h_0 & = k_0(w) \\
         h_1 & = k_1(w).
 
-3. Get the final model by combining the above two models:
+3. 结合以上两个模型得到最终的模型:
 
     .. math::
 
         g(w) = k_0(w)a(w) + k_1(w)(1 - a(w))
 
-    where :math:`a(w)` is a coefficient adjusting the weight of :math:`k_0` and :math:`k_1`.
+    其中, :math:`a(w)` 是一个调整 :math:`k_0` 和 :math:`k_1` 的权重调整系数。
 
-Finally,  the casual effect :math:`\tau(w)` can be estimated as follows:
+最后,  因果效应 :math:`\tau(w)` 通过以下方式评估:
 
 .. math::
 
