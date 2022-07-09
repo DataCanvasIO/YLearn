@@ -345,11 +345,18 @@ class Why:
 
     Parameters
     ----------
-    discrete_outcome : bool, default=infer from outcome
-    discrete_treatment : bool, default=infer from the first treatment
-    identifier : str
+    discrete_outcome : bool, default=None
+        If True, force the outcome as discrete;
+        If False, force the outcome as continuous;
+        If None, inferred from outcome.
+    discrete_treatment : bool, default=None
+        If True, force the treatment variables as discrete;
+        If False, force the treatment variables as continuous;
+        if None, inferred from the first treatment
+    identifier : str, default='auto'
         Available options: 'auto' or 'discovery'
-    discovery_model : str, reserved
+    discovery_model : str, default=None
+        Reserved
     discovery_options : dict, default=None
         Parameters (key-values) to initialize the discovery model
     estimator : str, default='auto'
@@ -439,10 +446,12 @@ class Why:
         Parameters
         ----------
         data : pandas.DataFrame, required
-        outcome : str, outcome feature name, required
+        outcome : str, required
+            Outcome feature name
         treatment : str or list of str
             Names of the treatment variables.
-            If str, will be split into list with comma
+            If str, will be split into list with comma;
+            if None, identified by identifier.
         adjustment : str or list of str, optional
             Names of the adjustment variables. Identified by identifier if adjustment/covariate/instrument are all None.
             If str, will be split into list with comma
@@ -461,7 +470,7 @@ class Why:
         Returns
         -------
         instance of :py:class:`Why`
-            fitted object
+            fitted Why object
         """
         assert isinstance(data, pd.DataFrame)
 
@@ -578,7 +587,8 @@ class Why:
         outcome : str, outcome feature name, required
         treatment : str or list of str
             Names of the treatment variables.
-            If str, will be split into list with comma
+            If str, will be split into list with comma;
+            if None, identified by identifier
         adjustment : str or list of str, optional
             Names of the adjustment variables. Identified by identifier if adjustment/covariate/instrument are all None.
             If str, will be split into list with comma
@@ -777,7 +787,7 @@ class Why:
             and that of the second treatment is taken as 'read';
             in the case of continuous treatment, treat should be a float or a ndarray or pandas.Series,
             by default None
-        control : int or list, default None
+        control : treatment value or list or ndarray or pandas.Series, default None
             This is similar to the cases of treat, by default None
         return_detail: bool, default False
             If True, return effect details in result.
@@ -872,18 +882,18 @@ class Why:
 
     def individual_causal_effect(self, test_data, control=None):
         """
-        Estimate individual causal effect.
+        Estimate the causal effect for each individual.
 
         Parameters
         ----------
         test_data : pd.DataFrame, required
             The test data to evaluate the causal effect.
         control : treatment value or list or ndarray or pandas.Series, default None
-            In the case of single discrete treatment, treat should be an int or
+            In the case of single discrete treatment, control should be an int or
             str of one of all possible treatment values which indicates the
             value of the intended treatment;
-            in the case of multiple discrete treatment, treat should be a list
-            where treat[i] indicates the value of the i-th intended treatment,
+            in the case of multiple discrete treatment, control should be a list
+            where control[i] indicates the value of the i-th intended treatment,
             for example, when there are multiple discrete treatments,
             list(['run', 'read']) means the treat value of the first treatment is taken as 'run'
             and that of the second treatment is taken as 'read';
@@ -952,10 +962,12 @@ class Why:
         Parameters
         ----------
         test_data : pd.DataFrame, required
+            The test data to predict.
         new_value : ndarray or pd.Series, required
             It should have the same length with test_data.
-        treatment : treatment name, required
-            It should be on of the fitted attribute **treatment_**.
+        treatment : str, default None
+            Treatment name.
+            If str, it should be on of the fitted attribute **treatment_**.
             If None, then first element in the attribute **treatment_** is used.
         Returns
         -------
@@ -1034,7 +1046,8 @@ class Why:
             by default None
         control : int or list, default None
             This is similar to the cases of treat, by default None
-        scorer: reserved
+        scorer: str, default 'auto'
+            Reserved.
 
         Returns
         -------
@@ -1110,21 +1123,22 @@ class Why:
         Parameters
         ----------
         test_data : pd.DataFrame, required
-        treatment: treatment names, optional
-            Should be one or two element.
-            default the first two element in attribute **treatment_**
+        treatment: str or list, optional
+            Treatment names, should be one or two element.
+            default the first two elements in attribute **treatment_**
         control : treatment value or list or ndarray or pandas.Series, default None
-            In the case of single discrete treatment, treat should be an int or
+            In the case of single discrete treatment, control should be an int or
             str of one of all possible treatment values which indicates the
             value of the intended treatment;
-            in the case of multiple discrete treatment, treat should be a list
-            where treat[i] indicates the value of the i-th intended treatment,
+            in the case of multiple discrete treatment, control should be a list
+            where control[i] indicates the value of the i-th intended treatment,
             for example, when there are multiple discrete treatments,
-            list(['run', 'read']) means the treat value of the first treatment is taken as 'run'
+            list(['run', 'read']) means the control value of the first treatment is taken as 'run'
             and that of the second treatment is taken as 'read';
-            in the case of continuous treatment, treat should be a float or a ndarray or pandas.Series,
+            in the case of continuous treatment, control should be a float or a ndarray or pandas.Series,
             by default None
-        kwargs : options to initialize the PolicyTree
+        kwargs : dict
+            options to initialize the PolicyTree
 
         Returns
         -------
