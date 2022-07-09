@@ -23,14 +23,18 @@ Class Structures
 
     An all-in-one API for causal learning.
 
-    :param bool, default=infer from outcome discrete_outcome:
-    :param bool, default=infer from the first treatment discrete_treatment:
+    :param bool, default=None discrete_outcome: If True, force the outcome as discrete;
+        If False, force the outcome as continuous;
+        If None, inferred from outcome.
+    :param bool, default=None discrete_treatment: If True, force the treatment variables as discrete;
+        If False, force the treatment variables as continuous;
+        if None, inferred from the first treatment
     :param str, default=auto' identifier: Available options: 'auto' or 'discovery'
-    :param str, optional, default=None discovery_model:
+    :param str, optional, default=None discovery_model: Reserved
     :param dict, optional, default=None discovery_options: Parameters (key-values) to initialize the discovery model
     :param str, optional, default='auto' estimator: Name of a valid EstimatorModel. One can also pass an instance of a valid estimator model.
     :param dict, optional, default=None estimator_options: Parameters (key-values) to initialize the estimator model
-    :param int, optional, default=None random_state:
+    :param int, optional, default=None random_state: Random state seed
     
     .. py:attribute:: `feature_names_in_`
         
@@ -78,17 +82,37 @@ Class Structures
             
             1. encode outcome if its dtype is not numeric
             2. identify treatment and adjustment/covariate/instrument
-            3. preprocess data
-            4. fit causal estimators
-        
+            3. encode treatment if discrete_treatment is True
+            4. preprocess data
+            5. fit causal estimators
+
+        :param pandas.DataFrame, required data: Training dataset.
+        :param str, required outcome: Name of the outcome.
+        :param list of str, optional treatment: Names of the treatment. If str, will be split into list with comma;
+            if None, identified by identifier.
+        :param list of str, optional, default=None adjustment: Names of the adjustment. Identified by identifier if adjustment/covariate/instrument are all None.
+        :param list of str, optional, default=None covariate: Names of the covariate. Identified by identifier if adjustment/covariate/instrument are all None.
+        :param list of str, optional, default=None instrument: Names of the instrument. Identified by identifier if adjustment/covariate/instrument are all None.
+        :param int, optional treatment_count_limit: maximum treatment number, default `min(5, 10% of total feature number)`.
+        :param bool, default=True copy: Set to False to perform inplace transforming and avoid a copy of data.
+
         :returns: The fitted :py:class:`Why`.
         :rtype: instance of :py:class:`Why`
 
     .. py:method:: identify(data, outcome, *, treatment=None, adjustment=None, covariate=None, instrument=None, treatment_count_limit=None)
 
-        Identify treatment and adjustment/covariate/instrument. 
+        Identify treatment and adjustment/covariate/instrument without fitting `Why`.
 
-        :returns: identified treatment, adjustment, covariate, instrument
+        :param pandas.DataFrame, required data: Training dataset.
+        :param str, required outcome: Name of the outcome.
+        :param list of str, optional treatment: Names of the treatment. If str, will be split into list with comma;
+            if None, identified by identifier.
+        :param list of str, optional, default=None adjustment: Names of the adjustment. Identified by identifier if adjustment/covariate/instrument are all None.
+        :param list of str, optional, default=None covariate: Names of the covariate. Identified by identifier if adjustment/covariate/instrument are all None.
+        :param list of str, optional, default=None instrument: Names of the instrument. Identified by identifier if adjustment/covariate/instrument are all None.
+        :param int, optional treatment_count_limit: maximum treatment number, default `min(5, 10% of total feature number)`.
+
+        :returns: tuple of identified treatment, adjustment, covariate, instrument
         :rtypes: tuple
 
     .. py:method:: causal_graph()
@@ -98,42 +122,131 @@ Class Structures
         :returns: Identified causal graph
         :rtype: instance of :py:class:`CausalGraph`
 
-    .. py:method:: causal_effect(test_data=None, treat=None, control=None)
+    .. py:method:: causal_effect(test_data=None, treat=None, control=None, return_detail=False)
 
         Estimate the causal effect.
 
-        :returns: causal effect of all treatments
+        :param pandas.DataFrame, optional test_data: The test data to evaluate the causal effect.  If None, the training data is used.
+        :param treatment value or list or ndarray or pandas.Series, default None treat:  In the case of single discrete treatment, treat should be an int or
+            str of one of all possible treatment values which indicates the
+            value of the intended treatment;
+            in the case of multiple discrete treatment, treat should be a list
+            where treat[i] indicates the value of the i-th intended treatment,
+            for example, when there are multiple discrete treatments,
+            list(['run', 'read']) means the treat value of the first treatment is taken as 'run'
+            and that of the second treatment is taken as 'read';
+            in the case of continuous treatment, treat should be a float or a ndarray or pandas.Series,
+            by default None
+        :param treatment value or list or ndarray or pandas.Series control: This is similar to the cases of treat, by default None
+        :param bool, default False return_detail: If True, return effect details in result.
+
+        :returns: causal effect of each treatment. The result DataFrame columns are:
+               * mean: mean of causal effect,
+               * min: minimum of causal effect,
+               * max: maximum of causal effect,
+               * detail (if return_detail is True ): causal effect ndarray;
+            In the case of discrete treatment, the result DataFrame indices are multiindex of
+            (treatment name and treat_vs_control);
+            in the case of continuous treatment, the result DataFrame indices are treatment names.
         :rtype: pandas.DataFrame
     
-    .. py:method:: individual_causal_effect(test_data, treat=None, control=None)
+    .. py:method:: individual_causal_effect(test_data, control=None)
 
         Estimate the causal effect for each individual.
 
-        :returns: individual causal effect of each treatment
+        :param pandas.DataFrame, required test_data: The test data to evaluate the causal effect.
+        :param treatment value or list or ndarray or pandas.Series, default None control:  In the case of single discrete treatment, control should be an int or
+            str of one of all possible treatment values which indicates the
+            value of the intended treatment;
+            in the case of multiple discrete treatment, treat should be a list
+            where control[i] indicates the value of the i-th intended treatment,
+            for example, when there are multiple discrete treatments,
+            list(['run', 'read']) means the treat value of the first treatment is taken as 'run'
+            and that of the second treatment is taken as 'read';
+            in the case of continuous treatment, treat should be a float or a ndarray or pandas.Series,
+            by default None
+
+        :returns: individual causal effect of each treatment. The result DataFrame columns are the treatment names;
+            In the case of discrete treatment, the result DataFrame indices are multiindex of
+            (individual index in test_data, treatment name and treat_vs_control);
+            in the case of continuous treatment, the result DataFrame indices are multiindex of
+            (individual index in test_data, treatment name).
         :rtype: pandas.DataFrame
     
-    .. py:method:: whatif(data, new_value, treatment=None)
+    .. py:method:: whatif(test_data, new_value, treatment=None)
 
         Get counterfactual predictions when treatment is changed to new_value from its observational counterpart.
+
+        :param pandas.DataFrame, required test_data: The test data to predict.
+        :param ndarray or pd.Series, required new_value: It should have the same length with test_data.
+        :param str, default None treatment: Treatment name.
+            If str, it should be on of the fitted attribute **treatment_**.
+            If None, then first element in the attribute **treatment_** is used.
 
         :returns: The counterfactual prediction
         :rtype: pandas.Series
  
     .. py:method:: score(test_data=None, treat=None, control=None, scorer='auto')
 
+        Scoring the fitted estimator models.
+
+        :param pandas.DataFrame, required test_data: The test data to score.
+        :param treatment value or list or ndarray or pandas.Series, default None treat:  In the case of single discrete treatment, treat should be an int or
+            str of one of all possible treatment values which indicates the
+            value of the intended treatment;
+            in the case of multiple discrete treatment, treat should be a list
+            where treat[i] indicates the value of the i-th intended treatment,
+            for example, when there are multiple discrete treatments,
+            list(['run', 'read']) means the treat value of the first treatment is taken as 'run'
+            and that of the second treatment is taken as 'read';
+            in the case of continuous treatment, treat should be a float or a ndarray or pandas.Series,
+            by default None
+        :param treatment value or list or ndarray or pandas.Series control: This is similar to the cases of treat, by default None
+        :param str, default 'auto' scorer: Reserved.
+
         :returns: Score of the estimator models
         :rtype: float
    
-    .. py:method:: policy_tree(data, control=None, **kwargs)
+    .. py:method:: policy_tree(test_data, treatment=None, control=None, **kwargs)
 
         Get the policy tree
+
+        :param pandas.DataFrame, required test_data: The test data to evaluate.
+        :param str or list, optional treatment:  Treatment names, should be one or two element.
+            default the first two elements in attribute **treatment_**
+        :param treatment value or list or ndarray or pandas.Series control: In the case of single discrete treatment, control should be an int or
+            str of one of all possible treatment values which indicates the
+            value of the intended treatment;
+            in the case of multiple discrete treatment, control should be a list
+            where control[i] indicates the value of the i-th intended treatment,
+            for example, when there are multiple discrete treatments,
+            list(['run', 'read']) means the control value of the first treatment is taken as 'run'
+            and that of the second treatment is taken as 'read';
+            in the case of continuous treatment, control should be a float or a ndarray or pandas.Series,
+            by default None
+        :param dcit kwargs: options to initialize the PolicyTree.
 
         :returns: The fitted instance of :py:class:`PolicyTree`.
         :rtype: instance of :py:class:`PolicyTree`
 
-    .. py:method:: policy_interpreter(data, control=None, **kwargsa)
+    .. py:method:: policy_interpreter(test_data, treatment=None, control=None, **kwargs)
 
         Get the policy interpreter
+
+        :param pandas.DataFrame, required test_data: The test data to evaluate.
+        :param str or list, optional treatment:  Treatment names, should be one or two element.
+            default the first two elements in attribute **treatment_**
+        :param treatment value or list or ndarray or pandas.Series control: In the case of single discrete treatment, control should be an int or
+            str of one of all possible treatment values which indicates the
+            value of the intended treatment;
+            in the case of multiple discrete treatment, control should be a list
+            where control[i] indicates the value of the i-th intended treatment,
+            for example, when there are multiple discrete treatments,
+            list(['run', 'read']) means the control value of the first treatment is taken as 'run'
+            and that of the second treatment is taken as 'read';
+            in the case of continuous treatment, control should be a float or a ndarray or pandas.Series,
+            by default None
+        :param dcit kwargs: options to initialize the PolicyInterpreter.
 
         :returns: The fitted instance of :py:class:`PolicyInterpreter`.
         :rtype: instance of :py:class:`PolicyInterpreter`
@@ -142,10 +255,16 @@ Class Structures
 
         Plot the causal graph.
     
-    .. py:method:: plot_policy_tree(Xtest, control=None, **kwargs)
+    .. py:method:: plot_policy_tree(test_data, treatment=None, control=None, **kwargs)
 
         Plot the policy tree.
-    
-    .. py:method:: plot_policy_interpreter(data, control=None, **kwargs)
+
+        :returns: The fitted instance of :py:class:`PolicyTree`.
+        :rtype: instance of :py:class:`PolicyTree`
+
+    .. py:method:: plot_policy_interpreter(test_data, treatment=None, control=None, **kwargs)
 
         Plot the interpreter.
+
+        :returns: The fitted instance of :py:class:`PolicyInterpreter`.
+        :rtype: instance of :py:class:`PolicyInterpreter`
