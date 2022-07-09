@@ -1,6 +1,5 @@
 From python:3.8.13-buster
 
-#ARG PIP_PKGS="numpy pandas scikit-learn torch lightgbm igraph jupyterlab ipywidgets tqdm ipywidgets matplotlib shap"
 ARG PIP_PKGS="ylearn lightgbm igraph jupyterlab ipywidgets tqdm ipywidgets matplotlib shap"
 ARG PIP_OPTS="--disable-pip-version-check --no-cache-dir"
 #ARG PIP_OPTS="--disable-pip-version-check --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple/"
