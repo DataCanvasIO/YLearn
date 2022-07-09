@@ -341,7 +341,7 @@ class IdentifierWithDiscovery(DefaultIdentifier):
 
 class Why:
     """
-    A quickstart point to identity causation and estimate causal effect.
+    An all-in-one API for causal learning.
 
     Parameters
     ----------
@@ -441,15 +441,21 @@ class Why:
         data : pandas.DataFrame, required
         outcome : str, outcome feature name, required
         treatment : str or list of str
-            Names of the treatment variables
+            Names of the treatment variables.
+            If str, will be split into list with comma
         adjustment : str or list of str, optional
-            If None, identified by identifier.
+            Names of the adjustment variables. Identified by identifier if adjustment/covariate/instrument are all None.
+            If str, will be split into list with comma
         covariate : str or list of str, optional
-            If None, identified by identifier.
+            Names of the covariate variables. Identified by identifier if adjustment/covariate/instrument are all None.
+            If str, will be split into list with comma
         instrument : str or list of str, optional
-            If None, identified by identifier.
-        treatment_count_limit : maximum treatment number, default `min(5, 10% of total feature number)`
+            Names of the instrument variables. Identified by identifier if adjustment/covariate/instrument are all None.
+            If str, will be split into list with comma
+        treatment_count_limit : int, default None
+            Maximum treatment number, default `min(5, 10% of total feature number)`.
         copy : bool, default True
+            Set to False to perform inplace transforming and avoid a copy of data.
         kwargs : options to fit estimators
 
         Returns
@@ -564,22 +570,26 @@ class Why:
     def identify(self, data, outcome, *,
                  treatment=None, adjustment=None, covariate=None, instrument=None, treatment_count_limit=None):
         """
-        Identify treatment and adjustment/covariate/instrument
+        Identify treatment and adjustment/covariate/instrument without fitting Why.
 
         Parameters
         ----------
         data : pandas.DataFrame, required
         outcome : str, outcome feature name, required
         treatment : str or list of str
-            Names of the treatment variables
+            Names of the treatment variables.
+            If str, will be split into list with comma
         adjustment : str or list of str, optional
-            If None, identified by identifier.
+            Names of the adjustment variables. Identified by identifier if adjustment/covariate/instrument are all None.
+            If str, will be split into list with comma
         covariate : str or list of str, optional
-            If None, identified by identifier.
+            Names of the covariate variables. Identified by identifier if adjustment/covariate/instrument are all None.
+            If str, will be split into list with comma
         instrument : str or list of str, optional
-            If None, identified by identifier.
-        treatment_count_limit : maximum treatment number, default `min(5, 10% of total feature number)`
-
+            Names of the instrument variables. Identified by identifier if adjustment/covariate/instrument are all None.
+            If str, will be split into list with comma
+        treatment_count_limit : int, default None
+            Maximum treatment number, default `min(5, 10% of total feature number)`.
         Returns
         -------
         tuple of identified treatment, adjustment, covariate, instrument
@@ -755,16 +765,35 @@ class Why:
         ----------
         test_data : pd.DataFrame, default None
             The test data to evaluate the causal effect.
-            If None, estimate effect with the training data.
-        treat : int or list, default None
+            If None, the training data is used.
+        treat : treatment value or list or ndarray or pandas.Series, default None
+            In the case of single discrete treatment, treat should be an int or
+            str of one of all possible treatment values which indicates the
+            value of the intended treatment;
+            in the case of multiple discrete treatment, treat should be a list
+            where treat[i] indicates the value of the i-th intended treatment,
+            for example, when there are multiple discrete treatments,
+            list(['run', 'read']) means the treat value of the first treatment is taken as 'run'
+            and that of the second treatment is taken as 'read';
+            in the case of continuous treatment, treat should be a float or a ndarray or pandas.Series,
+            by default None
         control : int or list, default None
+            This is similar to the cases of treat, by default None
         return_detail: bool, default False
-            Return effect details in result if True.
+            If True, return effect details in result.
 
         Returns
         -------
         pd.DataFrame
-            causal effect of each treatment
+            causal effect of each treatment. The result DataFrame columns are:
+                mean: mean of causal effect,
+                min: minimum of causal effect,
+                max: maximum of causal effect,
+                detail(if return_detail is True ): causal effect ndarray;
+            In the case of discrete treatment, the result DataFrame indices are multiindex of
+            (treatment name and treat_vs_control);
+            in the case of continuous treatment, the result DataFrame indices are treatment names.
+
         """
         test_data = self._preprocess(test_data)
         treat = self._safe_treat_control(treat, 'treat')
@@ -847,14 +876,29 @@ class Why:
 
         Parameters
         ----------
-        test_data : pd.DataFrame, default None
+        test_data : pd.DataFrame, required
             The test data to evaluate the causal effect.
-        control : int or list, default None
+        control : treatment value or list or ndarray or pandas.Series, default None
+            In the case of single discrete treatment, treat should be an int or
+            str of one of all possible treatment values which indicates the
+            value of the intended treatment;
+            in the case of multiple discrete treatment, treat should be a list
+            where treat[i] indicates the value of the i-th intended treatment,
+            for example, when there are multiple discrete treatments,
+            list(['run', 'read']) means the treat value of the first treatment is taken as 'run'
+            and that of the second treatment is taken as 'read';
+            in the case of continuous treatment, treat should be a float or a ndarray or pandas.Series,
+            by default None
 
         Returns
         -------
         pd.DataFrame
-            individual causal effect of each treatment
+            individual causal effect of each treatment.
+            The result DataFrame columns are the treatment names;
+            In the case of discrete treatment, the result DataFrame indices are multiindex of
+            (individual index in test_data, treatment name and treat_vs_control);
+            in the case of continuous treatment, the result DataFrame indices are multiindex of
+            (individual index in test_data, treatment name).
         """
         assert test_data is not None
 
@@ -901,29 +945,31 @@ class Why:
             dfs.append(s)
         return pd.concat(dfs, axis=1)
 
-    def whatif(self, data, new_value, treatment=None):
+    def whatif(self, test_data, new_value, treatment=None):
         """
         Get counterfactual predictions when treatment is changed to new_value from its observational counterpart.
 
         Parameters
         ----------
-        data : pd.DataFrame
-        new_value : ndarray or pd.Series
-        treatment : treatment name
-
+        test_data : pd.DataFrame, required
+        new_value : ndarray or pd.Series, required
+            It should have the same length with test_data.
+        treatment : treatment name, required
+            It should be on of the fitted attribute **treatment_**.
+            If None, then first element in the attribute **treatment_** is used.
         Returns
         -------
         pd.Series
             The counterfactual prediction
         """
-        assert data is not None and new_value is not None
+        assert test_data is not None and new_value is not None
         assert treatment is None or isinstance(treatment, str)
         if isinstance(treatment, str):
             assert treatment in self.treatment_
         if treatment is None:
             treatment = self.treatment_[0]
 
-        data_t = self._preprocess(data)
+        data_t = self._preprocess(test_data)
         estimator = self.estimators_[treatment]
         if estimator.is_discrete_treatment:
             return self._whatif_discrete(data_t, new_value, treatment, estimator)
@@ -970,13 +1016,24 @@ class Why:
 
     def score(self, test_data=None, treat=None, control=None, scorer='auto'):
         """
-        Evaluate the fitted estimator models in test_data
+        Scoring the fitted estimator models.
 
         Parameters
         ----------
         test_data : pd.DataFrame, required
-        treat : int or list, default None
+        treat : treatment value or list or ndarray or pandas.Series, default None
+            In the case of single discrete treatment, treat should be an int or
+            str of one of all possible treatment values which indicates the
+            value of the intended treatment;
+            in the case of multiple discrete treatment, treat should be a list
+            where treat[i] indicates the value of the i-th intended treatment,
+            for example, when there are multiple discrete treatments,
+            list(['run', 'read']) means the treat value of the first treatment is taken as 'run'
+            and that of the second treatment is taken as 'read';
+            in the case of continuous treatment, treat should be a float or a ndarray or pandas.Series,
+            by default None
         control : int or list, default None
+            This is similar to the cases of treat, by default None
         scorer: reserved
 
         Returns
@@ -1046,62 +1103,107 @@ class Why:
             effect_array = np.hstack(effects)
         return effect_array
 
-    def policy_tree(self, data, treatment=None, control=None, **kwargs):
+    def policy_tree(self, test_data, treatment=None, control=None, **kwargs):
         """
         Get the policy tree
 
         Parameters
         ----------
-        data : pd.DataFrame, required
-        treatment: treatment names, default the
-        control : int or list, default None
+        test_data : pd.DataFrame, required
+        treatment: treatment names, optional
+            Should be one or two element.
+            default the first two element in attribute **treatment_**
+        control : treatment value or list or ndarray or pandas.Series, default None
+            In the case of single discrete treatment, treat should be an int or
+            str of one of all possible treatment values which indicates the
+            value of the intended treatment;
+            in the case of multiple discrete treatment, treat should be a list
+            where treat[i] indicates the value of the i-th intended treatment,
+            for example, when there are multiple discrete treatments,
+            list(['run', 'read']) means the treat value of the first treatment is taken as 'run'
+            and that of the second treatment is taken as 'read';
+            in the case of continuous treatment, treat should be a float or a ndarray or pandas.Series,
+            by default None
         kwargs : options to initialize the PolicyTree
 
         Returns
         -------
-        object :
+        PolicyTree :
             The fitted PolicyTree object
         """
-        data = self._preprocess(data)
+        test_data = self._preprocess(test_data)
         control = self._safe_treat_control(control, 'control')
-        effect_array = self._effect_array(data, treatment, control=control)
+        effect_array = self._effect_array(test_data, treatment, control=control)
         ptree = PolicyTree(**kwargs)
-        ptree.fit(data, covariate=self.covariate_, effect_array=effect_array)
+        ptree.fit(test_data, covariate=self.covariate_, effect_array=effect_array)
 
         return ptree
 
-    def policy_interpreter(self, data, treatment=None, control=None, **kwargs):
+    def policy_interpreter(self, test_data, treatment=None, control=None, **kwargs):
         """
         Get the policy interpreter
 
         Parameters
         ----------
-        data : pd.DataFrame, required
-        treatment: treatment names, default the
-        control : int or list, default None
+        test_data : pd.DataFrame, required
+        treatment: treatment names, optional
+            Should be one or two element.
+            default the first two element in attribute **treatment_**
+        control : treatment value or list or ndarray or pandas.Series, default None
+            In the case of single discrete treatment, treat should be an int or
+            str of one of all possible treatment values which indicates the
+            value of the intended treatment;
+            in the case of multiple discrete treatment, treat should be a list
+            where treat[i] indicates the value of the i-th intended treatment,
+            for example, when there are multiple discrete treatments,
+            list(['run', 'read']) means the treat value of the first treatment is taken as 'run'
+            and that of the second treatment is taken as 'read';
+            in the case of continuous treatment, treat should be a float or a ndarray or pandas.Series,
+            by default None
         kwargs : options to initialize the PolicyInterpreter
 
         Returns
         -------
-        object :
+        PolicyInterpreter :
             The fitted PolicyInterpreter object
         """
-        data = self._preprocess(data)
+        test_data = self._preprocess(test_data)
         control = self._safe_treat_control(control, 'control')
-        effect_array = self._effect_array(data, treatment, control=control)
+        effect_array = self._effect_array(test_data, treatment, control=control)
         pi = PolicyInterpreter(**kwargs)
-        pi.fit(data, covariate=self.covariate_, est_model=None, effect_array=effect_array)
+        pi.fit(test_data, covariate=self.covariate_, est_model=None, effect_array=effect_array)
         return pi
 
-    def plot_policy_tree(self, Xtest, control=None, **kwargs):
-        ptree = self.policy_tree(Xtest, control=control, **kwargs)
-        ptree.plot()
+    def plot_policy_tree(self, test_data, treatment=None, control=None, **kwargs):
+        """
+        Plot the policy tree
 
-    def plot_policy_interpreter(self, data, control=None, **kwargs):
-        pi = self.policy_interpreter(data, control=control, **kwargs)
+        Returns
+        -------
+        PolicyTree :
+            The fitted PolicyTree object
+        """
+        ptree = self.policy_tree(test_data, treatment=treatment, control=control, **kwargs)
+        ptree.plot()
+        return ptree
+
+    def plot_policy_interpreter(self, test_data, treatment=None, control=None, **kwargs):
+        """
+        Plot the policy interpreter
+
+        Returns
+        -------
+        PolicyInterpreter :
+            The fitted PolicyInterpreter object
+        """
+        pi = self.policy_interpreter(test_data, treatment=treatment, control=control, **kwargs)
         pi.plot()
+        return pi
 
     def plot_causal_graph(self):
+        """
+        Plot the causal graph.
+        """
         import pydot
 
         values = dict(WLIST=self.adjustment_, VLIST=self.covariate_, XLIST=self.treatment_,
