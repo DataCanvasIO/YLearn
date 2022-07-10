@@ -68,7 +68,7 @@ Outputs:
 Fit Why with customized treatments
 ----------------------------------
 
-We can fit `Why` argument `treatment` to specify the desired features as treatment.
+We can fit `Why` with argument `treatment` to specify the desired features as treatment.
 
 .. code-block:: python
 
@@ -99,7 +99,7 @@ Outputs:
 Identify treatment without fitting `Why`
 -------------------------------------------
 
-We can call method `identify` to identify treatment, adjustment, covariate and instrument without fitting it.
+We can call `Why`'s method `identify` to identify treatment, adjustment, covariate and instrument without fitting it.
 
 
 .. code-block:: python
