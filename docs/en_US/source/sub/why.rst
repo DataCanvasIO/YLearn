@@ -16,6 +16,112 @@ for each individual.
 
     `Why` can help almost every part of the whole pipeline of causal inference.
 
+Example usages
+================
+
+In this chapter, we use dataset `california_housing` to show how to use `Why`.  We prepare the dataset with code below:
+
+.. code-block:: python
+
+    from sklearn.datasets import fetch_california_housing
+
+    housing = fetch_california_housing(as_frame=True)
+    data = housing.frame
+    outcome = housing.target_names[0]
+    data[outcome] = housing.target
+
+
+The variable `data` is our prepared dataset.
+
+Fit Why with default settings
+-----------------------------------
+
+The simplest way to use `Why` is creating `Why` instance with default settings and fit it with training data and outcome name only.
+
+.. code-block:: python
+
+    from ylearn import Why
+
+    why = Why()
+    why.fit(data, outcome)
+
+    print('identified treatment:',why.treatment_)
+    print('identified adjustment:',why.adjustment_)
+    print('identified covariate:',why.covariate_)
+    print('identified instrument:',why.instrument_)
+
+    print(why.causal_effect())
+
+Outputs:
+
+.. code-block:: console
+
+    identified treatment: ['MedInc', 'HouseAge']
+    identified adjustment: None
+    identified covariate: ['AveRooms', 'AveBedrms', 'Population', 'AveOccup', 'Latitude', 'Longitude']
+    identified instrument: None
+                  mean       min       max       std
+    MedInc    0.411121 -0.198831  1.093134  0.064856
+    HouseAge -0.000385 -0.039162  0.114263  0.005845
+
+
+Fit Why with customized treatments
+----------------------------------
+
+We can fit `Why` argument `treatment` to specify the desired features as treatment.
+
+.. code-block:: python
+
+    from ylearn import Why
+
+    why = Why()
+    why.fit(data, outcome, treatment=['AveBedrms', ])
+
+    print('identified treatment:',why.treatment_)
+    print('identified adjustment:',why.adjustment_)
+    print('identified covariate:',why.covariate_)
+    print('identified instrument:',why.instrument_)
+
+    print(why.causal_effect())
+
+Outputs:
+
+.. code-block:: console
+
+    identified treatment: ['AveBedrms']
+    identified adjustment: None
+    identified covariate: ['MedInc', 'HouseAge', 'AveRooms', 'Population', 'AveOccup', 'Latitude', 'Longitude']
+    identified instrument: None
+                   mean       min        max       std
+    AveBedrms  0.197422 -0.748971  10.857963  0.169682
+
+
+Identify treatment without fitting `Why`
+-------------------------------------------
+
+We can call method `identify` to identify treatment, adjustment, covariate and instrument without fitting it.
+
+
+.. code-block:: python
+
+    why = Why()
+    r=why.identify(data, outcome)
+
+    print('identified treatment:',r[0])
+    print('identified adjustment:',r[1])
+    print('identified covariate:',r[2])
+    print('identified instrument:',r[3])
+
+Outputs:
+
+.. code-block:: console
+
+    identified treatment: ['MedInc', 'HouseAge']
+    identified adjustment: None
+    identified covariate: ['AveRooms', 'AveBedrms', 'Population', 'AveOccup', 'Latitude', 'Longitude']
+    identified instrument: None
+
+
 Class Structures
 ================
 
