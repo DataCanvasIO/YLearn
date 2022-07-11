@@ -243,7 +243,7 @@ Class Structures
             and that of the second treatment is taken as 'read';
             in the case of continuous treatment, treat should be a float or a ndarray or pandas.Series,
             by default None
-        :param treatment value or list or ndarray or pandas.Series control: This is similar to the cases of treat, by default None
+        :param treatment value or list or ndarray or pandas.Series, default None control: This is similar to the cases of treat, by default None
         :param bool, default False return_detail: If True, return effect details in result.
 
         :returns: causal effect of each treatment. The result DataFrame columns are:
