@@ -1,6 +1,5 @@
 # TODO: add copyright of the implementation of sklearn tree
 import numbers
-from signal import raise_signal
 import pandas
 
 from math import ceil
