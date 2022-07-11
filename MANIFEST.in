@@ -1,1 +1,2 @@
 include requirements*.txt
+include example_usages/**/*

@@ -20,7 +20,7 @@
 pip install ylearn
 ```
 
-注意：YLearn依赖于本地环境中的c++编译器和graphviz，请的安装YLearn之前安装相关软件。
+注意：YLearn依赖于本地环境中的c++编译器和graphviz，请安装YLearn之前安装相关软件。
 
 
 ## YLearn概览
@@ -56,11 +56,11 @@ YLearn 有5个主要的因果推断相关概念，如下所示
 ![A typical pipeline in YLearn](./fig/flow.png#pic_center)
 *YLearn中的因果推断流程*
 
-上图展示来一个YLearn中的完整因果推断流程，我们介绍如下。从用户给定的训练数据开始，我们首先:
+上图展示了一个YLearn中的完整因果推断流程，我们介绍如下。从用户给定的训练数据开始，我们首先:
 
 1. 使用 `CausalDiscovery` 去发现数据中的因果关系和因果结构，它们会以 `CausalGraph` 的形式表示和存在.
 2. 这些因果图接下来会被输入进 `CausalModel`, 在这里用户感兴趣的因果变量会通过因果效应识别转化为相应的可被估计的统计变量（也叫识别后的因果变量）
-3. 一个特定的 `EstimatorModel` 此时会在训练集中训练，得到训练好的估计模型，用来从数据中估计识别后的因果变量
+3. 一个特定的 `EstimatorModel` 此时会在训练集上训练，得到训练好的估计模型，用来从数据中估计识别后的因果变量
 4. 这个（些）训练好的 `EstimatorModel` 就可以被用来在测试数据集上估计各类不同的因果效应，同时也可以被用来作因果效应解释或策略方案的制定。
 
 下面的流程图可以方便地帮助用户决定自己的使用步骤
@@ -77,7 +77,7 @@ YLearn 有5个主要的因果推断相关概念，如下所示
 
 1. **表示因果图**
 
-   在YLearn中，给定一个变量集合，与之相关的因果表示*需要一个 python `dict` 去表示变量中的因果关系*，在这个 `dict` 中，每一个 *key* 都是它相应 *value* （通常是一个`list`）中的每一个元素的 children。我们举一个最简单的例子，给定因果结构 `X <- W -> Y` ，我们首先定一个一个 python `dict` 表示相关因果结构，这个 `dict` 会被当作参数传入 `CausalGraph` 中：
+   在YLearn中，给定一个变量集合，与之相关的因果关系*需要一个 python `dict` 去表示变量中的因果关系*，在这个 `dict` 中，每一个 *key* 都是它相应 *value* （通常是一个`list`）中的每一个元素的 children。我们举一个最简单的例子，给定因果结构 `X <- W -> Y` ，我们首先定一个一个 python `dict` 表示相关因果结构，这个 `dict` 会被当作参数传入 `CausalGraph` 中：
 
     ```python
         causation = {'X': ['W'], 'W':[], 'Y':['W']}
@@ -149,7 +149,7 @@ YLearn 有5个主要的因果推断相关概念，如下所示
 
    使用 YLearn 进行因果效应估计十分方便直接（与通常的机器学习模型使用方式十分类似，因为 YLearn 主要着眼于机器学习与因果推断的交叉），它是一个包括3个步骤的流程：
 
-   给定 `pandas.DataFrame` 形式的数据，确定 `treatment, outcome, adjustment, covariate` 的变量名。
+    * 给定 `pandas.DataFrame` 形式的数据，确定 `treatment, outcome, adjustment, covariate` 的变量名。
     * 调用 `EstimatorModel` 的 `fit()` 方法训练模型。
     * 调用 `EstimatorModel` 的 `estimate()` 方法得到估计好的因果效应
 
@@ -157,7 +157,7 @@ YLearn 有5个主要的因果推断相关概念，如下所示
 
 5. **使用统一接口API: Why**
 
-    为了能*以一种统一且方便的方式使用 YLearn*，YLearn 提供了一个接口 `Why`，它几乎封装了 YLearn 中的所有内容，包括因果效应识别和评估训练得到的估计模型等。在使用`Why` 的过程中，用户可以先创建一个 `Why` 的实例，然后调用 `Why` 的 `fit()` 方法训练这个实例，之后其他的各类方法（如`causal_effect()`, `score()`, `whatif()`）就可以使用了。下面的代码是一个简单的使用样例：
+   为了能*以一种统一且方便的方式使用 YLearn*，YLearn 提供了一个接口 `Why`，它几乎封装了 YLearn 中的所有内容，包括因果效应识别和评估训练得到的估计模型等。在使用`Why` 的过程中，用户可以先创建一个 `Why` 的实例，然后调用 `Why` 的 `fit()` 方法训练这个实例，之后其他的各类方法（如`causal_effect()`, `score()`, `whatif()`）就可以使用了。下面的代码是一个简单的使用样例：
 
     ```python
         from sklearn.datasets import fetch_california_housing
@@ -181,7 +181,7 @@ YLearn 有5个主要的因果推断相关概念，如下所示
 
 ## 欢迎贡献
 
-欢迎来自社区的开发者贡献！在开始前，请先阅读 [code of conduct](CODE_OF_CONDUCT.md) and [contributing guidelines](CONTRIBUTING.md).
+欢迎来自社区的开发者贡献！在开始前，请先阅读 [code of conduct](CODE_OF_CONDUCT.md) 和 [contributing guidelines](CONTRIBUTING.md).
 
 ## 参考文献
 
