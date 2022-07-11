@@ -93,7 +93,7 @@ Why: 一个一体化的因果学习API
     AveBedrms  0.197422 -0.748971  10.857963  0.169682
 
 
-在不fit `Why`对象的情况下识别潜在的treatment
+在不fit `Why` 对象的情况下识别潜在的treatment
 -------------------------------------------
 
 我们可以直接调用 `Why` 对象的 `identify` 方法识别潜在的treatment、adjustment、covariate和instrument，该方法返回一个由四个元素构成的tuple。
