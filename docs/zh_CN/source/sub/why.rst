@@ -16,7 +16,7 @@ Why: 一个一体化的因果学习API
 使用示例
 ================
 
-本节我们使用sklearn数据集`california_housing` 演示如何使用 `Why`，可通过如何代码准备数据集：
+本节我们使用sklearn数据集 `california_housing` 演示如何使用 `Why` ，可通过如何代码准备数据集：
 
 .. code-block:: python
 
