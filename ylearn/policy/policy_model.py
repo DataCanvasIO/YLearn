@@ -1,11 +1,13 @@
 # TODO: add copyright of the implementation of sklearn tree
 import numbers
+from signal import raise_signal
 import pandas
 
 from math import ceil
 from copy import deepcopy
 
 import numpy as np
+
 # import pydotplus
 # from ctypes import memset, sizeof, c_double, memmove
 
@@ -18,6 +20,7 @@ from ylearn.sklearn_ex.cloned.tree._splitter import Splitter
 from ylearn.sklearn_ex.cloned.tree._splitter import BestSplitter
 from ylearn.sklearn_ex.cloned.tree._splitter import RandomSplitter
 from ylearn.sklearn_ex.cloned.tree._criterion import Criterion
+
 # from ylearn.sklearn_ex.cloned.tree._criterion import MSE
 from ylearn.sklearn_ex.cloned.tree._tree import Tree
 from ylearn.sklearn_ex.cloned.tree._tree import DepthFirstTreeBuilder
@@ -36,8 +39,8 @@ logger = logging.get_logger(__name__)
 
 CRITERIA = {
     "policy_reg": PRegCriteria,
-    'policy_test': MSE,
-    'policy_test1': PRegCriteria1
+    "policy_test": MSE,
+    "policy_test1": PRegCriteria1,
 }
 
 SPLITTERS = {
@@ -104,7 +107,7 @@ class PolicyTree:
     estimate(data=None, quantity=None)
         Estimate the value of the optimal policy for the causal effects of the treatment
         on the outcome in the data, i.e., return the value of the causal effects
-        when taking the optimal treatment.    
+        when taking the optimal treatment.
 
     predict_ind(data=None,)
         Estimate the optimal policy for the causal effects of the treatment
@@ -126,9 +129,10 @@ class PolicyTree:
     """
 
     def __init__(
-        self, *,
-        criterion='policy_reg',
-        splitter='best',
+        self,
+        *,
+        criterion="policy_reg",
+        splitter="best",
         max_depth=None,
         min_samples_split=2,
         min_samples_leaf=1,
@@ -237,7 +241,8 @@ class PolicyTree:
     def fit(
         self,
         data,
-        covariate, *,
+        covariate,
+        *,
         effect=None,
         effect_array=None,
         est_model=None,
@@ -259,11 +264,11 @@ class PolicyTree:
 
         effect_array : ndarray of shape (n, n_treatments)
             The causal effect that waited to be fitted by  :class:`PolicyTree`. If this is not provided and `est_model` is None, then `effect` can not be None.
-        
+
         est_model : Any valid estimator model in ylearn
             If `effect=None` and `effect_array=None`, then `est_model` can not be None and the causal
             effect will be estimated by the `est_model`.
-        
+
         Returns
         ----------
         instance of self
@@ -275,9 +280,10 @@ class PolicyTree:
             ce = effect_array
         else:
             if effect is None:
-                assert est_model is not None, \
-                    'The causal effect is not provided and no estimator model is'
-                'provided to estimate it from the data.'
+                assert (
+                    est_model is not None
+                ), "The causal effect is not provided and no estimator model is"
+                "provided to estimate it from the data."
 
                 assert est_model._is_fitted
 
@@ -285,7 +291,10 @@ class PolicyTree:
                 self.covariate = est_model.covariate
                 v = convert2array(data, self.covariate)[0]
 
-                if hasattr(est_model, 'covariate_transformer') and est_model.covariate_transformer is not None:
+                if (
+                    hasattr(est_model, "covariate_transformer")
+                    and est_model.covariate_transformer is not None
+                ):
                     self.cov_transformer = est_model.covariate_transformer
                     v = self.cov_transformer.transform(v)
 
@@ -310,18 +319,17 @@ class PolicyTree:
         if self.max_depth is not None:
             check_scalar(
                 self.max_depth,
-                name='max_depth',
+                name="max_depth",
                 target_type=numbers.Integral,
                 min_val=1,
             )
-        max_depth = np.iinfo(np.int32).max if self.max_depth is None \
-            else self.max_depth
+        max_depth = np.iinfo(np.int32).max if self.max_depth is None else self.max_depth
 
         # check self.min_samples_leaf
         if isinstance(self.min_samples_leaf, numbers.Integral):
             check_scalar(
                 self.min_samples_leaf,
-                name='min_samples_leaf',
+                name="min_samples_leaf",
                 target_type=numbers.Integral,
                 min_val=1,
             )
@@ -329,10 +337,10 @@ class PolicyTree:
         else:
             check_scalar(
                 self.min_samples_leaf,
-                name='min_samples_leaf',
+                name="min_samples_leaf",
                 target_type=numbers.Real,
                 min_val=0.0,
-                include_boundaries='neither',
+                include_boundaries="neither",
             )
             min_samples_leaf = int(ceil(self.min_samples_leaf * n_samples))
 
@@ -340,7 +348,7 @@ class PolicyTree:
         if isinstance(self.min_samples_split, numbers.Integral):
             check_scalar(
                 self.min_samples_split,
-                name='min_samples_split',
+                name="min_samples_split",
                 target_type=numbers.Integral,
                 min_val=2,
             )
@@ -348,11 +356,11 @@ class PolicyTree:
         else:
             check_scalar(
                 self.min_samples_split,
-                name='min_samples_split',
+                name="min_samples_split",
                 target_type=numbers.Real,
                 min_val=0.0,
                 max_val=1.0,
-                include_boundaries='right',
+                include_boundaries="right",
             )
             min_samples_split = int(ceil(self.min_samples_split * n_samples))
             min_samples_split = max(2, min_samples_split)
@@ -363,7 +371,7 @@ class PolicyTree:
         if self.max_leaf_nodes is not None:
             check_scalar(
                 self.max_leaf_nodes,
-                name='max_leaf_nodes',
+                name="max_leaf_nodes",
                 target_type=numbers.Integral,
                 min_val=2,
             )
@@ -373,7 +381,7 @@ class PolicyTree:
         # check min_weight_fraction_leaf
         check_scalar(
             self.min_weight_fraction_leaf,
-            name='min_weight_fraction_leaf',
+            name="min_weight_fraction_leaf",
             target_type=numbers.Real,
             min_val=0.0,
             max_val=0.5,
@@ -381,13 +389,13 @@ class PolicyTree:
 
         # check max_features
         if isinstance(self.max_features, str):
-            if self.max_features == 'sqrt':
+            if self.max_features == "sqrt":
                 max_features = max(1, int(np.sqrt(self.n_features_in_)))
-            elif self.max_features == 'log2':
+            elif self.max_features == "log2":
                 max_features = max(1, int(np.log2(self.n_features_in_)))
             else:
                 raise ValueError(
-                    'Invalid value for max_features. Allowed string values'
+                    "Invalid value for max_features. Allowed string values"
                     f'Allowed string values are "sqrt" or "log2", but was given {self.max_features}.'
                 )
         elif self.max_features is None:
@@ -395,25 +403,23 @@ class PolicyTree:
         elif isinstance(self.max_features, numbers.Integral):
             check_scalar(
                 self.max_features,
-                name='max_features',
+                name="max_features",
                 target_type=numbers.Integral,
                 min_val=1,
-                include_boundaries='left',
+                include_boundaries="left",
             )
             max_features = self.max_features
         else:
             check_scalar(
                 self.max_features,
-                name='max_features',
+                name="max_features",
                 target_type=numbers.Real,
                 min_val=0.0,
                 max_val=1.0,
-                include_boundaries='right',
+                include_boundaries="right",
             )
             if self.max_features > 0.0:
-                max_features = max(
-                    1, int(self.max_features * self.n_features_in_)
-                )
+                max_features = max(1, int(self.max_features * self.n_features_in_))
             else:
                 max_features = 0
 
@@ -421,22 +427,21 @@ class PolicyTree:
 
         check_scalar(
             self.min_impurity_decrease,
-            name='min_impurity_decrease',
+            name="min_impurity_decrease",
             target_type=numbers.Real,
             min_val=0.0,
         )
 
         if len(ce) != n_samples:
             raise ValueError(
-                f'The number of labels {len(ce)} does not match the number of samples'
+                f"The number of labels {len(ce)} does not match the number of samples"
             )
 
         # set min_weight_leaf
         if sample_weight is None:
             min_weight_leaf = self.min_weight_fraction_leaf * n_samples
         else:
-            min_weight_leaf = self.min_weight_fraction_leaf * \
-                np.sum(sample_weight)
+            min_weight_leaf = self.min_weight_fraction_leaf * np.sum(sample_weight)
 
         # Build tree step 1. Set up criterion
         criterion = self.criterion
@@ -448,7 +453,7 @@ class PolicyTree:
             criterion = deepcopy(self.criterion)
 
         logger.info(
-            f'Start building the policy tree with criterion {type(criterion).__name__}'
+            f"Start building the policy tree with criterion {type(criterion).__name__}"
         )
 
         # Build tree step 2. Define splitter
@@ -463,9 +468,7 @@ class PolicyTree:
                 random_state,
             )
 
-        logger.info(
-            f'Building the policy tree with splitter {type(splitter).__name__}'
-        )
+        logger.info(f"Building the policy tree with splitter {type(splitter).__name__}")
 
         # Build tree step 3. Define the tree
         self.tree_ = Tree(
@@ -477,13 +480,13 @@ class PolicyTree:
         # Build tree step 3. Build the tree
         if max_leaf_nodes < 0:
             builder = DepthFirstTreeBuilder(
-                    splitter,
-                    min_samples_split,
-                    min_samples_leaf,
-                    min_weight_leaf,
-                    max_depth,
-                    self.min_impurity_decrease,
-                )
+                splitter,
+                min_samples_split,
+                min_samples_leaf,
+                min_weight_leaf,
+                max_depth,
+                self.min_impurity_decrease,
+            )
         else:
             builder = BestFirstTreeBuilder(
                 splitter,
@@ -495,9 +498,7 @@ class PolicyTree:
                 self.min_impurity_decrease,
             )
 
-        logger.info(
-            f'Building the policy tree with builder {type(builder).__name__}'
-        )
+        logger.info(f"Building the policy tree with builder {type(builder).__name__}")
 
         builder.build(self.tree_, v, ce, sample_weight)
 
@@ -512,12 +513,12 @@ class PolicyTree:
         Parameters
         ----------
         data : pandas.DataFrame, optional. Defaults to None
-            If None, data will be set as the training data.    
+            If None, data will be set as the training data.
 
         Returns
         -------
         ndarray or float, optional
-            The index of the optimal treatment dimension. 
+            The index of the optimal treatment dimension.
         """
         pred = self._prepare4est(data).argmax(1)
 
@@ -531,7 +532,7 @@ class PolicyTree:
         Parameters
         ----------
         data : pandas.DataFrame, optional. Defaults to None
-            If None, data will be set as the training data.    
+            If None, data will be set as the training data.
 
         Returns
         -------
@@ -543,20 +544,21 @@ class PolicyTree:
         return pred
 
     def _prepare4est(self, data=None):
-        assert self._is_fitted, 'The model is not fitted yet.'
+        assert self._is_fitted, "The model is not fitted yet."
 
         v = self._check_features(v=None, data=data)
 
         proba = self.tree_.predict(v)
         n_samples = v.shape[0]
 
-        if self.criterion == 'policy_reg' or self.criterion == 'policy_test1':
+        if self.criterion == "policy_reg":
+            # TODO: consider more about continuous treatment
             if self.n_outputs_ == 1:
                 return proba[:, 0]
             else:
                 return proba[:, :, 0]
         else:
-            pass
+            raise ValueError(f"The type of criterion {self.criterion} is not supported")
 
     def _prune_tree(self):
         raise NotImplemented()
@@ -567,14 +569,17 @@ class PolicyTree:
         else:
             n, _yx_d = ce.shape[0], ce.shape[1]
             if ce.ndim == 3:
-                assert _yx_d == 1, f'Expect effect array with shape {(n, ce.shape[2])}, but was given {(n, _yx_d, ce.shape[2])}'
+                assert (
+                    _yx_d == 1
+                ), f"Expect effect array with shape {(n, ce.shape[2])}, but was given {(n, _yx_d, ce.shape[2])}"
 
                 ce = ce.reshape(n, -1)
             elif ce.ndim == 2:
                 pass
             else:
                 raise ValueError(
-                    f'Expect effect array with shape (num_samples, num_treatments) but was given {ce.shape}')
+                    f"Expect effect array with shape (num_samples, num_treatments) but was given {ce.shape}"
+                )
 
         return ce
 
@@ -594,7 +599,7 @@ class PolicyTree:
             assert isinstance(data, pandas.DataFrame)
 
             v = convert2array(data, self.covariate)[0]
-            if hasattr(self, 'cov_transformer'):
+            if hasattr(self, "cov_transformer"):
                 v = self.cov_transformer.transform(v)
 
             assert v.shape[1] == self.tree_.n_features
@@ -621,7 +626,7 @@ class PolicyTree:
             ``[0; self.tree_.node_count)``, possibly with gaps in the
             numbering.
         """
-        assert self._is_fitted, 'The model is not fitted yet.'
+        assert self._is_fitted, "The model is not fitted yet."
 
         v = self._check_features(v=v, data=data)
 
@@ -643,7 +648,7 @@ class PolicyTree:
             Return a node indicator CSR matrix where non zero elements
             indicates that the samples goes through the nodes.
         """
-        assert self._is_fitted, 'The model is not fitted yet.'
+        assert self._is_fitted, "The model is not fitted yet."
 
         v = self._check_features(v=v, data=data)
 
@@ -665,7 +670,7 @@ class PolicyTree:
             Normalized total reduction of criteria by feature
             (Gini importance).
         """
-        assert self._is_fitted, 'The model is not fitted yet.'
+        assert self._is_fitted, "The model is not fitted yet."
 
         return self.tree_.compute_feature_importances()
 
@@ -692,18 +697,19 @@ class PolicyTree:
         return self.tree_.n_leaves
 
     def plot(
-        self, *,
+        self,
+        *,
         max_depth=None,
         feature_names=None,
         class_names=None,
-        label='all',
+        label="all",
         filled=False,
         node_ids=False,
         proportion=False,
         rounded=False,
         precision=3,
         ax=None,
-        fontsize=None
+        fontsize=None,
     ):
         """Plot a policy tree.
         The sample counts that are shown are weighted with any sample_weights that
@@ -713,7 +719,7 @@ class PolicyTree:
         the size of the rendering.
 
         Parameters
-        ----------        
+        ----------
         max_depth : int, default=None
             The maximum depth of the representation. If None, the tree is fully
             generated.
