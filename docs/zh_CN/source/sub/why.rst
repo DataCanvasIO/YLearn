@@ -33,7 +33,7 @@ Why: 一个一体化的因果学习API
 通过缺省参数使用 Why
 -----------------------------------
 
-最简单的使用`Why`的方式是使用缺省参数创建一个 `Why` 对象，并且是在`fit`时只提供数据集`data`和输出结果的名称`outcome`。
+最简单的使用 `Why` 的方式是使用缺省参数创建一个 `Why` 对象，并且是在 `fit` 时只提供数据集 `data` 和输出结果的名称 `outcome` 。
 
 .. code-block:: python
 
@@ -65,7 +65,7 @@ Why: 一个一体化的因果学习API
 通过用户指定的treatment使用Why
 ----------------------------------
 
-在`fit` `Why`对象时，可通过参数 `treatment`设置实际业务所要求的treatment：
+在 `fit` `Why` 对象时，可通过参数 `treatment` 设置实际业务所要求的treatment：
 
 .. code-block:: python
 
@@ -96,7 +96,7 @@ Why: 一个一体化的因果学习API
 在不fit `Why`对象的情况下识别潜在的treatment
 -------------------------------------------
 
-我们可以直接调用 `Why` 对象的 `identify`方法识别潜在的treatment、adjustment、covariate和instrument，该方法返回一个由四个元素构成的tuple。
+我们可以直接调用 `Why` 对象的 `identify` 方法识别潜在的treatment、adjustment、covariate和instrument，该方法返回一个由四个元素构成的tuple。
 
 .. code-block:: python
 
