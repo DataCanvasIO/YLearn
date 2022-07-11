@@ -153,11 +153,11 @@ YLearn 有5个主要的因果推断相关概念，如下所示
     * 调用 `EstimatorModel` 的 `fit()` 方法训练模型。
     * 调用 `EstimatorModel` 的 `estimate()` 方法得到估计好的因果效应
 
-    用户可以查看文档中的[相关页面](https://ylearn.readthedocs.io/en/latest/sub/est.html#)查阅各类估计模型的细节。
+   用户可以查看文档中的[相关页面](https://ylearn.readthedocs.io/en/latest/sub/est.html#)查阅各类估计模型的细节。
 
 5. **使用统一接口API: Why**
 
-    为了能*以一种统一且方便的方式使用 YLearn*，YLearn 提供了一个接口 `Why`，它几乎封装了 YLearn 中的所有内容，包括因果效应识别和评估训练得到的估计模型等。在使用`Why` 的过程中，用户可以先创建一个 `Why` 的实例，然后调用 `Why` 的 `fit()` 方法训练这个实例，之后其他的各类方法（如`causal_effect()`, `score()`, `whatif()`）就可以使用了。下面的代码是一个简单的使用样例
+   为了能*以一种统一且方便的方式使用 YLearn*，YLearn 提供了一个接口 `Why`，它几乎封装了 YLearn 中的所有内容，包括因果效应识别和评估训练得到的估计模型等。在使用`Why` 的过程中，用户可以先创建一个 `Why` 的实例，然后调用 `Why` 的 `fit()` 方法训练这个实例，之后其他的各类方法（如`causal_effect()`, `score()`, `whatif()`）就可以使用了。下面的代码是一个简单的使用样例：
 
     ```python
         from sklearn.datasets import fetch_california_housing
