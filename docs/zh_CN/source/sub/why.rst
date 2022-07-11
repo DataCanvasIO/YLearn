@@ -256,12 +256,22 @@ Why: 一个一体化的因果学习API
 
         获得策略树
 
+        :param pandas.DataFrame, required test_data: 用于评估的数据集。
+        :param str or list, optional treatment:  treatment名称，缺省是 **treatment_**的前两个元素。
+        :param treatment value or list or ndarray or pandas.Series control: 对于单个离散的treatment，control应当是treatment所有可能值中的一个；对于多个离散的treatment，control应当是由每个treatment的值组成的一个列表（list）；对于连续性treatment, control应当是与test_data行数相同的ndarray或pandas.Series。缺省是None，由Why自行推断。
+        :param dict kwargs: 用于初始化PolicyTree的参数。
+
         :returns: 拟合的 :py:class:`PolicyTree` 的实例。
         :rtype: :py:class:`PolicyTree` 的实例
 
     .. py:method:: policy_interpreter(test_data, treatment=None, control=None, **kwargs)
 
         获得策略解释器
+
+        :param pandas.DataFrame, required test_data: 用于评估的数据集。
+        :param str or list, optional treatment:  treatment名称，缺省是 **treatment_**的前两个元素。
+        :param treatment value or list or ndarray or pandas.Series control: 对于单个离散的treatment，control应当是treatment所有可能值中的一个；对于多个离散的treatment，control应当是由每个treatment的值组成的一个列表（list）；对于连续性treatment, control应当是与test_data行数相同的ndarray或pandas.Series。缺省是None，由Why自行推断。
+        :param dict kwargs: 用于初始化PolicyInterpreter的参数。
 
         :returns: 拟合的 :py:class:`PolicyInterpreter` 的实例。
         :rtype: :py:class:`PolicyInterpreter` 的实例

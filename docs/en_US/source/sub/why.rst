@@ -330,7 +330,7 @@ Class Structures
             and that of the second treatment is taken as 'read';
             in the case of continuous treatment, control should be a float or a ndarray or pandas.Series,
             by default None
-        :param dcit kwargs: options to initialize the PolicyTree.
+        :param dict kwargs: options to initialize the PolicyTree.
 
         :returns: The fitted instance of :py:class:`PolicyTree`.
         :rtype: instance of :py:class:`PolicyTree`
