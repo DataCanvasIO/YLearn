@@ -3,6 +3,7 @@ import pytest
 
 from ylearn import Why
 from . import _dgp
+from ._common import if_torch_ready
 
 
 def _validate_it(why, test_data, check_score=True):
@@ -128,6 +129,7 @@ def test_policy_interpreter_discrete_x2():
     assert pi is not None
 
 
+@if_torch_ready
 def test_discovery_treatment():
     data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x2b_y1()
     why = Why(identifier='discovery')
@@ -138,6 +140,7 @@ def test_discovery_treatment():
 
 
 # @pytest.mark.xfail(reason='to be fixed')
+@if_torch_ready
 def test_discovery_taci():
     data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x2b_y1()
     why = Why(identifier='discovery')

@@ -1,5 +1,16 @@
 import numpy as np
 import pandas as pd
+import pytest
+
+try:
+    import torch
+
+    is_torch_installed = True
+
+except ImportError:
+    is_torch_installed = False
+
+if_torch_ready = pytest.mark.skipif(not is_torch_installed, reason='not found torch')
 
 
 def validate_leaner(data_generator, leaner,

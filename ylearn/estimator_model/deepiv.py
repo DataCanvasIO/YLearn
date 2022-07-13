@@ -20,9 +20,9 @@ from torch.utils.data import DataLoader
 from torch.distributions import Categorical, Normal, MixtureSameFamily,\
     Independent
 
-from .utils import BatchData, convert2array, convert2tensor, \
-    shapes, DiscreteOBatchData, DiscreteIOBatchData, DiscreteIBatchData
-from .base_models import BaseEstModel, MLModel
+from .utils import convert2array, convert2tensor, shapes
+from ._nn import BatchData, DiscreteOBatchData, DiscreteIOBatchData, DiscreteIBatchData
+from .base_models import BaseEstModel
 
 # We first build the mixture density network.
 
@@ -609,7 +609,7 @@ class DeepIV(BaseEstModel):
         y_hidden_d=None,
         num_gaussian=5,
         is_discrete_treatment=False,
-        is_discrete_outcome=False, 
+        is_discrete_outcome=False,
         is_discrete_instrument=False,
         categories='auto',
         random_state=2022,
@@ -794,7 +794,7 @@ class DeepIV(BaseEstModel):
     def effect_nji(self, data=None):
         if not hasattr(self, 'x_net') or not hasattr(self, 'y_net'):
             raise Exception('The estimator is not fitted yet.')
-        
+
         if data is None:
             w = self.w
         else:
@@ -822,9 +822,9 @@ class DeepIV(BaseEstModel):
             y_nji[:, :, 0] = self.y_net.predict(x0, w)
             y_nji[:, :, 1] = self.y_net.predict(xt, w)
             y_ctrl = y_nji[:, :, 0].reshape(n, -1, 1).repeat((1, 1, 2))
-        
+
         y_nji = y_nji - y_ctrl
-        
+
         return y_nji
 
     def _prepare4est(

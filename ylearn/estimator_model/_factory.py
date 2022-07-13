@@ -216,7 +216,7 @@ try:
 
 except ImportError as e:
     DeepIVWrapper = f'{e}'
-    logger.warn(DeepIVWrapper)
+    # logger.warn(f'ImportError: {e}, DeepIv is disabled.')
 
 
 @register()
@@ -224,7 +224,7 @@ except ImportError as e:
 class DeepIVFactory(BaseEstimatorFactory):
     def __init__(self, x_net=None, y_net=None, x_hidden_d=None, y_hidden_d=None, num_gaussian=5, ):
         if isinstance(DeepIVWrapper, str):
-            raise ImportError(DeepIVWrapper)
+            raise ImportError(f'{DeepIVWrapper}, install pytorch and try again.')
 
         self.x_net = x_net
         self.y_net = y_net

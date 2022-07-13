@@ -1,12 +1,17 @@
 import numpy as np
 import pandas as pd
 import pytest
-import torch
-import torch.nn.functional as F
 
-from ylearn.estimator_model.deepiv import DeepIV
 from . import _dgp
+from ._common import if_torch_ready
 from .iv_test import validate_it
+
+try:
+    import torch
+    import torch.nn.functional as F
+    from ylearn.estimator_model.deepiv import DeepIV
+except ImportError:
+    pass
 
 _test_settings = {
     # data_generator: any
@@ -16,6 +21,7 @@ _test_settings = {
 }
 
 
+@if_torch_ready
 @pytest.mark.parametrize('dg', _test_settings.keys())
 # @pytest.mark.xfail(reason='to be fixed: effect is tuple')
 def test_iv_with_params(dg):
@@ -32,6 +38,7 @@ def test_iv_with_params(dg):
                 ), )
 
 
+@if_torch_ready
 @pytest.mark.xfail(reason='to be fixed')
 def test_deep_iv_basis():
     n = 5000

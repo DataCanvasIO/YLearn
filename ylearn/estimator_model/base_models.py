@@ -1,16 +1,12 @@
 import numpy as np
 import pandas as pd
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim
-from torch.utils.data import DataLoader
 
 from ylearn.utils import to_repr
-from .utils import BatchData
+
 # from ..utils._common import check_cols
 
 #TODO: add support for assigning different treatment values for different examples for all models.
+
 
 class BaseEstModel:
     """
@@ -311,144 +307,3 @@ class BaseEstModel:
     def __repr__(self):
         return to_repr(self)
 
-
-class MLModel:
-    """
-    A parent class for possible new machine learning models which are not
-    supported by sklearn.
-    """
-
-    def __init__(self, model):
-        """
-        Parameters
-        ----------
-        model : nn, optional
-            This can be any machine learning models.
-        """
-        self.model = model
-
-    def fit(self, X, y, nn_torch=True, **kwargs):
-        if nn_torch:
-            self._fit_nn_torch(X, y, **kwargs)
-        else:
-            # define this for other types of fit functions
-            pass
-
-    def _fit_nn_torch(
-        self,
-        X, y,
-        device='cuda',
-        lr=0.01,
-        epoch=1000,
-        optimizer='SGD',
-        batch_size=64,
-        **optim_config
-    ):
-        """Train the nn model with data (X, y).
-
-        Parameters
-        ----------
-        X : tensor
-            Has shape (b, in_d) where b is the batch size or the number of data
-            points and in_d is the dimension of each data point.
-        y : tensor
-            Has shape (b, out_d) where out_d is the dimension of each y.
-        device : str, optional. Defaults to 'cuda'.
-        lr : float, optional. Defaults to 0.01
-            Learning rate.
-        epoch : int, optional. Defaults to 1000
-            The number of epochs used for training.
-        optimizer : str, optional. Defaults to 'SGD'
-            Currently including SGD and Adam The type of optimizer used for
-            training.
-        batch_size: int, optional. Defaults to 128
-        optim_config : other parameters for various optimizers.
-        """
-        self.model = self.model.to(device)
-        op = {
-            'SGD': optim.SGD(self.model.parameters(), lr=lr),
-            'Adam': optim.Adam(self.model.parameters(), lr=lr, **optim_config)
-        }
-        opt = op[optimizer]
-        loss_fn = optim_config['loss']
-        data = BatchData(X=X, y=y)
-        train_loader = DataLoader(data, batch_size=batch_size)
-
-        for e in range(epoch):
-            for i, (X, y) in enumerate(train_loader):
-                self.model.train()
-                X, y = X.to(device), y.to(device)
-                y_predict = self.model(X)
-                loss = loss_fn(y_predict, y)
-                opt.zero_grad()
-                loss.backward()
-                opt.step()
-            print(f'End of epoch {e} | current loss {loss.data}')
-
-    def predict(self, X):
-        return self.model(X)
-
-    def predict_proba(self, X, target):
-        pass
-
-    def fit_predict(self, X, y, X_test=None, **kwargs):
-        self.fit(X, y, **kwargs)
-
-        if X_test is None:
-            X_test = X
-
-        return self.predict(X_test)
-
-
-# Modify this if you want to use networks with other structures.
-class MultiClassNet(nn.Module):
-    def __init__(self,
-                 in_d,
-                 out_d,
-                 hidden_d1=100,
-                 hidden_d2=128,
-                 hidden_d3=64):
-        super().__init__()
-        self.in_d = in_d
-        self.out_d = out_d
-        self.fc1 = nn.Linear(in_d, hidden_d1)
-        self.fc2 = nn.Linear(hidden_d1, hidden_d2)
-        self.fc3 = nn.Linear(hidden_d2, hidden_d3)
-        self.fc4 = nn.Linear(hidden_d3, out_d)
-
-    def fowrad(self, x):
-        x = torch.flatten(x, 1)
-        x = self.fc1(x)
-        x = F.relu(x)
-        x = self.fc2(x)
-        x = F.relu(x)
-        x = self.fc3(x)
-        output = F.relu(x)
-        return output
-
-
-class MCNWrapper(MLModel):
-    def __init__(self, treatment_net):
-        super().__init__()
-        self.model = treatment_net
-
-    def fit(self, X, y, **optim_config):
-        loss = nn.CrossEntropyLoss()
-        self._fit_nn_torch(X, y, loss=loss, **optim_config)
-
-    def predict(self, X, label=True):
-        y_pred = nn.Softmax(dim=1)(self.model(X))
-        if label:
-            y_pred = y_pred.argmax(dim=1).view(X.shape[0], -1)
-        return y_pred
-
-    def predict_proba(self, X, target=None):
-        y_pred = self.predict(X, label=False)
-        if target is None:
-            return y_pred
-        else:
-            return y_pred[:, target]
-
-    def sample(self, X, sample_num):
-        # This method is unnecessary for many tasks.
-        pass

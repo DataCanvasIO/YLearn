@@ -3,8 +3,10 @@ import pandas as pd
 
 from ylearn.causal_discovery import CausalDiscovery
 from ylearn.exp_dataset.gen import gen
+from ._common import if_torch_ready
 
 
+@if_torch_ready
 def test_ndarray():
     X1 = gen()
     # X1 = pd.DataFrame(X1, columns=[f'x{i}' for i in range(X1.shape[1])])
@@ -21,6 +23,7 @@ def test_ndarray():
     assert isinstance(m, pd.DataFrame)
 
 
+@if_torch_ready
 def test_dataframe():
     X1 = gen()
     X1 = pd.DataFrame(X1, columns=[f'x{i}' for i in range(X1.shape[1])])
@@ -32,6 +35,7 @@ def test_dataframe():
     assert est.shape[0] == est.shape[1]
 
 
+@if_torch_ready
 def test_return_dict():
     X1 = gen()
     cd = CausalDiscovery(hidden_layer_dim=[3])
