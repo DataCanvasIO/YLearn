@@ -129,7 +129,7 @@ YLearn 有5个主要的因果推断相关概念，如下所示
 
     <img src="./fig/iv2.png" width="400">,
 
-   那么我们可以按我们使用 `CausalModel` 的常用步骤来识别工具变脸：（1）定义 `dict` 和 `list` 去表示因果关系；（2）定义 `CausalGraph` 的 instance 建立 YLearn 中的因果图；（3）以上一步定义的 `CausalGraph` 作为参数，定义 `CausalModel` 的 instance；（4）调用 `CausalModel` 的 `get_iv()` 寻找工具变量：
+   那么我们可以按我们使用 `CausalModel` 的常用步骤来识别工具变量：（1）定义 `dict` 和 `list` 去表示因果关系；（2）定义 `CausalGraph` 的 instance 建立 YLearn 中的因果图；（3）以上一步定义的 `CausalGraph` 作为参数，定义 `CausalModel` 的 instance；（4）调用 `CausalModel` 的 `get_iv()` 寻找工具变量：
 
    ```python
         causation = {
