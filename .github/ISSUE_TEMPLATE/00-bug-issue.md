@@ -10,7 +10,7 @@ labels: 'type:bug'
 **System information**
 - OS Platform and Distribution (e.g., CentOS 7.6):
 - Python version:
-- HyperGBM version:
+- YLearn version:
 - Other Python packages(run `pip list`):
 
 
