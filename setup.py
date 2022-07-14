@@ -80,9 +80,15 @@ c_modules = list(map(lambda f: Extension(f.replace(os.sep, '.'), [f'{f}.cpp'], i
 if pyx_modules:
     from Cython.Build import cythonize
 
+    libraries = []
+    if os.name == "posix":
+        libraries.append("m")
     pyx_modules = list(map(lambda f: Extension(f.replace(os.sep, '.'), [f'{f}.pyx'],
                                                include_dirs=[np_include],
-                                               language="c++"),
+                                               libraries=libraries,
+                                               language="c++",
+                                               extra_compile_args=["-O3"],
+                                               ),
                            pyx_modules))
     pyx_modules = cythonize(pyx_modules, compiler_directives={'language_level': "3"})
 
