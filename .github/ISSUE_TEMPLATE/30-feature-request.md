@@ -8,7 +8,7 @@ labels: 'type:feature'
 <em>Please make sure that this is a feature request.</em>
 
 **System information**
-- HyperGBM version (you are using):
+- YLearn version (you are using):
 - Are you willing to contribute it (Yes/No):
 
 
