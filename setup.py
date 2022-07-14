@@ -10,6 +10,7 @@ import numpy
 from setuptools import setup, Extension, find_packages
 
 my_name = 'ylearn'
+excludes_on_windows = ['torch', ]
 
 
 def read_requirements(file_path='requirements.txt'):
@@ -20,8 +21,12 @@ def read_requirements(file_path='requirements.txt'):
         lines = f.readlines()
 
     lines = [x.strip('\n').strip(' ') for x in lines]
-    lines = list(filter(lambda x: len(x) > 0 and not x.startswith('#'), lines))
+    lines = filter(lambda x: len(x) > 0 and not x.startswith('#'), lines)
 
+    is_os_windows = sys.platform.find('win') == 0
+    if is_os_windows:
+        lines = filter(lambda x: x not in excludes_on_windows, lines)
+    lines = list(lines)
     return lines
 
 
@@ -54,7 +59,6 @@ HERE = P.dirname((P.abspath(__file__)))
 version_ns = {}
 execfile(P.join(HERE, my_name, '_version.py'), version_ns)
 version = version_ns['__version__']
-print("__version__=" + version)
 
 np_include = numpy.get_include()
 pyx_files = glob(f"{my_name}/**/*.pyx", recursive=True)
@@ -72,9 +76,13 @@ else:
             raise FileNotFoundError(f'Not found c file for {pf}, '
                                     f'run "python setup.py build_ext --inplace" to generate c files.')
     pyx_modules = []
+
+print('cmdline:', ' '.join(sys.argv))
+print(f'{my_name}.__version__:' + version)
+print('np_version:', numpy.__version__)
+print('np_include:', np_include)
 print('pyx extensions:', pyx_modules)
 print('cpp extensions:', c_modules)
-print('np_include', np_include)
 
 c_modules = list(map(lambda f: Extension(f.replace(os.sep, '.'), [f'{f}.cpp'], include_dirs=[np_include]), c_modules))
 if pyx_modules:
