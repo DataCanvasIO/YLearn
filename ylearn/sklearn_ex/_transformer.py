@@ -253,7 +253,7 @@ def general_estimator(X, y=None, estimator=None, task=None, random_state=None, *
     except ImportError:
         lightgbm_installed = False
     except Exception as e:
-        logger.warn(f'e')
+        # logger.warn(f'e')
         lightgbm_installed = False
 
     try:
