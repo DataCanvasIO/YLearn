@@ -53,7 +53,9 @@ jobs:
           pip install build
 
       - name: Build package
-        run: python -m build
+        run: |
+          python setup.py build_ext --inplace
+          python -m build
 
       - uses: actions/upload-artifact@v3
         with:
@@ -84,7 +86,9 @@ jobs:
           /opt/python/${{ matrix.python-name }}/bin/python -m pip install build
 
       - name: Build package
-        run: /opt/python/${{ matrix.python-name }}/bin/python -m build
+        run: |
+          /opt/python/${{ matrix.python-name }}/bin/python setup.py build_ext --inplace
+          /opt/python/${{ matrix.python-name }}/bin/python -m build
 
       - name: Repair wheel
         run: |
