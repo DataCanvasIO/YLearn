@@ -14,13 +14,15 @@ name: Build Python Wheels
 #    tags:
 #      - "*.*.*"
 
-on:
-  release:
-    types: [created]
+#on:
+#  release:
+#    types: [created]
 
 #on:
 #  push:
 #    branches: [ main ]
+
+on: workflow_dispatch
 
 permissions:
   contents: read
