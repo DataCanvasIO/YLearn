@@ -100,9 +100,7 @@ jobs:
       - uses: actions/upload-artifact@v3
         with:
           name: wheels
-          path: | 
-            dist/*.tar.gz
-            dist_wheelhouse/*.whl
+          path: dist_wheelhouse/*.whl
 
 #
 #  release_and_publish_package:
