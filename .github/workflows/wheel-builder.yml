@@ -59,7 +59,7 @@ jobs:
 
       - uses: actions/upload-artifact@v3
         with:
-          name: windows_macos_wheels
+          name: wheels
           path: dist/*.whl
 
 
@@ -92,15 +92,17 @@ jobs:
 
       - name: Repair wheel
         run: |
-          ls dist/*.whl | cat | xargs -t -n 1 auditwheel repair -w dist/wheelhouse
+          mkdir dist_wheelhouse
+          ls dist/*.whl | cat | xargs -t -n 1 auditwheel repair -w dist_wheelhouse
           ls -R dist
+          ls -R dist_wheelhouse
 
       - uses: actions/upload-artifact@v3
         with:
-          name: linux_wheels
+          name: wheels
           path: | 
             dist/*.tar.gz
-            dist/wheelhouse/*.whl
+            dist_wheelhouse/*.whl
 
 #
 #  release_and_publish_package:
