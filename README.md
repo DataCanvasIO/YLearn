@@ -198,6 +198,9 @@ In the notebook [CaseStudy](https://github.com/DataCanvasIO/YLearn/blob/main/exa
 
 We welcome community contributors to the project. Before you start, please firstly read our [code of conduct](CODE_OF_CONDUCT.md) and [contributing guidelines](CONTRIBUTING.md).
 
+## License
+See the [LICENSE](LICENSE) file for license rights and limitations (Apache-2.0).
+
 ## References
 
 [1] J. Pearl. Causality: models, reasoing, and inference.
