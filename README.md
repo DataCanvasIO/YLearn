@@ -20,7 +20,7 @@ The simplest way of installing YLearn is using `pip`:
 pip install ylearn
 ```
 
-Note that YLearn will depend on c++ compiler and graphviz. Please make sure they are installed properly.
+Note that `Graphviz`  is required to plot causal graph in notebook, so install it before running YLearn. See https://graphviz.org/download/ from more details about `Graphviz` installation.
 
 ## Overview of YLearn
 

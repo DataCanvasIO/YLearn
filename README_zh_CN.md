@@ -20,7 +20,7 @@
 pip install ylearn
 ```
 
-注意：YLearn依赖于本地环境中的c++编译器和graphviz，请在安装YLearn之前安装相关软件。
+注意：YLearn在绘制因果图时需要用到`Graphviz`，所以请在运行YLearn之前安装它。关于`Graphviz`的安装方式请参考 https://graphviz.org/download/。
 
 ## YLearn概览
 
