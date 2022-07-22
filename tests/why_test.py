@@ -3,7 +3,7 @@ import pytest
 
 from ylearn import Why
 from . import _dgp
-from ._common import if_torch_ready
+from ._common import if_torch_ready, if_policy_tree_ready
 
 
 def _validate_it(why, test_data, check_score=True):
@@ -84,6 +84,7 @@ def test_whatif_continuous():
     print(new_y.shape, new_y)
 
 
+@if_policy_tree_ready
 def test_policy_tree():
     data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x1m_y1()
     # data[treatment] = data[treatment].astype('float32')
@@ -95,6 +96,7 @@ def test_policy_tree():
     assert ptree is not None
 
 
+@if_policy_tree_ready
 def test_policy_tree_dml():
     data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x1m_y1()
     # data[treatment] = data[treatment].astype('float32')
@@ -107,6 +109,7 @@ def test_policy_tree_dml():
     assert ptree is not None
 
 
+@if_policy_tree_ready
 def test_policy_interpreter():
     data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x1m_y1()
     # data[treatment] = data[treatment].astype('float32')
@@ -118,6 +121,7 @@ def test_policy_interpreter():
     assert pi is not None
 
 
+@if_policy_tree_ready
 def test_policy_interpreter_discrete_x2():
     data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x2mb_y1()
     # data[treatment] = data[treatment].astype('float32')

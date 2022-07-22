@@ -11,7 +11,6 @@ from ylearn.causal_discovery import CausalDiscovery
 from ylearn.causal_model import CausalModel, CausalGraph
 from ylearn.effect_interpreter.policy_interpreter import PolicyInterpreter
 from ylearn.estimator_model import ESTIMATOR_FACTORIES, BaseEstModel
-from ylearn.policy.policy_model import PolicyTree
 from ylearn.utils import const, logging, view_pydot, infer_task_type, to_repr, drop_none, set_random_state
 
 logger = logging.get_logger(__name__)
@@ -1145,6 +1144,8 @@ class Why:
         PolicyTree :
             The fitted PolicyTree object
         """
+        from ylearn.policy.policy_model import PolicyTree
+
         test_data = self._preprocess(test_data)
         control = self._safe_treat_control(control, 'control')
         effect_array = self._effect_array(test_data, treatment, control=control)
