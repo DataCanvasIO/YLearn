@@ -43,7 +43,7 @@ Run a docker container:
 docker run -ti -e NotebookToken="your-token" -p 8888:8888 datacanvas/YLearn
 ```
 
-Then one can visit http://<ip-addr>:8888 in the browser and type in the token to start.
+Then one can visit http://&lt;ip-addr&gt;:8888 in the browser and type in the token to start.
 
 
 ## Overview of YLearn

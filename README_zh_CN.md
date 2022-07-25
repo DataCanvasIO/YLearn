@@ -41,7 +41,7 @@ docker pull datacanvas/YLearn
 ```bash
 docker run -ti -e NotebookToken="your-token" -p 8888:8888 datacanvas/YLearn
 ```
-然后通过浏览器访问 “ http://<ip-addr>:8888 ”，输入您设置的token就可以开始使用YLearn了。
+然后通过浏览器访问 “ http://&lt;ip-addr&gt;:8888 ”，输入您设置的token就可以开始使用YLearn了。
 
 
 ## YLearn概览
