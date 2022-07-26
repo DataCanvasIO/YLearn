@@ -34,7 +34,7 @@ We also publish an image in Docker Hub which can be downloaded directly and incl
 Download the docker image:
 
 ```bash
-docker pull datacanvas/YLearn
+docker pull datacanvas/ylearn
 ```
 
 Run a docker container:

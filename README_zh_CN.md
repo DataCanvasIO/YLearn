@@ -33,7 +33,7 @@ pip install ylearn
 下载镜像:
 
 ```bash
-docker pull datacanvas/YLearn
+docker pull datacanvas/ylearn
 ```
 
 运行镜像:
