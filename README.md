@@ -40,7 +40,7 @@ docker pull datacanvas/YLearn
 Run a docker container:
 
 ```bash
-docker run -ti -e NotebookToken="your-token" -p 8888:8888 datacanvas/YLearn
+docker run -ti -e NotebookToken="your-token" -p 8888:8888 datacanvas/ylearn
 ```
 
 Then one can visit http://&lt;ip-addr&gt;:8888 in the browser and type in the token to start.
