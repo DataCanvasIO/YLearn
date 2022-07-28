@@ -1,8 +1,3 @@
-from ..policy.policy_model import PolicyTree
-
-from ..utils._common import convert2array
-
-
 class PolicyInterpreter:
     """
     Attributes
@@ -191,6 +186,8 @@ class PolicyInterpreter:
             est_model should be any valid estimator model of ylearn which was 
             already fitted and can estimate the CATE.
         """
+        from ylearn.policy.policy_model import PolicyTree
+
         covariate = est_model.covariate if covariate is None else covariate
         # outcome = est_model.outcome
 

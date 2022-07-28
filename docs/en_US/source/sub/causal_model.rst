@@ -23,7 +23,7 @@ and :math:`V_j`, if their functional relationship is
     V_j = f(V_i, \eta_{ij})
 
 for some function :math:`f` and noise :math:`\eta`, then in the DAG representing the causal structure of the set of variables 
-:math:`V`, there should be an arrow pointing to :math:`V_i` from :math:`V_j`. A detailed introduction to
+:math:`V`, there should be an arrow pointing to :math:`V_j` from :math:`V_i`. A detailed introduction to
 such DAGs for causal structures can be found in [Pearl]_.
 
 A causal effect, also named as causal estimand, can be expressed with the :math:`do`-operator according to

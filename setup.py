@@ -63,6 +63,8 @@ version = version_ns['__version__']
 np_include = numpy.get_include()
 pyx_files = glob(f"{my_name}/**/*.pyx", recursive=True)
 c_files = glob(f"{my_name}/**/*.cpp", recursive=True)
+h_files = glob(f"{my_name}/**/*.h", recursive=True)
+my_includes = list(set([P.split(P.abspath(h))[0] for h in h_files]))
 build_ext = any(map(lambda s: s == 'build_ext', sys.argv[1:]))
 
 if build_ext:
@@ -81,6 +83,7 @@ print('cmdline:', ' '.join(sys.argv))
 print(f'{my_name}.__version__:' + version)
 print('np_version:', numpy.__version__)
 print('np_include:', np_include)
+print('my_includes:', my_includes)
 print('pyx extensions:', pyx_modules)
 print('cpp extensions:', c_modules)
 
@@ -92,7 +95,7 @@ if pyx_modules:
     if os.name == "posix":
         libraries.append("m")
     pyx_modules = list(map(lambda f: Extension(f.replace(os.sep, '.'), [f'{f}.pyx'],
-                                               include_dirs=[np_include],
+                                               include_dirs=[np_include] + my_includes,
                                                libraries=libraries,
                                                language="c++",
                                                extra_compile_args=["-O3"],
@@ -139,10 +142,10 @@ setup(
     ],
     packages=find_packages(exclude=('docs', 'tests', 'example_usages')),
     package_data={
-        'ylearn': ['*.txt', '**/**.txt', ],
+        'ylearn': ['*.txt', '**/**.txt', '**/**.cpp', '**/**.h', ],
     },
     ext_modules=c_modules + pyx_modules,
-    include_dirs=[np_include],
+    include_dirs=[np_include] + my_includes,
     zip_safe=False,
     # entry_points={
     #     # 'console_scripts': [

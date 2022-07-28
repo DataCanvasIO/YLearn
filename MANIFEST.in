@@ -1,2 +1,3 @@
 include requirements*.txt
 include example_usages/**/*
+include ylearn/sklearn_ex/cloned/**/*.h

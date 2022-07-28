@@ -3,6 +3,20 @@ import pandas as pd
 import pytest
 
 try:
+    from ylearn.estimator_model.causal_tree import CausalTree
+
+    is_causal_tree_ready = True
+except ImportError:
+    is_causal_tree_ready = False
+
+try:
+    from ylearn.policy.policy_model import PolicyTree
+
+    is_policy_tree_ready = True
+except ImportError:
+    is_policy_tree_ready = False
+
+try:
     import torch
 
     is_torch_installed = True
@@ -10,6 +24,8 @@ try:
 except ImportError:
     is_torch_installed = False
 
+if_causal_tree_ready = pytest.mark.skipif(not is_causal_tree_ready, reason='CausalTree is not ready')
+if_policy_tree_ready = pytest.mark.skipif(not is_policy_tree_ready, reason='PolicyTree is not ready')
 if_torch_ready = pytest.mark.skipif(not is_torch_installed, reason='not found torch')
 
 

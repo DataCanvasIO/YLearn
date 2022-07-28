@@ -1,3 +1,9 @@
+import sys as sys_
+
+is_os_windows = sys_.platform.find('win') == 0
+is_os_darwin = sys_.platform.find('darwin') == 0
+is_os_linux = sys_.platform.find('linux') == 0
+
 try:
     from packaging.version import Version
 except ModuleNotFoundError:

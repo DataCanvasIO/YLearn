@@ -9,7 +9,7 @@ from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OrdinalEncoder, LabelEncoder, StandardScaler
 
-from ylearn.utils import logging, const, infer_task_type
+from ylearn.utils import logging, const, infer_task_type, is_os_darwin
 from ._data_cleaner import DataCleaner
 from ._dataframe_mapper import DataFrameMapper
 
@@ -122,7 +122,6 @@ class FeatureImportancesSelectionTransformer(BaseEstimator):
             assert set(X.columns.tolist()).issubset(set(columns_in))
 
         preprocessor = general_preprocessor()
-        estimator = general_estimator(X, y, task=self.task)
 
         if self.task != 'regression' and y.dtype != 'int':
             logger.info('label encoding')
@@ -131,7 +130,9 @@ class FeatureImportancesSelectionTransformer(BaseEstimator):
 
         logger.info('preprocessing')
         X = preprocessor.fit_transform(X, y)
-        logger.info('scoring')
+
+        estimator = general_estimator(X, y, task=self.task)
+        logger.info(f'scoring feature_importances with {estimator} ')
         estimator.fit(X, y)
         importances = estimator.feature_importances_
 
@@ -251,6 +252,15 @@ def general_estimator(X, y=None, estimator=None, task=None, random_state=None, *
         lightgbm_installed = True
     except ImportError:
         lightgbm_installed = False
+    except Exception as e:
+        # logger.warn(f'e')
+        lightgbm_installed = False
+
+    try:
+        import xgboost
+        xgboost_installed = True
+    except ImportError:
+        xgboost_installed = False
 
     def default_gbm(task_):
         est_cls = lightgbm.LGBMRegressor if task_ == const.TASK_REGRESSION else lightgbm.LGBMClassifier
@@ -267,6 +277,22 @@ def general_estimator(X, y=None, estimator=None, task=None, random_state=None, *
                        verbose=-1,
                        **kwargs
                        )
+        return est_cls(**options)
+
+    def default_xgb(task_):
+        options = dict(n_estimators=100,
+                       max_depth=5,
+                       min_child_weight=5,
+                       learning_rate=0.1,
+                       gamma=1,
+                       reg_alpha=1,
+                       reg_lambda=1,
+                       random_state=random_state)
+        if task_ == const.TASK_REGRESSION:
+            est_cls = xgboost.XGBRegressor
+        else:
+            options['use_label_encoder'] = False
+            est_cls = xgboost.XGBClassifier
         return est_cls(**options)
 
     def default_dt(task_):
@@ -307,6 +333,9 @@ def general_estimator(X, y=None, estimator=None, task=None, random_state=None, *
     creators = dict(
         gbm=default_gbm,
         lgbm=default_gbm,
+        lightgbm=default_gbm,
+        xgb=default_xgb,
+        xgboost=default_xgb,
         dt=default_dt,
         rf=default_rf,
         gb=default_gb,
@@ -315,7 +344,13 @@ def general_estimator(X, y=None, estimator=None, task=None, random_state=None, *
     )
 
     if estimator is None:
-        estimator = 'gbm' if lightgbm_installed else 'rf'
+        if xgboost_installed:
+            estimator = 'xgb'
+        elif lightgbm_installed and not is_os_darwin:
+            estimator = 'gbm'
+        else:
+            estimator = 'rf'
+
     if task is None:
         assert y is not None, '"y" or "task" is required.'
         task = infer_task_type(y)

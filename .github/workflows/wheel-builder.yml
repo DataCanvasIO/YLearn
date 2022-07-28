@@ -1,0 +1,149 @@
+# This workflow uses actions that are not certified by GitHub.
+# They are provided by a third-party and are governed by
+# separate terms of service, privacy policy, and support
+# documentation.
+
+name: Build Python Wheels
+
+#on:
+#  release:
+#    types: [published]
+
+#on:
+#  push:
+#    tags:
+#      - "*.*.*"
+
+#on:
+#  release:
+#    types: [created]
+
+#on:
+#  push:
+#    branches: [ main ]
+
+on: workflow_dispatch
+
+permissions:
+  contents: read
+
+jobs:
+
+  build_windows_macos_wheel:
+    runs-on:  ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # os: [windows-latest, macos-latest]
+        os: [windows-latest, macos-latest]
+        # python-version: [ "3.6", "3.7", "3.8", "3.9", "3.10" ]
+        python-version: [ "3.6", "3.7", "3.8", "3.9", ]
+        exclude:
+          - os: windows-latest
+            python-version: 3.6
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install build oldest-supported-numpy cython
+
+      - name: Build package
+        run: |
+          python setup.py build_ext --inplace
+          python -m build
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: wheels
+          path: dist/*.whl
+
+
+  build_linux_wheel:
+
+    runs-on: ubuntu-latest
+    container:
+      image: quay.io/pypa/manylinux2014_x86_64
+
+    strategy:
+      fail-fast: false
+      matrix:
+        # python-name: [ cp310-cp310,  cp311-cp311,  cp36-cp36m,  cp37-cp37m,  cp38-cp38,  cp39-cp39 ]
+        python-name: [ cp36-cp36m,  cp37-cp37m,  cp38-cp38,  cp39-cp39 ]
+        # python-name: [ cp38-cp38 ]
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: |
+          yum install -y atlas-devel
+          /opt/python/${{ matrix.python-name }}/bin/python -m pip install --upgrade pip
+          /opt/python/${{ matrix.python-name }}/bin/python -m pip install build oldest-supported-numpy cython
+
+      - name: Build package
+        run: |
+          /opt/python/${{ matrix.python-name }}/bin/python setup.py build_ext --inplace
+          /opt/python/${{ matrix.python-name }}/bin/python -m build
+
+      - name: Repair wheel
+        run: |
+          mkdir dist_wheelhouse
+          ls dist/*.whl | cat | xargs -t -n 1 auditwheel repair -w dist_wheelhouse
+          ls -R dist
+          ls -R dist_wheelhouse
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: wheels
+          path: dist_wheelhouse/*.whl
+
+#
+#  release_and_publish_package:
+#    runs-on: ubuntu-latest
+#
+#    needs: [build_windows_macos_wheel, build_linux_wheel]
+#    # needs: [build_windows_macos_wheel, build_linux_wheel]
+#
+#    steps:
+#
+#      - name: Download wheels
+#        uses: actions/download-artifact@v3
+#        with:
+#          name: windows_macos_wheels
+#          path: dist
+#
+#      - run: ls -R
+#
+#      - name: Download linux wheels
+#        uses: actions/download-artifact@v3
+#        with:
+#          name: linux_wheels
+#          path: dist
+#
+#      - run: ls -R
+#
+#      - name: Rearrange wheels
+#        run: |
+#          mv dist/wheelhouse/* dist
+#          rm -rf dist/wheelhouse/
+#
+#      - run: ls -R
+#
+#      - name: Publish a Python distribution to PyPI
+#        uses: pypa/gh-action-pypi-publish@release/v1
+#        with:
+#          user: __token__
+#          password: ${{ secrets.PYPI_API_TOKEN_OAKS }}
+#
+#      - name: Publish Github release
+#        uses: softprops/action-gh-release@v1
+#        with:
+#          token: ${{ secrets.DEV_GITHUB_TOKEN }}
+#          files: dist/*

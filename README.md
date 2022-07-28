@@ -20,7 +20,31 @@ The simplest way of installing YLearn is using `pip`:
 pip install ylearn
 ```
 
-Note that YLearn will depend on c++ compiler and graphviz. Please make sure they are installed properly.
+Note that `Graphviz`  is required to plot causal graph in notebook, so install it before running YLearn. See https://graphviz.org/download/ for more details about `Graphviz` installation.
+
+### Docker
+
+We also publish an image in Docker Hub which can be downloaded directly and includes the components:
+
+* Python 3.8
+* YLearn and its dependent packages
+* JupyterLab
+
+
+Download the docker image:
+
+```bash
+docker pull datacanvas/ylearn
+```
+
+Run a docker container:
+
+```bash
+docker run -ti -e NotebookToken="your-token" -p 8888:8888 datacanvas/ylearn
+```
+
+Then one can visit http://&lt;ip-addr&gt;:8888 in the browser and type in the token to start.
+
 
 ## Overview of YLearn
 
@@ -197,6 +221,9 @@ In the notebook [CaseStudy](https://github.com/DataCanvasIO/YLearn/blob/main/exa
 ## Contributing
 
 We welcome community contributors to the project. Before you start, please firstly read our [code of conduct](CODE_OF_CONDUCT.md) and [contributing guidelines](CONTRIBUTING.md).
+
+## License
+See the [LICENSE](LICENSE) file for license rights and limitations (Apache-2.0).
 
 ## References
 
