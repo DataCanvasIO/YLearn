@@ -71,12 +71,14 @@ class CumulatorWithTreatment(Cumulator):
 
 
 class CumulatorWithTrueEffect(Cumulator):
-    def __init__(self, true_effect=None, random_name=None, random_column_number=10):
+    def __init__(self, outcome='y', treatment='x', true_effect=None, random_name=None, random_column_number=10):
         assert true_effect is not None
 
+        self.treatment = treatment
+        self.outcome = outcome
         self.true_effect = true_effect
 
-        super().__init__([true_effect, ],
+        super().__init__([c for c in [outcome, treatment, true_effect, ] if c is not None],
                          random_name=random_name,
                          random_column_number=random_column_number,
                          )
@@ -113,18 +115,7 @@ class QiniCumulatorWithTreatment(CumulatorWithTreatment):
         return r
 
 
-class QiniCumulatorWithTrueEffect(Cumulator):
-    def __init__(self, treatment='x', true_effect=None, random_name=None, random_column_number=10):
-        assert true_effect is not None
-
-        self.treatment = treatment
-        self.true_effect = true_effect
-
-        super().__init__([treatment, true_effect, ],
-                         random_name=random_name,
-                         random_column_number=random_column_number,
-                         )
-
+class QiniCumulatorWithTrueEffect(CumulatorWithTrueEffect):
     def cumulate_column(self, df_col, col_name):
         df_col['__x_tr__'] = df_col[self.treatment].cumsum()
         r = df_col[self.true_effect].cumsum() / df_col.index * df_col['__x_tr__']
@@ -134,7 +125,8 @@ class QiniCumulatorWithTrueEffect(Cumulator):
 
 def cum_lift(df, outcome='y', treatment='x', true_effect=None, random_name='RANDOM'):
     if true_effect is not None:
-        cumulator = LiftCumulatorWithTrueEffect(true_effect, random_name=random_name)
+        cumulator = LiftCumulatorWithTrueEffect(outcome=outcome, treatment=treatment, true_effect=true_effect,
+                                                random_name=random_name)
     else:
         cumulator = LiftCumulatorWithTreatment(outcome=outcome, treatment=treatment, random_name=random_name)
 
@@ -156,7 +148,8 @@ def get_gain(df, outcome='y', treatment='x', true_effect=None, normalize=True, r
 
 def get_qini(df, outcome='y', treatment='x', true_effect=None, normalize=True, random_name='RANDOM'):
     if true_effect is not None:
-        cumulator = QiniCumulatorWithTrueEffect(treatment=treatment, true_effect=true_effect, random_name=random_name)
+        cumulator = QiniCumulatorWithTrueEffect(outcome=outcome, treatment=treatment, true_effect=true_effect,
+                                                random_name=random_name)
     else:
         cumulator = QiniCumulatorWithTreatment(outcome=outcome, treatment=treatment, random_name=random_name)
 

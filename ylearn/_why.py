@@ -1259,13 +1259,14 @@ class Why:
 
         return result
 
-    def get_gain(self, test_data, treat=None, control=None):
+    def get_gain(self, test_data, treat=None, control=None, normalize=True):
         def _get_gain(effect, x, preprocessed_data):
-            df_ = pd.DataFrame(dict(effect=effect,
-                                    x=preprocessed_data[x],
-                                    y=preprocessed_data[self.outcome_],
-                                    ))
-            return M.get_gain(df_, outcome='y', treatment='x',
+            df_ = pd.DataFrame({x: effect,
+                                '_x_': preprocessed_data[x],
+                                '_y_': preprocessed_data[self.outcome_],
+                                })
+            return M.get_gain(df_, outcome='_y_', treatment='_x_',
+                              normalize=normalize,
                               random_name='RANDOM' if x == self.treatment_[0] else None)
 
         self._check_x2('get_gain')
@@ -1273,13 +1274,14 @@ class Why:
         gain = pd.concat(sa, axis=1) if len(sa) > 1 else sa[0]
         return gain
 
-    def get_qini(self, test_data, treat=None, control=None):
+    def get_qini(self, test_data, treat=None, control=None, normalize=True):
         def _get_gain(effect, x, preprocessed_data):
-            df_ = pd.DataFrame(dict(effect=effect,
-                                    x=preprocessed_data[x],
-                                    y=preprocessed_data[self.outcome_],
-                                    ))
-            return M.get_qini(df_, outcome='y', treatment='x',
+            df_ = pd.DataFrame({x: effect,
+                                '_x_': preprocessed_data[x],
+                                '_y_': preprocessed_data[self.outcome_],
+                                })
+            return M.get_qini(df_, outcome='_y_', treatment='_x_',
+                              normalize=normalize,
                               random_name='RANDOM' if x == self.treatment_[0] else None)
 
         self._check_x2('get_qini')
@@ -1337,17 +1339,21 @@ class Why:
         graph = pydot.graph_from_dot_data(dot_string)[0]
         view_pydot(graph, prog='fdp')
 
-    def plot_gain(self, test_data, treat=None, control=None, n_sample=100, **kwargs):
-        gain = self.get_gain(test_data, treat=treat, control=control)
+    def plot_gain(self, test_data, treat=None, control=None, n_sample=100, normalize=False, **kwargs):
+        gain = self.get_gain(test_data, treat=treat, control=control, normalize=normalize)
         if n_sample is not None and n_sample < len(gain):
             gain = gain.iloc[np.linspace(0, gain.index[-1], n_sample, endpoint=True)]
-        gain.plot(**kwargs)
 
-    def plot_qini(self, test_data, treat=None, control=None, n_sample=100, **kwargs):
-        qini = self.get_qini(test_data, treat=treat, control=control)
+        options = dict(ylabel='Gain', xlabel='Population', **kwargs)
+        gain.plot(**options)
+
+    def plot_qini(self, test_data, treat=None, control=None, n_sample=100, normalize=False, **kwargs):
+        qini = self.get_qini(test_data, treat=treat, control=control, normalize=normalize)
         if n_sample is not None and n_sample < len(qini):
             qini = qini.iloc[np.linspace(0, qini.index[-1], n_sample, endpoint=True)]
-        qini.plot(**kwargs)
+
+        options = dict(ylabel='Qini', xlabel='Population', **kwargs)
+        qini.plot(**options)
 
     def __repr__(self):
         return to_repr(self)
