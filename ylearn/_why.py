@@ -1080,7 +1080,7 @@ class Why:
                 s = M.qini_score(df, outcome='y', treatment='x', random_name=None)
             return s['effect']
 
-        self._check_x2y2(scorer)
+        self._check_x2(scorer)
         sa = self._map_effect(scoring, test_data, treat=treat, control=control)
         score = np.mean(sa)
         return score
@@ -1220,11 +1220,10 @@ class Why:
         pi.fit(test_data, covariate=self.covariate_, est_model=None, effect_array=effect_array)
         return pi
 
-    def _check_x2y2(self, reason):
-        e_msg = f'Only binary task is support for {reason}'
+    def _check_x2(self, reason):
+        e_msg = f'Only binary treatment is support for {reason}'
 
-        assert self.discrete_outcome and self.discrete_treatment, e_msg
-        assert self.y_encoder_ is not None and len(self.y_encoder_.classes_) == 2, e_msg
+        assert self.discrete_treatment, e_msg
         for _, xe in self.x_encoders_.items():
             assert len(xe.classes_) == 2, e_msg
 
@@ -1269,7 +1268,7 @@ class Why:
             return M.get_gain(df_, outcome='y', treatment='x',
                               random_name='RANDOM' if x == self.treatment_[0] else None)
 
-        self._check_x2y2('get_gain')
+        self._check_x2('get_gain')
         sa = self._map_effect(_get_gain, test_data, treat=treat, control=control)
         gain = pd.concat(sa, axis=1) if len(sa) > 1 else sa[0]
         return gain
@@ -1283,7 +1282,7 @@ class Why:
             return M.get_qini(df_, outcome='y', treatment='x',
                               random_name='RANDOM' if x == self.treatment_[0] else None)
 
-        self._check_x2y2('get_qini')
+        self._check_x2('get_qini')
         sa = self._map_effect(_get_gain, test_data, treat=treat, control=control)
         qini = pd.concat(sa, axis=1) if len(sa) > 1 else sa[0]
         return qini
