@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder
 
+from ylearn import metric as M
 from ylearn import sklearn_ex as skex
 from ylearn.causal_discovery import CausalDiscovery
 from ylearn.causal_model import CausalModel, CausalGraph
@@ -376,7 +377,7 @@ class Why:
     identifier_ : identifier object or None
          Used to identify treatment/adjustment/covariate/instrument if they were not specified during `fit`
     y_encoder_ : LabelEncoder object or None
-        Used to encode outcome if its dtype is not numeric
+        Used to encode outcome if it is discrete
     x_encoders_ : LabelEncoder dict for each treatment if discrete_treatment is True
         Key is the treatment name, value is the LabelEncoder object
         None if discrete_treatment is False
@@ -487,7 +488,8 @@ class Why:
             self.discrete_outcome = _is_discrete(y)
             logger.info(f'infer outcome as {_task_tag(self.discrete_outcome)}')
 
-        if not _is_number(y.dtype):
+        # if not _is_number(y.dtype):
+        if self.discrete_outcome:
             logger.info('encode outcome with LabelEncoder')
             y_encoder = LabelEncoder()
             y = y_encoder.fit_transform(y)
@@ -701,19 +703,25 @@ class Why:
             scorers[x] = scorer
         return scorers
 
-    def _preprocess(self, test_data):
+    def _preprocess(self, test_data, encode_outcome=True, encode_treatment=False):
         assert self._is_fitted
 
         if test_data is not None:
             test_data = test_data.copy()
+            columns = test_data.columns.tolist()
 
             if self.preprocessor_ is not None:
-                columns = _join_list(self.adjustment_, self.covariate_, self.instrument_)
-                assert len(columns) > 0
-                test_data[columns] = self.preprocessor_.transform(test_data[columns])
+                var_columns = _join_list(self.adjustment_, self.covariate_, self.instrument_)
+                assert len(var_columns) > 0
+                test_data[var_columns] = self.preprocessor_.transform(test_data[var_columns])
 
-            if self.y_encoder_ is not None and self.outcome_ in test_data.columns.tolist():
+            if encode_outcome and self.y_encoder_ is not None and self.outcome_ in columns:
                 test_data[self.outcome_] = self.y_encoder_.transform(test_data[self.outcome_])
+
+            if encode_treatment and self.x_encoders_ is not None:
+                for x, xe in self.x_encoders_.items():
+                    if x in columns:
+                        test_data[x] = xe.transform(test_data[x])
 
         return test_data
 
@@ -1055,11 +1063,34 @@ class Why:
         """
         assert test_data is not None
 
-        scorers = self._create_scorers(test_data, scorer=scorer)
-        fit_options = drop_none(adjustment=self.adjustment_, covariate=self.covariate_, instrument=self.instrument_)
+        if scorer in ['auuc', 'qini']:
+            return self._score_auuc_qini(test_data, treat=treat, control=control, scorer=scorer)
+        else:
+            return self._score_rloss(test_data, treat=treat, control=control)
+
+    def _score_auuc_qini(self, test_data, treat=None, control=None, scorer='auuc'):
+        def scoring(effect, x, preprocessed_data):
+            df = pd.DataFrame(dict(effect=effect,
+                                   x=preprocessed_data[x],
+                                   y=preprocessed_data[self.outcome_],
+                                   ))
+            if scorer == 'auuc':
+                s = M.auuc_score(df, outcome='y', treatment='x', random_name=None)
+            else:
+                s = M.qini_score(df, outcome='y', treatment='x', random_name=None)
+            return s['effect']
+
+        self._check_x2y2(scorer)
+        sa = self._map_effect(scoring, test_data, treat=treat, control=control)
+        score = np.mean(sa)
+        return score
+
+    def _score_rloss(self, test_data=None, treat=None, control=None):
+        scorers = self._create_scorers(test_data, scorer='rloss')
         test_data = self._preprocess(test_data)
         treat = self._safe_treat_control(treat, 'treat')
         control = self._safe_treat_control(control, 'control')
+        fit_options = drop_none(adjustment=self.adjustment_, covariate=self.covariate_, instrument=self.instrument_)
 
         sa = []
         for i, (x, scorer) in enumerate(scorers.items()):
@@ -1189,6 +1220,74 @@ class Why:
         pi.fit(test_data, covariate=self.covariate_, est_model=None, effect_array=effect_array)
         return pi
 
+    def _check_x2y2(self, reason):
+        e_msg = f'Only binary task is support for {reason}'
+
+        assert self.discrete_outcome and self.discrete_treatment, e_msg
+        assert self.y_encoder_ is not None and len(self.y_encoder_.classes_) == 2, e_msg
+        for _, xe in self.x_encoders_.items():
+            assert len(xe.classes_) == 2, e_msg
+
+    def _map_effect(self, handler, test_data, treat=None, control=None):
+        test_data = self._preprocess(test_data, encode_outcome=True, encode_treatment=True)
+        treat = self._safe_treat_control(treat, 'treat')
+        control = self._safe_treat_control(control, 'control')
+        result = []
+
+        for i, x in enumerate(self.treatment_):
+            est = self.estimators_[x]
+            if self.x_encoders_ is not None:
+                xe = self.x_encoders_[x]
+                classes = xe.classes_.tolist()
+                if control is not None:
+                    assert control[i] in classes, f'Invalid {x} control "{control[i]}" for treatment {x}'
+                    control_i = control[i]
+                else:
+                    control_i = classes[0]
+
+                if treat is not None:
+                    assert treat[i] in classes, f'Invalid {x} treat "{treat[i]}" for treatment {x}'
+                    treat_i = treat[i]
+                else:
+                    treat_i = classes[-1]
+
+                t, c = xe.transform([treat_i, control_i])
+            else:
+                t = treat[i] if treat is not None else None
+                c = control[i] if control is not None else None
+            effect = est.estimate(data=test_data, treat=t, control=c)
+            result.append(handler(effect, x, test_data))
+
+        return result
+
+    def get_gain(self, test_data, treat=None, control=None):
+        def _get_gain(effect, x, preprocessed_data):
+            df_ = pd.DataFrame(dict(effect=effect,
+                                    x=preprocessed_data[x],
+                                    y=preprocessed_data[self.outcome_],
+                                    ))
+            return M.get_gain(df_, outcome='y', treatment='x',
+                              random_name='RANDOM' if x == self.treatment_[0] else None)
+
+        self._check_x2y2('get_gain')
+        sa = self._map_effect(_get_gain, test_data, treat=treat, control=control)
+        gain = pd.concat(sa, axis=1) if len(sa) > 1 else sa[0]
+        return gain
+
+    def get_qini(self, test_data, treat=None, control=None):
+        def _get_gain(effect, x, preprocessed_data):
+            df_ = pd.DataFrame(dict(effect=effect,
+                                    x=preprocessed_data[x],
+                                    y=preprocessed_data[self.outcome_],
+                                    ))
+            return M.get_qini(df_, outcome='y', treatment='x',
+                              random_name='RANDOM' if x == self.treatment_[0] else None)
+
+        self._check_x2y2('get_qini')
+        sa = self._map_effect(_get_gain, test_data, treat=treat, control=control)
+        qini = pd.concat(sa, axis=1) if len(sa) > 1 else sa[0]
+        return qini
+
     def plot_policy_tree(self, test_data, treatment=None, control=None, **kwargs):
         """
         Plot the policy tree
@@ -1238,6 +1337,18 @@ class Why:
                 dot_string = dot_string.replace(k, _format(v, line_width=width))
         graph = pydot.graph_from_dot_data(dot_string)[0]
         view_pydot(graph, prog='fdp')
+
+    def plot_gain(self, test_data, treat=None, control=None, n_sample=100, **kwargs):
+        gain = self.get_gain(test_data, treat=treat, control=control)
+        if n_sample is not None and n_sample < len(gain):
+            gain = gain.iloc[np.linspace(0, gain.index[-1], n_sample, endpoint=True)]
+        gain.plot(**kwargs)
+
+    def plot_qini(self, test_data, treat=None, control=None, n_sample=100, **kwargs):
+        qini = self.get_qini(test_data, treat=treat, control=control)
+        if n_sample is not None and n_sample < len(qini):
+            qini = qini.iloc[np.linspace(0, qini.index[-1], n_sample, endpoint=True)]
+        qini.plot(**kwargs)
 
     def __repr__(self):
         return to_repr(self)

@@ -20,8 +20,8 @@ def _validate_it(why, test_data, check_score=True):
     print('local causal effect:', e, sep='\n')
 
     if check_score:
-        score = why.score(test_data)
-        print("score:", score)
+        score = why.score(test_data, scorer='rloss')
+        print("rloss:", score)
 
 
 def test_basis():
@@ -161,3 +161,19 @@ def test_default_identifier():
     why.fit(data, outcome[0])
 
     _validate_it(why, test_data)
+
+
+def test_score_auuc_qini():
+    data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x2b_y1()
+    data[outcome] = (data[outcome] > 0).astype('int')
+    test_data[outcome] = (test_data[outcome] > 0).astype('int')
+    why = Why()
+    why.fit(data, outcome[0], treatment=treatment, adjustment=adjustment, covariate=covariate)
+
+    _validate_it(why, test_data)
+
+    s = why.score(test_data, scorer='qini')
+    print('qini:', s)
+
+    s = why.score(test_data, scorer='auuc')
+    print('auuc:', s)
