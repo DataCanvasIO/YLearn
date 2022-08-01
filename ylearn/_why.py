@@ -836,13 +836,13 @@ class Why:
                 assert treat[i] in xe.classes_.tolist(), f'Invalid {x} treat "{treat[i]}"'
                 treats = [treat[i], ]
             else:
-                if test_data is None:
-                    treats = xe.classes_.tolist()
-                else:
+                if test_data is not None and x in test_data.columns.tolist():
                     treats = np.unique(test_data[x]).tolist()
+                else:
+                    treats = xe.classes_.tolist()
                 treats = filter(lambda _: _ != control_i, treats)
 
-            if test_data is not None:
+            if test_data is not None and x in test_data.columns.tolist():
                 test_data[x] = xe.transform(test_data[x])
             c = xe.transform([control_i])[0]
             for treat_i in treats:
