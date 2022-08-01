@@ -22,6 +22,30 @@ pip install ylearn
 
 注意：YLearn在绘制因果图时需要用到`Graphviz`，所以请在运行YLearn之前安装它。关于`Graphviz`的安装方式请参考 https://graphviz.org/download/ 。
 
+
+### Conda
+
+也可以使用 conda 安装 YLearn，命令如下：
+
+```bash
+conda install -c conda-forge ylearn
+```
+
+此命令将安装YLearn和所有依赖包（包括 `Graphviz`）。
+
+对于Windows平台，需要注意的的是由于 pytroch（可选依赖）  没有被发布到 *conda-forge* 中，所以您通过上述命令安装YLearn时不会自动安装pytroch。您可从其它channel中单独安装pytorch，如：
+
+```bash
+conda install -c defaults pytorch
+```
+
+ 或
+
+```bash
+conda install -c pytorch pytorch
+```
+关于安装pytorch的更多信息请参考其官网 https://pytorch.org/ 。
+
 ###  Docker
 
 如果您拥有Docker环境的话，可下载我们发布的Docker镜像。YLearn的Docker镜像中包括如下内容：

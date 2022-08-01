@@ -22,6 +22,18 @@ pip install ylearn
 
 Note that `Graphviz`  is required to plot causal graph in notebook, so install it before running YLearn. See https://graphviz.org/download/ for more details about `Graphviz` installation.
 
+
+### Conda
+
+YLearn can also be installed with `conda`. Install it from the channel *conda-forge*:
+
+```bash
+conda install -c conda-forge ylearn
+```
+
+This will install YLearn and  all requirements including `Graphviz`.
+
+
 ### Docker
 
 We also publish an image in Docker Hub which can be downloaded directly and includes the components:
