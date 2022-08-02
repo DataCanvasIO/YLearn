@@ -76,8 +76,7 @@ else:
     pyx_modules = [f for f in pyx_modules if f not in c_modules]
     if pyx_modules:
         msg = f'{len(pyx_modules)} pyx extension(s) without .cpp file found.' \
-              f' run "python setup.py build_ext --inplace" to generate .cpp files,' \
-              f' or insert "cython" into "pyproject.toml" to install {my_name} with pip, please.'
+              f' run "python setup.py build_ext --inplace" to generate .cpp files please.'
         print(msg, file=sys.stderr)
 
 print('cmdline:', ' '.join(sys.argv))
@@ -143,7 +142,7 @@ setup(
     ],
     packages=find_packages(exclude=('docs', 'tests', 'example_usages')),
     package_data={
-        'ylearn': ['*.txt', '**/**.txt', '**/**.cpp', '**/**.h', ],
+        'ylearn': ['*.txt', '**/**.txt', '**/**.cpp', '**/**.pyx', '**/**.pxd', '**/**.h', ],
     },
     ext_modules=c_modules + pyx_modules,
     include_dirs=[np_include] + my_includes,
