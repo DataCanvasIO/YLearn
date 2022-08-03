@@ -177,3 +177,15 @@ def test_score_auuc_qini():
 
     s = why.score(test_data, scorer='auuc')
     print('auuc:', s)
+
+
+def test_customized_estimator():
+    from sklearn.ensemble import RandomForestRegressor
+    from ylearn.estimator_model import TLearner
+
+    my_estimator = TLearner(model=RandomForestRegressor())
+    data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x2b_y1()
+    why = Why(estimator=my_estimator)
+    why.fit(data, outcome[0], treatment=treatment, adjustment=adjustment, covariate=covariate)
+
+    _validate_it(why, test_data)

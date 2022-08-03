@@ -1,3 +1,4 @@
+import copy
 import math
 from functools import partial
 from itertools import product
@@ -661,6 +662,13 @@ class Why:
                           treatment, adjustment=None, covariate=None, instrument=None):
         # x_task, _ = infer_task_type(data[treatment])
         estimator = self.estimator
+        assert isinstance(estimator, (str, BaseEstModel))
+        if isinstance(estimator, str):
+            assert estimator == 'auto' or estimator in ESTIMATOR_FACTORIES.keys()
+
+        if isinstance(estimator, BaseEstModel):
+            return copy.deepcopy(estimator)
+
         options = self.estimator_options if self.estimator_options is not None else {}
         if estimator == 'auto':
             estimator, options = self._get_default_estimator(
