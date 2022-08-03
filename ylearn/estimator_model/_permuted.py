@@ -112,7 +112,7 @@ class PermutedLearner(BaseEstModel):
             return self.learners_[(control, treat)], -1
         else:
             if not silent:
-                raise ValueError(f'Not found leaner for treat-control pair: [{treat},{control}]')
+                raise ValueError(f'Not found learner for treat-control pair: [{treat},{control}]')
             else:
                 return None
 

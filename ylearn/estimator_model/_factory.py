@@ -102,11 +102,11 @@ class DRFactory(BaseEstimatorFactory):
 
 @register()
 @register(name='ml')
-class MetaLeanerFactory(BaseEstimatorFactory):
-    def __init__(self, leaner='tleaner', model='gb'):
-        assert leaner.strip().lower()[0] in {'s', 't', 'x'}
+class MetaLearnerFactory(BaseEstimatorFactory):
+    def __init__(self, learner='tlearner', model='gb'):
+        assert learner.strip().lower()[0] in {'s', 't', 'x'}
 
-        self.leaner = leaner
+        self.learner = learner
         self.model = model
 
     def __call__(self, data, outcome, treatment, y_task, x_task,
@@ -116,7 +116,7 @@ class MetaLeanerFactory(BaseEstimatorFactory):
         # assert adjustment is not None
         assert x_task != const.TASK_REGRESSION, 'MetaLearner support discrete treatment only.'
 
-        tag = self.leaner.strip().lower()[0]
+        tag = self.learner.strip().lower()[0]
         learners = dict(s=PermutedSLearner, t=PermutedTLearner, x=PermutedXLearner)
         est_cls = learners[tag]
         return est_cls(
