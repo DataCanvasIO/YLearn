@@ -852,9 +852,9 @@ class Why:
 
             if test_data is not None and x in test_data.columns.tolist():
                 test_data[x] = xe.transform(test_data[x])
-            c = xe.transform([control_i])[0]
+            c = xe.transform([control_i]).tolist()[0]
             for treat_i in treats:
-                t = xe.transform([treat_i])[0]
+                t = xe.transform([treat_i]).tolist()[0]
                 effect = est.estimate(data=test_data, treat=t, control=c)
                 s = pd.Series(dict(mean=effect.mean(),
                                    min=effect.min(),
@@ -1021,8 +1021,7 @@ class Why:
                 eff = np.zeros((len(tc_rows),))
             else:
                 data_rows = data.loc[tc_rows.index]
-                t_encoded = xe.transform([t])[0]
-                c_encoded = xe.transform([c])[0]
+                t_encoded, c_encoded = xe.transform([t, c]).tolist()
                 eff = estimator.estimate(data_rows, treat=t_encoded, control=c_encoded)
             effect.append(pd.DataFrame(dict(e=eff.ravel()), index=tc_rows.index))
         effect = pd.concat(effect, axis=0)
@@ -1106,8 +1105,8 @@ class Why:
             if self.discrete_treatment:
                 xe = self.x_encoders_[x]
                 test_data[x] = xe.transform(test_data[x])
-                treat_i = xe.transform([treat[i], ])[0] if treat is not None else None
-                control_i = xe.transform([control[i], ])[0] if control is not None else None
+                treat_i = xe.transform([treat[i], ]).tolist()[0] if treat is not None else None
+                control_i = xe.transform([control[i], ]).tolist()[0] if control is not None else None
             else:
                 treat_i = treat[i] if treat is not None else None
                 control_i = control[i] if control is not None else None
@@ -1135,7 +1134,7 @@ class Why:
         if self.discrete_treatment and len(treatment) > 1:
             estimator = self.estimators_[tuple(treatment)]
             if control is not None:
-                control = [self.x_encoders_[x].transform([control[i]])[0] for i, x in enumerate(treatment)]
+                control = [self.x_encoders_[x].transform([control[i]]).tolist()[0] for i, x in enumerate(treatment)]
             effect = estimator.effect_nji(preprocessed_data, **drop_none(control=control))
             effect_array = effect.reshape(-1, effect.shape[2])
         else:
@@ -1144,7 +1143,7 @@ class Why:
                 estimator = self.estimators_[x]
                 if self.discrete_treatment:
                     xe = self.x_encoders_[x]
-                    ci = xe.transform([control[i], ])[0] if control is not None else None
+                    ci = xe.transform([control[i], ]).tolist()[0] if control is not None else None
                 else:
                     ci = control[i] if control is not None else None
                 effect = estimator.effect_nji(preprocessed_data, **drop_none(control=ci))
@@ -1258,7 +1257,7 @@ class Why:
                 else:
                     treat_i = classes[-1]
 
-                t, c = xe.transform([treat_i, control_i])
+                t, c = xe.transform([treat_i, control_i]).tolist()
             else:
                 t = treat[i] if treat is not None else None
                 c = control[i] if control is not None else None

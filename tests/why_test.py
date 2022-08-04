@@ -95,6 +95,9 @@ def test_policy_tree():
     ptree = why.policy_tree(test_data)
     assert ptree is not None
 
+    ptree = why.policy_tree(test_data, control=1)
+    assert ptree is not None
+
 
 @if_policy_tree_ready
 def test_policy_tree_dml():

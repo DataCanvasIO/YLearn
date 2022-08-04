@@ -173,7 +173,8 @@ class PermutedLearner(BaseEstModel):
             control = tuple(control)
 
         if len(treatment) == 1:
-            control = control[0]
+            if isinstance(control, tuple):
+                control = control[0]
             treats = self.treats_[treatment[0]]
         else:
             treats = product(*[self.treats_[x] for x in treatment])
