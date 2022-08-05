@@ -130,7 +130,7 @@ class CausalGraph:
                 self.dag.add_edges_from(
                     [(edge[0], edge[1], 'n'), (edge[1], edge[0], 'n')]
                 )
-    
+
     @property
     def prob(self):
         """The encoded probability distribution.
@@ -223,7 +223,7 @@ class CausalGraph:
         g = self.observed_dag
 
         return ancestors_of_iter(g, x)
-    
+
     def descendents(self, x):
         """Return the descendents of all nodes in x.
 
@@ -239,7 +239,7 @@ class CausalGraph:
         """
         # des = set()
         # x = {x} if isinstance(x, str) else x
-        
+
         # for node in x:
         #     des.add(node)
         #     try:
@@ -247,7 +247,7 @@ class CausalGraph:
         #     except Exception:
         #         pass
         g = self.observed_dag
-        
+
         return descendents_of_iter(g, x)
 
     def parents(self, x, only_observed=True):
@@ -605,7 +605,7 @@ class CausalGraph:
         return self.remove_edges_from(removing_edges, new, observed=True)
 
     def plot(self, **kwargs):
-        ng = nx.DiGraph(self.causation)
+        ng = nx.DiGraph(self.causation).reverse()
         options = dict(with_labels=True, node_size=1000, **kwargs)
         nx.draw(ng, **options)
 
