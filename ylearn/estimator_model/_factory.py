@@ -40,8 +40,11 @@ class BaseEstimatorFactory:
 
         return skex.general_estimator(data, task=task, estimator=estimator, random_state=random_state, **kwargs)
 
-    @staticmethod
-    def _cf_fold(data):
+    def _cf_fold(self, data):
+        cf_fold = getattr(self, 'cf_fold', None)
+        if cf_fold is not None:
+            return cf_fold
+
         size = data.shape[0]
         if size < 3000:
             return 1
@@ -56,10 +59,11 @@ class BaseEstimatorFactory:
 
 @register()
 class DMLFactory(BaseEstimatorFactory):
-    def __init__(self, y_model='rf', x_model='rf', yx_model='lr'):
+    def __init__(self, y_model='rf', x_model='rf', yx_model='lr', cf_fold=None):
         self.y_model = y_model
         self.x_model = x_model
         self.yx_model = yx_model
+        self.cf_fold = cf_fold
 
     def __call__(self, data, outcome, treatment, y_task, x_task,
                  adjustment=None, covariate=None, instrument=None, random_state=None):
@@ -79,10 +83,11 @@ class DMLFactory(BaseEstimatorFactory):
 
 @register()
 class DRFactory(BaseEstimatorFactory):
-    def __init__(self, y_model='gb', x_model='rf', yx_model='gb'):
+    def __init__(self, y_model='gb', x_model='rf', yx_model='gb', cf_fold=None):
         self.y_model = y_model
         self.x_model = x_model
         self.yx_model = yx_model
+        self.cf_fold = cf_fold
 
     def __call__(self, data, outcome, treatment, y_task, x_task,
                  adjustment=None, covariate=None, instrument=None, random_state=None):
@@ -252,9 +257,10 @@ class DeepIVFactory(BaseEstimatorFactory):
 
 @register()
 class RLossFactory(BaseEstimatorFactory):
-    def __init__(self, y_model='rf', x_model='rf'):
+    def __init__(self, y_model='rf', x_model='rf', cf_fold=None):
         self.y_model = y_model
         self.x_model = x_model
+        self.cf_fold = cf_fold
 
     def __call__(self, data, outcome, treatment, y_task, x_task,
                  adjustment=None, covariate=None, instrument=None, random_state=None):
