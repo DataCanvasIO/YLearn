@@ -131,15 +131,17 @@ class MetaLearnerFactory(BaseEstimatorFactory):
 @register()
 @register(name='tree')
 class CausalTreeFactory(BaseEstimatorFactory):
-    # def __init__(self):
-    #     pass
+    def __init__(self, **kwargs):
+        self.options = kwargs.copy()
+
     def __call__(self, data, outcome, treatment, y_task, x_task,
                  adjustment=None, covariate=None, instrument=None, random_state=None):
         from ylearn.estimator_model.causal_tree import CausalTree
 
-        assert adjustment is not None
-
-        return CausalTree(random_state=random_state)  # FIXME
+        options = self.options.copy()
+        if random_state is not None:
+            options['random_state'] = random_state
+        return CausalTree(**options)
 
 
 @register()
