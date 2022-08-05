@@ -399,7 +399,8 @@ class Why:
                  random_state=None):
         assert isinstance(estimator, (str, BaseEstModel))
         if isinstance(estimator, str):
-            assert estimator == 'auto' or estimator in ESTIMATOR_FACTORIES.keys()
+            assert estimator == 'auto' or estimator in ESTIMATOR_FACTORIES.keys(), \
+                f'estimator should be \'auto\' or one of {list(ESTIMATOR_FACTORIES.keys())}'
 
         self.discrete_outcome = discrete_outcome
         self.discrete_treatment = discrete_treatment
@@ -782,7 +783,7 @@ class Why:
         cg = CausalGraph(m)
         return cg
 
-    def causal_effect(self, test_data=None, treat=None, control=None, return_detail=False):
+    def causal_effect(self, test_data=None, treat=None, control=None, quantity='ATE', return_detail=False):
         """
         Estimate the causal effect.
 
@@ -804,8 +805,10 @@ class Why:
             by default None
         control : treatment value or list or ndarray or pandas.Series, default None
             This is similar to the cases of treat, by default None
+        quantity : str, optional, default 'ATE'
+            'ATE' or 'ITE', default 'ATE'.
         return_detail: bool, default False
-            If True, return effect details in result.
+            If True, return effect details in result when quantity=='ATE'.
 
         Returns
         -------
@@ -825,11 +828,13 @@ class Why:
         control = self._safe_treat_control(control, 'control')
 
         if self.discrete_treatment:
-            return self._causal_effect_discrete(test_data, treat, control, return_detail=return_detail)
+            return self._causal_effect_discrete(
+                test_data, treat, control, quantity=quantity, return_detail=return_detail)
         else:
-            return self._causal_effect_continuous(test_data, treat, control, return_detail=return_detail)
+            return self._causal_effect_continuous(
+                test_data, treat, control, quantity=quantity, return_detail=return_detail)
 
-    def _causal_effect_discrete(self, test_data=None, treat=None, control=None, return_detail=False):
+    def _causal_effect_discrete(self, test_data=None, treat=None, control=None, quantity='ATE', return_detail=False):
         dfs = []
         for i, x in enumerate(self.treatment_):
             est = self.estimators_[x]
@@ -856,21 +861,25 @@ class Why:
             for treat_i in treats:
                 t = xe.transform([treat_i]).tolist()[0]
                 effect = est.estimate(data=test_data, treat=t, control=c)
-                s = pd.Series(dict(mean=effect.mean(),
-                                   min=effect.min(),
-                                   max=effect.max(),
-                                   std=effect.std(),
-                                   ),
-                              name=(x, f'{treat_i} vs {control_i}')
-                              )
-                if return_detail:
-                    s['detail'] = effect.ravel()
+                if quantity == 'ATE':
+                    s = pd.Series(dict(mean=effect.mean(),
+                                       min=effect.min(),
+                                       max=effect.max(),
+                                       std=effect.std(),
+                                       ))
+                    if return_detail:
+                        s['detail'] = effect.ravel()
+                else:
+                    s = pd.Series(effect.ravel())
+                s.name = (x, f'{treat_i} vs {control_i}')
                 dfs.append(s)
 
-        result = pd.concat(dfs, axis=1).T
+        result = pd.concat(dfs, axis=1)
+        if quantity == 'ATE':
+            result = result.T
         return result
 
-    def _causal_effect_continuous(self, test_data=None, treat=None, control=None, return_detail=False):
+    def _causal_effect_continuous(self, test_data=None, treat=None, control=None, quantity='ATE', return_detail=False):
         dfs = []
         for i, x in enumerate(self.treatment_):
             est = self.estimators_[x]
@@ -885,15 +894,22 @@ class Why:
             elif treat_i is None and control_i is not None:
                 treat_i = np.ones_like(control_i)
             effect = est.estimate(data=test_data, treat=treat_i, control=control_i)
-            s = pd.Series(dict(mean=effect.mean(),
-                               min=effect.min(),
-                               max=effect.max(),
-                               std=effect.std()),
-                          name=x)
-            if return_detail:
-                s['detail'] = effect.ravel()
+            if quantity == 'ATE':
+                s = pd.Series(dict(mean=effect.mean(),
+                                   min=effect.min(),
+                                   max=effect.max(),
+                                   std=effect.std(),
+                                   ))
+                if return_detail:
+                    s['detail'] = effect.ravel()
+            else:
+                s = pd.Series(effect.ravel())
+            s.name = x
             dfs.append(s)
-        return pd.concat(dfs, axis=1).T
+        result = pd.concat(dfs, axis=1)
+        if quantity == 'ATE':
+            result = result.T
+        return result
 
     def individual_causal_effect(self, test_data, control=None):
         """
