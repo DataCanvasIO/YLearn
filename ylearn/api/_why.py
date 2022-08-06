@@ -1,5 +1,5 @@
-import copy
 import math
+from copy import deepcopy
 from functools import partial
 from itertools import product
 
@@ -9,11 +9,14 @@ from sklearn.preprocessing import LabelEncoder
 
 from ylearn import metric as M
 from ylearn import sklearn_ex as skex
-from ylearn.causal_discovery import CausalDiscovery
-from ylearn.causal_model import CausalModel, CausalGraph
+from ylearn.causal_discovery import BaseDiscovery
+from ylearn.causal_model import CausalGraph
 from ylearn.effect_interpreter.policy_interpreter import PolicyInterpreter
 from ylearn.estimator_model import ESTIMATOR_FACTORIES, BaseEstModel
-from ylearn.utils import const, logging, view_pydot, infer_task_type, to_repr, drop_none, set_random_state
+from ylearn.utils import logging, view_pydot, to_repr, drop_none, set_random_state
+from ._identifier import Identifier, DefaultIdentifier
+from ._identifier import IdentifierWithNotears, IdentifierWithLearner, IdentifierWithDiscovery
+from .utils import _format, _task_tag, _empty, _is_discrete, _join_list, _to_list, _safe_remove
 
 logger = logging.get_logger(__name__)
 
@@ -83,263 +86,6 @@ GRAPH_STRING_WZ = """
 """
 
 
-def _to_list(v, name=None):
-    if v is None or isinstance(v, (list, tuple)):
-        pass
-    elif isinstance(v, str):
-        v = [s.strip() for s in v.split(',')]
-        v = [s for s in v if len(s) > 0]
-    else:
-        tag = name if name is not None else 'value'
-        raise ValueError(f'Unexpected {tag}: {v}')
-
-    return v
-
-
-def _join_list(*args):
-    r = []
-    for a in args:
-        if a is None:
-            pass
-        elif isinstance(a, list):
-            r += a
-        elif isinstance(a, tuple):
-            r += list(a)
-        else:
-            r += _to_list(a)
-    return r
-
-
-def _empty(v):
-    return v is None or len(v) == 0
-
-
-def _not_empty(v):
-    return v is not None and len(v) > 0
-
-
-def _safe_remove(alist, value, copy=False):
-    assert alist is None or isinstance(alist, list)
-
-    if alist is not None:
-        if copy:
-            alist = alist.copy()
-
-        if isinstance(value, (list, tuple)):
-            for v in value:
-                if v in alist:
-                    alist.remove(v)
-        elif value in alist:
-            alist.remove(value)
-
-    return alist
-
-
-def _format(v, line_width=64, line_limit=3):
-    if isinstance(v, (list, tuple)):
-        lines = []
-        line = ''
-        for vi in v:
-            if len(line) >= line_width:
-                if len(lines) + 1 >= line_limit:
-                    line += '...'
-                    break
-                else:
-                    lines.append(line)
-                    line = ''  # reset new line
-            line += f', {vi}' if line else f'{vi}'
-        lines.append(line)
-        r = ',\n'.join(lines)
-    else:
-        r = f'{v}'
-
-    return r
-
-
-def _is_number(dtype):
-    return dtype.kind in {'i', 'f'}
-
-
-def _is_discrete(y):
-    return infer_task_type(y)[0] != const.TASK_REGRESSION
-
-
-def _task_tag(discrete):
-    if isinstance(discrete, (np.ndarray, pd.Series)):
-        discrete = _is_discrete(discrete)
-    return 'classification' if discrete else 'regression'
-
-
-def _align_task_to_first(data, columns, count_limit):
-    """
-     select features which has similar task type with the first
-    """
-    selected = columns[:1]
-    discrete = _is_discrete(data[selected[0]])
-    for x in columns[1:]:
-        x_discrete = _is_discrete(data[x])
-        if x_discrete is discrete:
-            selected.append(x)
-            if len(selected) >= count_limit:
-                break
-
-    return selected
-
-
-def _select_by_task(data, columns, count_limit, discrete):
-    """
-     select features which has similar task type with the first
-    """
-    selected = []
-    for x in columns:
-        x_discrete = _is_discrete(data[x])
-        if x_discrete is discrete:
-            selected.append(x)
-            if len(selected) >= count_limit:
-                break
-
-    return selected
-
-
-class Identifier:
-    def identify_treatment(self, data, outcome, discrete_treatment, count_limit, excludes=None):
-        raise NotImplemented()
-
-    def identify_aci(self, data, outcome, treatment):
-        raise NotImplemented()
-
-
-class DefaultIdentifier(Identifier):
-    def identify_treatment(self, data, outcome, discrete_treatment, count_limit, excludes=None):
-        X = data.copy()
-        y = X.pop(outcome)
-
-        if excludes is not None and len(excludes) > 0:
-            X = X[[c for c in X.columns.tolist() if c not in excludes]]
-
-        tf = skex.FeatureImportancesSelectionTransformer(
-            strategy='number', number=X.shape[1], data_clean=False)
-        tf.fit(X, y)
-        selected = tf.selected_features_
-
-        if discrete_treatment is None:
-            treatment = _align_task_to_first(data, selected, count_limit)
-        else:
-            treatment = _select_by_task(data, selected, count_limit, discrete_treatment)
-
-        return treatment
-
-    def identify_aci(self, data, outcome, treatment):
-        adjustment, instrument = None, None
-
-        covariate = [c for c in data.columns.tolist() if c != outcome and c not in treatment]
-
-        return adjustment, covariate, instrument
-
-
-class IdentifierWithDiscovery(DefaultIdentifier):
-    def __init__(self, random_state, **kwargs):
-        self.random_state = random_state
-        self.discovery_options = kwargs.copy()
-        self.causation_matrix_ = None
-
-    def _discovery(self, data, outcome):
-        logger.info('discovery causation')
-
-        X = data.copy()
-        y = X.pop(outcome)
-
-        if not _is_number(y.dtype):
-            y = LabelEncoder().fit_transform(y)
-
-        # preprocessor = skex.general_preprocessor(number_scaler=True)
-        preprocessor = skex.general_preprocessor()
-        X = preprocessor.fit_transform(X, y)
-        X[outcome] = y
-
-        options = dict(random_state=self.random_state)
-        if self.discovery_options is not None:
-            options.update(self.discovery_options)
-
-        dd = CausalDiscovery(**options)
-        return dd(X)
-
-    def identify_treatment(self, data, outcome, discrete_treatment, count_limit, excludes=None):
-        causation = self._discovery(data, outcome)
-        assert isinstance(causation, pd.DataFrame) and outcome in causation.columns.tolist()
-
-        treatment = causation[outcome].abs().sort_values(ascending=False)
-        treatment = [i for i in treatment.index if treatment[i] > 0 and i != outcome]
-        if excludes is not None:
-            treatment = [t for t in treatment if t not in excludes]
-
-        if len(treatment) > 0:
-            if discrete_treatment is None:
-                treatment = _align_task_to_first(data, treatment, count_limit)
-            else:
-                treatment = _select_by_task(data, treatment, count_limit, discrete_treatment)
-        else:
-            logger.info(f'Not found treatment with causal discovery, so identify treatment by default')
-            treatment = super().identify_treatment(data, outcome, discrete_treatment, count_limit, excludes=excludes)
-
-        self.causation_matrix_ = causation
-
-        return treatment
-
-    def identify_aci(self, data, outcome, treatment):
-        adjustment, covariate = None, None
-
-        if self.causation_matrix_ is None:
-            self.causation_matrix_ = self._discovery(data, outcome)
-        causation = self.causation_matrix_
-        # threshold = causation.values.diagonal().max()
-        threshold = min(np.quantile(causation.values.diagonal(), 0.8),
-                        np.mean(causation.values))
-
-        if np.isnan(threshold):
-            return super().identify_aci(data, outcome, treatment)
-
-        m = CausalDiscovery().matrix2dict(causation, threshold=threshold)
-        cg = CausalGraph(m)
-        cm = CausalModel(cg)
-        try:
-            instrument = cm.get_iv(treatment[0], outcome)
-            if _not_empty(instrument):
-                instrument = [c for c in instrument if c != outcome and c not in treatment]
-            for x in treatment[1:]:
-                if _empty(instrument):
-                    break
-                iv = cm.get_iv(x, outcome)
-                if _empty(iv):
-                    instrument = None
-                    break
-                else:
-                    iv = [c for c in iv if c != outcome and c not in treatment]
-                    instrument = list(set(instrument).intersection(set(iv)))
-            if logger.is_info_enabled():
-                logger.info(f'found instrument: {instrument}')
-        except Exception as e:
-            logger.warn(e)
-            instrument = []
-
-        if _empty(instrument):
-            ids = cm.identify(treatment, outcome, identify_method=('backdoor', 'simple'))
-            covariate = list(set(ids['backdoor'][0]))
-            covariate = [c for c in covariate if c != outcome and c not in treatment]
-
-        if _empty(covariate):
-            logger.info('Not found covariate by discovery, so setup it by default')
-            covariate = [c for c in data.columns.tolist()
-                         if c != outcome and c not in treatment and c not in instrument]
-        else:
-            logger.info(f'found covariate: {covariate}')
-
-        if _empty(instrument):
-            instrument = None
-
-        return adjustment, covariate, instrument
-
-
 class Why:
     """
     An all-in-one API for causal learning.
@@ -356,7 +102,7 @@ class Why:
         if None, inferred from the first treatment
     identifier : str, default='auto'
         Available options: 'auto' or 'discovery'
-    discovery_model : str, default=None
+    discovery_model : IdentifierWithDiscovery object or callable or str, default=None
         Reserved
     discovery_options : dict, default=None
         Parameters (key-values) to initialize the discovery model
@@ -653,9 +399,14 @@ class Why:
         return treatment, adjustment, covariate, instrument
 
     def _create_identifier(self):
-        if self.identifier == 'discovery':
+        if isinstance(self.discovery_model, Identifier):
+            return self.discovery_model
+        elif self.identifier == 'discovery':
             options = self.discovery_options if self.discovery_options is not None else {}
-            return IdentifierWithDiscovery(self.random_state, **options)
+            if callable(self.discovery_model):
+                return IdentifierWithLearner(self.discovery_model, random_state=self.random_state, **options)
+            else:
+                return IdentifierWithNotears(random_state=self.random_state, **options)
         else:
             return DefaultIdentifier()
 
@@ -668,7 +419,7 @@ class Why:
             assert estimator == 'auto' or estimator in ESTIMATOR_FACTORIES.keys()
 
         if isinstance(estimator, BaseEstModel):
-            return copy.deepcopy(estimator)
+            return deepcopy(estimator)
 
         options = self.estimator_options if self.estimator_options is not None else {}
         if estimator == 'auto':
@@ -763,7 +514,7 @@ class Why:
 
         if causation is not None:
             threshold = causation.values.diagonal().max()
-            m = CausalDiscovery().matrix2dict(causation, threshold=threshold)
+            m = BaseDiscovery.matrix2dict(causation, threshold=threshold)
         else:
             m = {}
             fmt = partial(_format, line_limit=1, line_width=20)
