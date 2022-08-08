@@ -843,15 +843,15 @@ class Why:
             return self._score_rloss(test_data, treat=treat, control=control)
 
     def _score_auuc_qini(self, test_data, treat=None, control=None, scorer='auuc'):
-        def scoring(effect, x, preprocessed_data):
+        def scoring(effect, x, treat, control, preprocessed_data):
             df = pd.DataFrame(dict(effect=effect,
                                    x=preprocessed_data[x],
                                    y=preprocessed_data[self.outcome_],
                                    ))
             if scorer == 'auuc':
-                s = M.auuc_score(df, outcome='y', treatment='x', random_name=None)
+                s = M.auuc_score(df, outcome='y', treatment='x', treat=treat, control=control, random_name=None)
             else:
-                s = M.qini_score(df, outcome='y', treatment='x', random_name=None)
+                s = M.qini_score(df, outcome='y', treatment='x', treat=treat, control=control, random_name=None)
             return s['effect']
 
         self._check_x2(scorer)
@@ -1029,18 +1029,33 @@ class Why:
                 t = treat[i] if treat is not None else None
                 c = control[i] if control is not None else None
             effect = est.estimate(data=test_data, treat=t, control=c)
-            result.append(handler(effect, x, test_data))
+            result.append(handler(effect, x, t, c, test_data))
 
         return result
 
+    def get_cumlift(self, test_data, treat=None, control=None, ):
+        def _get_cumlift(effect, x, t, c, preprocessed_data):
+            df_ = pd.DataFrame({x: effect,
+                                '_x_': preprocessed_data[x],
+                                '_y_': preprocessed_data[self.outcome_],
+                                })
+            return M.get_cumlift(df_, outcome='_y_', treatment='_x_',
+                                 treat=t, control=c,
+                                 random_name='RANDOM' if x == self.treatment_[0] else None)
+
+        self._check_x2('get_gain')
+        sa = self._map_effect(_get_cumlift, test_data, treat=treat, control=control)
+        gain = pd.concat(sa, axis=1) if len(sa) > 1 else sa[0]
+        return gain
+
     def get_gain(self, test_data, treat=None, control=None, normalize=True):
-        def _get_gain(effect, x, preprocessed_data):
+        def _get_gain(effect, x, t, c, preprocessed_data):
             df_ = pd.DataFrame({x: effect,
                                 '_x_': preprocessed_data[x],
                                 '_y_': preprocessed_data[self.outcome_],
                                 })
             return M.get_gain(df_, outcome='_y_', treatment='_x_',
-                              normalize=normalize,
+                              treat=t, control=c, normalize=normalize,
                               random_name='RANDOM' if x == self.treatment_[0] else None)
 
         self._check_x2('get_gain')
@@ -1049,13 +1064,13 @@ class Why:
         return gain
 
     def get_qini(self, test_data, treat=None, control=None, normalize=True):
-        def _get_gain(effect, x, preprocessed_data):
+        def _get_gain(effect, x, t, c, preprocessed_data):
             df_ = pd.DataFrame({x: effect,
                                 '_x_': preprocessed_data[x],
                                 '_y_': preprocessed_data[self.outcome_],
                                 })
             return M.get_qini(df_, outcome='_y_', treatment='_x_',
-                              normalize=normalize,
+                              treat=t, control=c, normalize=normalize,
                               random_name='RANDOM' if x == self.treatment_[0] else None)
 
         self._check_x2('get_qini')

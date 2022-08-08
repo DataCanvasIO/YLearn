@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import pytest
 
 from ylearn import Why
@@ -166,7 +167,7 @@ def test_default_identifier():
     _validate_it(why, test_data)
 
 
-def test_score_auuc_qini():
+def test_auuc_qini():
     data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x2b_y1()
     data[outcome] = (data[outcome] > 0).astype('int')
     test_data[outcome] = (test_data[outcome] > 0).astype('int')
@@ -180,6 +181,15 @@ def test_score_auuc_qini():
 
     s = why.score(test_data, scorer='auuc')
     print('auuc:', s)
+
+    r = why.get_cumlift(test_data, )
+    assert isinstance(r, pd.DataFrame)
+
+    r = why.get_gain(test_data, )
+    assert isinstance(r, pd.DataFrame)
+
+    r = why.get_qini(test_data, )
+    assert isinstance(r, pd.DataFrame)
 
 
 def test_customized_estimator():
