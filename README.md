@@ -239,6 +239,7 @@ We welcome community contributors to the project. Before you start, please first
 We provide several communcication channels for developers.
 - GitHub [Issues](https://github.com/DataCanvasIO/YLearn/issues) and [Discussions](https://github.com/DataCanvasIO/YLearn/discussions)
 - Email: ylearn@zetyun.com
+- Slack [Workspace](https://join.slack.com/t/ylearnworkspace/shared_invite/zt-1dvi5e8cz-yHwN2OTIDX0gWsfPRgB9ZQ)
 - WeChat group: join by scanning the below QRcode.
 
    <img src="./fig/wechat_QRcode.png" width="200">
