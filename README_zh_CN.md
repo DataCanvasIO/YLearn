@@ -228,6 +228,15 @@ YLearn 有5个主要的因果推断相关概念，如下所示
 
 欢迎来自社区的开发者贡献！在开始前，请先阅读 [code of conduct](CODE_OF_CONDUCT.md) 和 [contributing guidelines](CONTRIBUTING.md).
 
+## 交流渠道
+
+我们为开发者提供多种交流渠道：
+- GitHub [Issues](https://github.com/DataCanvasIO/YLearn/issues) and [Discussions](https://github.com/DataCanvasIO/YLearn/discussions)
+- 邮箱: ylearn@zetyun.com
+- YLearn微信交流群: 扫码入群
+
+   <img src="./fig/wechat_QRcode.png" width="200">
+
 ## 参考文献
 
 [1] J. Pearl. Causality: models, reasoing, and inference.
