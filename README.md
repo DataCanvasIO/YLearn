@@ -234,6 +234,15 @@ In the notebook [CaseStudy](https://github.com/DataCanvasIO/YLearn/blob/main/exa
 
 We welcome community contributors to the project. Before you start, please firstly read our [code of conduct](CODE_OF_CONDUCT.md) and [contributing guidelines](CONTRIBUTING.md).
 
+## Communication
+
+We provide several communcication channels for developers.
+- GitHub [Issues](https://github.com/DataCanvasIO/YLearn/issues) and [Discussions](https://github.com/DataCanvasIO/YLearn/discussions)
+- Email: ylearn@zetyun.com
+- WeChat group: join by scanning the below QRcode.
+
+   <img src="./fig/wechat_QRcode.png" width="200">
+
 ## License
 See the [LICENSE](LICENSE) file for license rights and limitations (Apache-2.0).
 
