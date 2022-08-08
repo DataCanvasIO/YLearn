@@ -9,6 +9,16 @@ from .base_models import BaseEstModel
 from .doubly_robust import DoublyRobust
 from .meta_learner import SLearner, TLearner, XLearner
 
+try:
+    from .causal_tree import CausalTree
+except ImportError as e:
+    msg = f'{e}'
+
+
+    class CausalTree:
+        def __init__(self, *args, **kwargs):
+            raise ImportError(msg)
+
 
 def _copy_and_fit(learner, data, outcome, treatment, treat, control, **kwargs):
     learner = copy.deepcopy(learner)
@@ -234,4 +244,10 @@ class PermutedXLearner(PermutedLearner):
 class PermutedDoublyRobust(PermutedLearner):
     def __init__(self, x_model, y_model, yx_model, *args, **kwargs):
         learner = DoublyRobust(x_model, y_model, yx_model, *args, **kwargs)
+        super().__init__(learner)
+
+
+class PermutedCausalTree(PermutedLearner):
+    def __init__(self, **kwargs):
+        learner = CausalTree(**kwargs)
         super().__init__(learner)

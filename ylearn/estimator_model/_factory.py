@@ -141,12 +141,12 @@ class CausalTreeFactory(BaseEstimatorFactory):
 
     def __call__(self, data, outcome, treatment, y_task, x_task,
                  adjustment=None, covariate=None, instrument=None, random_state=None):
-        from ylearn.estimator_model.causal_tree import CausalTree
+        from ylearn.estimator_model._permuted import PermutedCausalTree
 
         options = self.options.copy()
         if random_state is not None:
             options['random_state'] = random_state
-        return CausalTree(**options)
+        return PermutedCausalTree(**options)
 
 
 @register()

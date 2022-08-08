@@ -48,6 +48,8 @@ def get_treat_control(treat_ctrl, trans, treat=False):
     if treat_ctrl is not None:
         if not isinstance(treat_ctrl, int):
             assert len(treat_ctrl) == n_treat
+        else:
+            treat_ctrl = [treat_ctrl, ]
 
         treat_ctrl = np.array(list(treat_ctrl))
         treat_ctrl = trans.transform(treat_ctrl.reshape(1, -1))
