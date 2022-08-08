@@ -233,7 +233,8 @@ YLearn 有5个主要的因果推断相关概念，如下所示
 我们为开发者提供多种交流渠道：
 - GitHub [Issues](https://github.com/DataCanvasIO/YLearn/issues) and [Discussions](https://github.com/DataCanvasIO/YLearn/discussions)
 - 邮箱: ylearn@zetyun.com
-- YLearn微信交流群: 扫码入群
+- YLearn [Slack交流空间](https://join.slack.com/t/ylearnworkspace/shared_invite/zt-1dvi5e8cz-yHwN2OTIDX0gWsfPRgB9ZQ)
+- YLearn 微信交流群: 扫码入群
 
    <img src="./fig/wechat_QRcode.png" width="200">
 
