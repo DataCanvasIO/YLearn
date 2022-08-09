@@ -1064,7 +1064,7 @@ class Why:
         return gain
 
     def get_qini(self, test_data, treat=None, control=None, normalize=True):
-        def _get_gain(effect, x, t, c, preprocessed_data):
+        def _get_qini(effect, x, t, c, preprocessed_data):
             df_ = pd.DataFrame({x: effect,
                                 '_x_': preprocessed_data[x],
                                 '_y_': preprocessed_data[self.outcome_],
@@ -1074,7 +1074,7 @@ class Why:
                               random_name='RANDOM' if x == self.treatment_[0] else None)
 
         self._check_x2('get_qini')
-        sa = self._map_effect(_get_gain, test_data, treat=treat, control=control)
+        sa = self._map_effect(_get_qini, test_data, treat=treat, control=control)
         qini = pd.concat(sa, axis=1) if len(sa) > 1 else sa[0]
         return qini
 
@@ -1127,6 +1127,24 @@ class Why:
                 dot_string = dot_string.replace(k, _format(v, line_width=width))
         graph = pydot.graph_from_dot_data(dot_string)[0]
         view_pydot(graph, prog='fdp')
+
+    def plot_cumlift(self, test_data, treat=None, control=None, n_bins=10, **kwargs):
+        cumlift = self.get_cumlift(test_data, treat=treat, control=control, )
+        dfs = []
+
+        for x in cumlift.columns.tolist():
+            if x == 'RANDOM':
+                continue  # ignore it
+            df = cumlift[[x]].copy()
+            df['_k_'] = pd.qcut(df[x], n_bins, labels=np.arange(0, n_bins, 1))
+            df = df.groupby(by='_k_')[x].mean().sort_index(ascending=False)
+            df.index = pd.RangeIndex(0, n_bins)  # np.arange(0, bins, 1)
+            df.name = x
+            dfs.append(df)
+        df_plot = pd.concat(dfs, axis=1) if len(dfs) > 1 else dfs[0]
+
+        options = dict(rot=0, ylabel='cumlift', **kwargs)
+        df_plot.plot.bar(**options)
 
     def plot_gain(self, test_data, treat=None, control=None, n_sample=100, normalize=False, **kwargs):
         gain = self.get_gain(test_data, treat=treat, control=control, normalize=normalize)
