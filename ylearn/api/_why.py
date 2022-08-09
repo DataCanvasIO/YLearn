@@ -1029,7 +1029,7 @@ class Why:
                 t = treat[i] if treat is not None else None
                 c = control[i] if control is not None else None
             effect = est.estimate(data=test_data, treat=t, control=c)
-            result.append(handler(effect, x, t, c, test_data))
+            result.append(handler(effect.ravel(), x, t, c, test_data))
 
         return result
 
