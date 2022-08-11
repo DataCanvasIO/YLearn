@@ -127,6 +127,8 @@ class CEInterpreter:
             ccp_alpha=ccp_alpha
         )
 
+        self._est_model = None
+
     def fit(
         self,
         data,
@@ -149,14 +151,15 @@ class CEInterpreter:
         """
         assert est_model._is_fitted
 
+        self._est_model = est_model
+
         self.covariate = est_model.covariate
         assert self.covariate is not None, 'Need covariate to interpret the causal effect.'
 
         v = convert2array(data, self.covariate)[0]
         n = v.shape[0]
-        if hasattr(est_model, 'covariate_transformer'):
-            self.cov_transformer = est_model.covariate_transformer
-            v = self.cov_transformer.transform(v)
+
+        v = self._transform_data(v)
 
         self._v = v
 
@@ -242,6 +245,20 @@ class CEInterpreter:
         v = v.astype(np.float32)
 
         return v
+
+    def _transform_data(self, data):
+        if hasattr(self._est_model, 'covariate_transformer'):
+            ct = self._est_model.covariate_transformer
+            if ct is not None:
+                return ct.transform(data)
+            else:
+                return data
+        else:
+            return data
+
+    def decide(self, data):
+        data_t = self._transform_data(data)
+        return self._tree_model.predict(data_t)
 
     def plot(
         self, *,
