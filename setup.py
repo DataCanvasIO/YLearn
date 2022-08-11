@@ -67,17 +67,17 @@ h_files = glob(f"{my_name}/**/*.h", recursive=True)
 my_includes = list(set([P.split(P.abspath(h))[0] for h in h_files]))
 build_ext = any(map(lambda s: s == 'build_ext', sys.argv[1:]))
 
+pyx_modules = [P.splitext(f)[0] for f in pyx_files]
+c_modules = [P.splitext(f)[0] for f in c_files]
+
 if build_ext:
-    pyx_modules = [P.splitext(f)[0] for f in pyx_files]
-    c_modules = [P.splitext(f)[0] for f in c_files]
     c_modules = [f for f in c_modules if f not in pyx_modules]
 else:
-    c_modules = [P.splitext(f)[0] for f in c_files]
-    for pf in pyx_files:
-        if P.splitext(pf)[0] not in c_modules:
-            raise FileNotFoundError(f'Not found c file for {pf}, '
-                                    f'run "python setup.py build_ext --inplace" to generate c files.')
-    pyx_modules = []
+    pyx_modules = [f for f in pyx_modules if f not in c_modules]
+    if pyx_modules:
+        msg = f'{len(pyx_modules)} pyx extension(s) without .cpp file found.' \
+              f' run "python setup.py build_ext --inplace" to generate .cpp files please.'
+        print(msg, file=sys.stderr)
 
 print('cmdline:', ' '.join(sys.argv))
 print(f'{my_name}.__version__:' + version)
@@ -142,7 +142,7 @@ setup(
     ],
     packages=find_packages(exclude=('docs', 'tests', 'example_usages')),
     package_data={
-        'ylearn': ['*.txt', '**/**.txt', '**/**.cpp', '**/**.h', ],
+        'ylearn': ['*.txt', '**/**.txt', '**/**.cpp', '**/**.pyx', '**/**.pxd', '**/**.h', ],
     },
     ext_modules=c_modules + pyx_modules,
     include_dirs=[np_include] + my_includes,

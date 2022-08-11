@@ -357,7 +357,7 @@ def general_estimator(X, y=None, estimator=None, task=None, random_state=None, *
     elif isinstance(task, bool):  # discrete or not
         task = const.TASK_MULTICLASS if task else const.TASK_REGRESSION
 
-    if estimator in creators.keys():
+    if isinstance(estimator, str) and estimator in creators.keys():
         estimator_ = creators[estimator](task)
     else:
         estimator_ = copy.deepcopy(estimator)
