@@ -216,25 +216,36 @@ def qini_score(df, outcome='y', treatment='x', true_effect=None, treat=1, contro
     return qini
 
 
-def plot_gain(df, outcome='y', treatment='x', true_effect=None, treat=1, control=0,
-              normalize=True, random_name='RANDOM', n_sample=100, **kwargs):
-    gain = get_gain(df, outcome=outcome, treatment=treatment, true_effect=true_effect,
-                    treat=treat, control=control,
-                    normalize=normalize, random_name=random_name, )
-    if n_sample is not None and n_sample < len(gain):
-        gain = gain.iloc[np.linspace(0, df.index[-1], n_sample, endpoint=True)]
+def plot_cumlift(df_cumlift, n_bins=10, **kwargs):
+    dfs = []
+    for x in df_cumlift.columns.tolist():
+        # if x == 'RANDOM':
+        #     continue  # ignore it
+        df = df_cumlift[[x]].copy()
+        df['_k_'] = pd.qcut(df[x], n_bins, labels=np.arange(0, n_bins, 1))
+        df = df.groupby(by='_k_')[x].mean().sort_index(ascending=False)
+        df.index = pd.RangeIndex(0, n_bins)  # np.arange(0, bins, 1)
+        df.name = x
+        dfs.append(df)
+    df_plot = pd.concat(dfs, axis=1) if len(dfs) > 1 else dfs[0]
 
-    gain.plot(**kwargs)
+    options = dict(rot=0, ylabel='cumlift', **kwargs)
+    df_plot.plot.bar(**options)
 
 
-def plot_qini(df, outcome='y', treatment='x', true_effect=None, treat=1, control=0,
-              normalize=True, n_sample=100, **kwargs):
-    qini = get_qini(df, outcome=outcome, treatment=treatment, true_effect=true_effect,
-                    treat=treat, control=control,
-                    normalize=normalize,
-                    random_name='RANDOM')
+def plot_gain(df_gain, n_sample=100, **kwargs):
+    n = len(df_gain)
+    if n_sample is not None and n_sample < n:
+        df_gain = df_gain.iloc[np.linspace(0, n - 1, n_sample, endpoint=True)]
 
-    if n_sample is not None and n_sample < len(qini):
-        qini = qini.iloc[np.linspace(0, df.index[-1], n_sample, endpoint=True)]
+    options = dict(ylabel='Gain', xlabel='Population', **kwargs)
+    df_gain.plot(**options)
 
-    qini.plot(**kwargs)
+
+def plot_qini(df_qini, n_sample=100, **kwargs):
+    n = len(df_qini)
+    if n_sample is not None and n_sample < n:
+        df_qini = df_qini.iloc[np.linspace(0, n - 1, n_sample, endpoint=True)]
+
+    options = dict(ylabel='Qini', xlabel='Population', **kwargs)
+    df_qini.plot(**options)

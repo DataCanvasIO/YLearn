@@ -1130,37 +1130,17 @@ class Why:
 
     def plot_cumlift(self, test_data, treat=None, control=None, n_bins=10, **kwargs):
         cumlift = self.get_cumlift(test_data, treat=treat, control=control, )
-        dfs = []
 
-        for x in cumlift.columns.tolist():
-            if x == 'RANDOM':
-                continue  # ignore it
-            df = cumlift[[x]].copy()
-            df['_k_'] = pd.qcut(df[x], n_bins, labels=np.arange(0, n_bins, 1))
-            df = df.groupby(by='_k_')[x].mean().sort_index(ascending=False)
-            df.index = pd.RangeIndex(0, n_bins)  # np.arange(0, bins, 1)
-            df.name = x
-            dfs.append(df)
-        df_plot = pd.concat(dfs, axis=1) if len(dfs) > 1 else dfs[0]
-
-        options = dict(rot=0, ylabel='cumlift', **kwargs)
-        df_plot.plot.bar(**options)
+        cols = [c for c in cumlift.columns.tolist() if c != 'RANDOM']
+        M.plot_cumlift(cumlift[cols], n_bins=n_bins, **kwargs)
 
     def plot_gain(self, test_data, treat=None, control=None, n_sample=100, normalize=False, **kwargs):
         gain = self.get_gain(test_data, treat=treat, control=control, normalize=normalize)
-        if n_sample is not None and n_sample < len(gain):
-            gain = gain.iloc[np.linspace(0, gain.index[-1], n_sample, endpoint=True)]
-
-        options = dict(ylabel='Gain', xlabel='Population', **kwargs)
-        gain.plot(**options)
+        M.plot_gain(gain, n_sample=n_sample, **kwargs)
 
     def plot_qini(self, test_data, treat=None, control=None, n_sample=100, normalize=False, **kwargs):
         qini = self.get_qini(test_data, treat=treat, control=control, normalize=normalize)
-        if n_sample is not None and n_sample < len(qini):
-            qini = qini.iloc[np.linspace(0, qini.index[-1], n_sample, endpoint=True)]
-
-        options = dict(ylabel='Qini', xlabel='Population', **kwargs)
-        qini.plot(**options)
+        M.plot_qini(qini, n_sample=n_sample, **kwargs)
 
     def __repr__(self):
         return to_repr(self)
