@@ -1,3 +1,5 @@
+from collections import OrderedDict
+
 import numpy as np
 import pandas as pd
 
@@ -10,11 +12,16 @@ class Cumulator:
         self.random_name = random_name
         self.random_column_number = random_column_number
 
-    def __call__(self, df):
+    def __call__(self, df, return_top_point=False):
         if self.random_name is None:
-            return self.cumulate(df)
+            result, top_point = self.cumulate(df)
         else:
-            return self.cumulate_with_random(df)
+            result, top_point = self.cumulate_with_random(df)
+
+        if return_top_point:
+            return result, top_point
+        else:
+            return result
 
     def cumulate(self, df):
         columns = df.columns.tolist()
@@ -24,6 +31,7 @@ class Cumulator:
 
         n = len(df)
         result = []
+        result_top_point = OrderedDict()
 
         for col in columns:
             df_col = df[[col, ] + self.common_columns].sort_values(col, ascending=False)
@@ -32,21 +40,23 @@ class Cumulator:
 
             assert isinstance(r, (pd.DataFrame, pd.Series))
             result.append(r)
+            idx = r.idxmax(axis=0, skipna=True)
+            result_top_point[col] = df_col[col].loc[idx]
 
         result = pd.concat(result, join='inner', axis=1)
         result.loc[0] = np.zeros((result.shape[1],))
         result = result.sort_index().interpolate()
 
-        return result
+        return result, result_top_point
 
     def cumulate_with_random(self, df):
         assert self.random_name is not None
 
-        result = self.cumulate(df)
-        result_random = self.cumulate(self._generate_random_like(df))
+        result, top_point = self.cumulate(df)
+        result_random, _ = self.cumulate(self._generate_random_like(df))
         result[self.random_name] = result_random.mean(axis=1)
 
-        return result
+        return result, top_point
 
     def _generate_random_like(self, df_base):
         n_sample = len(df_base)
@@ -114,6 +124,20 @@ class LiftCumulatorWithTrueEffect(CumulatorWithTrueEffect):
         return lift
 
 
+class GainCumulatorWithTreatment(LiftCumulatorWithTreatment):
+    def cumulate_column(self, df_col, col_name):
+        lift = super().cumulate_column(df_col, col_name)
+        gain = lift.mul(lift.index.values, axis=0)
+        return gain
+
+
+class GainCumulatorWithTrueEffect(LiftCumulatorWithTrueEffect):
+    def cumulate_column(self, df_col, col_name):
+        lift = super().cumulate_column(df_col, col_name)
+        gain = lift.mul(lift.index.values, axis=0)
+        return gain
+
+
 class QiniCumulatorWithTreatment(CumulatorWithTreatment):
     def cumulate_column(self, df_col, col_name):
         assert set(df_col[self.treatment].unique()) == {self.treat, self.control}
@@ -154,27 +178,33 @@ def get_cumlift(df, outcome='y', treatment='x', true_effect=None, treat=1, contr
             outcome=outcome, treatment=treatment,
             treat=treat, control=control, random_name=random_name)
 
-    lift = cumulator(df)
+    lift = cumulator(df, return_top_point=False)
     return lift
 
 
 def get_gain(df, outcome='y', treatment='x', true_effect=None, treat=1, control=0,
-             normalize=True, random_name='RANDOM'):
-    lift = get_cumlift(df, outcome=outcome, treatment=treatment,
-                       true_effect=true_effect,
-                       treat=treat,
-                       control=control,
-                       random_name=random_name,
-                       )
+             normalize=True, random_name='RANDOM', return_best_point=False):
+    if true_effect is not None:
+        cumulator = GainCumulatorWithTrueEffect(
+            outcome=outcome, treatment=treatment, true_effect=true_effect,
+            treat=treat, control=control, random_name=random_name)
+    else:
+        cumulator = GainCumulatorWithTreatment(
+            outcome=outcome, treatment=treatment,
+            treat=treat, control=control, random_name=random_name)
 
-    gain = lift.mul(lift.index.values, axis=0)
+    gain, best_point = cumulator(df, return_top_point=True)
     if normalize:
         gain = gain.div(np.abs(gain.iloc[-1, :]), axis=1)
-    return gain
+
+    if return_best_point:
+        return gain, best_point
+    else:
+        return gain
 
 
 def get_qini(df, outcome='y', treatment='x', true_effect=None, treat=1, control=0,
-             normalize=True, random_name='RANDOM'):
+             normalize=True, random_name='RANDOM', return_best_point=False):
     if true_effect is not None:
         cumulator = QiniCumulatorWithTrueEffect(
             outcome=outcome, treatment=treatment, true_effect=true_effect,
@@ -184,11 +214,28 @@ def get_qini(df, outcome='y', treatment='x', true_effect=None, treat=1, control=
             outcome=outcome, treatment=treatment,
             treat=treat, control=control, random_name=random_name)
 
-    qini = cumulator(df)
+    qini, best_point = cumulator(df, return_top_point=True)
     if normalize:
         qini = qini.div(np.abs(qini.iloc[-1, :]), axis=1)
 
-    return qini
+    if return_best_point:
+        return qini, best_point
+    else:
+        return qini
+
+
+def gain_best_point(df, outcome='y', treatment='x', true_effect=None, treat=1, control=0):
+    _, best_point = get_gain(df,
+                             outcome=outcome, treatment=treatment, true_effect=true_effect,
+                             treat=treat, control=control, return_best_point=True)
+    return best_point
+
+
+def qini_best_point(df, outcome='y', treatment='x', true_effect=None, treat=1, control=0):
+    _, best_point = get_qini(df,
+                             outcome=outcome, treatment=treatment, true_effect=true_effect,
+                             treat=treat, control=control, return_best_point=True)
+    return best_point
 
 
 def auuc_score(df, outcome='y', treatment='x', true_effect=None, treat=1, control=0,
