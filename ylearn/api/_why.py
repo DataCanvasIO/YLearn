@@ -7,8 +7,8 @@ import numpy as np
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder
 
-from ylearn import metric as M
 from ylearn import sklearn_ex as skex
+from ylearn import uplift as L
 from ylearn.causal_discovery import BaseDiscovery
 from ylearn.causal_model import CausalGraph
 from ylearn.effect_interpreter.policy_interpreter import PolicyInterpreter
@@ -885,9 +885,9 @@ class Why:
                                    y=preprocessed_data[self.outcome_],
                                    ))
             if scorer == 'auuc':
-                s = M.auuc_score(df, outcome='y', treatment='x', treat=treat, control=control, random_name=None)
+                s = L.auuc_score(df, outcome='y', treatment='x', treat=treat, control=control, random_name=None)
             else:
-                s = M.qini_score(df, outcome='y', treatment='x', treat=treat, control=control, random_name=None)
+                s = L.qini_score(df, outcome='y', treatment='x', treat=treat, control=control, random_name=None)
             return s['effect']
 
         sa = self._map_effect(scoring, test_data, treatment=treatment, treat=treat, control=control)
@@ -1113,7 +1113,7 @@ class Why:
                                 '_x_': preprocessed_data[x],
                                 '_y_': preprocessed_data[self.outcome_],
                                 })
-            return M.get_cumlift(df_, outcome='_y_', treatment='_x_',
+            return L.get_cumlift(df_, outcome='_y_', treatment='_x_',
                                  treat=t, control=c,
                                  random_name='RANDOM' if x == treatment else None)
 
@@ -1135,7 +1135,7 @@ class Why:
                                 '_x_': preprocessed_data[x],
                                 '_y_': preprocessed_data[self.outcome_],
                                 })
-            return M.get_gain(df_, outcome='_y_', treatment='_x_',
+            return L.get_gain(df_, outcome='_y_', treatment='_x_',
                               treat=t, control=c, normalize=normalize,
                               random_name='RANDOM' if x == treatment else None)
 
@@ -1157,7 +1157,7 @@ class Why:
                                 '_x_': preprocessed_data[x],
                                 '_y_': preprocessed_data[self.outcome_],
                                 })
-            return M.get_qini(df_, outcome='_y_', treatment='_x_',
+            return L.get_qini(df_, outcome='_y_', treatment='_x_',
                               treat=t, control=c, normalize=normalize,
                               random_name='RANDOM' if x == treatment[0] else None)
 
@@ -1219,15 +1219,15 @@ class Why:
         cumlift = self.get_cumlift(test_data, treat=treat, control=control, )
 
         cols = [c for c in cumlift.columns.tolist() if c != 'RANDOM']
-        M.plot_cumlift(cumlift[cols], n_bins=n_bins, **kwargs)
+        L.plot_cumlift(cumlift[cols], n_bins=n_bins, **kwargs)
 
     def plot_gain(self, test_data, treat=None, control=None, n_sample=100, normalize=False, **kwargs):
         gain = self.get_gain(test_data, treat=treat, control=control, normalize=normalize)
-        M.plot_gain(gain, n_sample=n_sample, **kwargs)
+        L.plot_gain(gain, n_sample=n_sample, **kwargs)
 
     def plot_qini(self, test_data, treat=None, control=None, n_sample=100, normalize=False, **kwargs):
         qini = self.get_qini(test_data, treat=treat, control=control, normalize=normalize)
-        M.plot_qini(qini, n_sample=n_sample, **kwargs)
+        L.plot_qini(qini, n_sample=n_sample, **kwargs)
 
     def __repr__(self):
         return to_repr(self)
