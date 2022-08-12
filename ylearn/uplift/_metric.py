@@ -128,6 +128,7 @@ class GainCumulatorWithTreatment(LiftCumulatorWithTreatment):
     def cumulate_column(self, df_col, col_name):
         lift = super().cumulate_column(df_col, col_name)
         gain = lift.mul(lift.index.values, axis=0)
+        gain.name = col_name
         return gain
 
 
@@ -135,6 +136,7 @@ class GainCumulatorWithTrueEffect(LiftCumulatorWithTrueEffect):
     def cumulate_column(self, df_col, col_name):
         lift = super().cumulate_column(df_col, col_name)
         gain = lift.mul(lift.index.values, axis=0)
+        gain.name = col_name
         return gain
 
 
