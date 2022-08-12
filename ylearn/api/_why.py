@@ -534,7 +534,8 @@ class Why:
         cg = CausalGraph(m)
         return cg
 
-    def causal_effect(self, test_data=None, treat=None, control=None, quantity='ATE', return_detail=False):
+    def causal_effect(self, test_data=None, treatment=None, treat=None, control=None, quantity='ATE',
+                      return_detail=False):
         """
         Estimate the causal effect.
 
@@ -543,6 +544,9 @@ class Why:
         test_data : pd.DataFrame, default None
             The test data to evaluate the causal effect.
             If None, the training data is used.
+        treatment : str or list, optional
+            Treatment names, should be subset of  attribute **treatment_**,
+            default all elements in attribute **treatment_**
         treat : treatment value or list or ndarray or pandas.Series, default None
             In the case of single discrete treatment, treat should be an int or
             str of one of all possible treatment values which indicates the
@@ -579,60 +583,84 @@ class Why:
         control = self._safe_treat_control(control, 'control')
 
         if self.discrete_treatment:
-            return self._causal_effect_discrete(
-                test_data, treat, control, quantity=quantity, return_detail=return_detail)
+            fn = self._causal_effect_discrete
         else:
-            return self._causal_effect_continuous(
-                test_data, treat, control, quantity=quantity, return_detail=return_detail)
+            fn = self._causal_effect_continuous
+        return fn(test_data, treatment=treatment, treat=treat, control=control,
+                  quantity=quantity, return_detail=return_detail)
 
-    def _causal_effect_discrete(self, test_data=None, treat=None, control=None, quantity='ATE', return_detail=False):
-        dfs = []
-        for i, x in enumerate(self.treatment_):
-            est = self.estimators_[x]
-            xe = self.x_encoders_[x]
-            if control is not None:
-                assert control[i] in xe.classes_.tolist(), f'Invalid {x} control "{control[i]}"'
-                control_i = control[i]
-            else:
-                control_i = xe.classes_[0]
+    def _causal_effect_discrete(self, test_data=None, treatment=None, treat=None, control=None, quantity='ATE',
+                                return_detail=False):
+        # dfs = []
+        # for i, x in enumerate(self.treatment_):
+        #     est = self.estimators_[x]
+        #     xe = self.x_encoders_[x]
+        #     if control is not None:
+        #         assert control[i] in xe.classes_.tolist(), f'Invalid {x} control "{control[i]}"'
+        #         control_i = control[i]
+        #     else:
+        #         control_i = xe.classes_[0]
+        #
+        #     if treat is not None:
+        #         assert treat[i] in xe.classes_.tolist(), f'Invalid {x} treat "{treat[i]}"'
+        #         treats = [treat[i], ]
+        #     else:
+        #         if test_data is not None and x in test_data.columns.tolist():
+        #             treats = np.unique(test_data[x]).tolist()
+        #         else:
+        #             treats = xe.classes_.tolist()
+        #         treats = filter(lambda _: _ != control_i, treats)
+        #
+        #     if test_data is not None and x in test_data.columns.tolist():
+        #         test_data[x] = xe.transform(test_data[x])
+        #     c = xe.transform([control_i]).tolist()[0]
+        #     for treat_i in treats:
+        #         t = xe.transform([treat_i]).tolist()[0]
+        #         effect = est.estimate(data=test_data, treat=t, control=c)
+        #         if quantity == 'ATE':
+        #             s = pd.Series(dict(mean=effect.mean(),
+        #                                min=effect.min(),
+        #                                max=effect.max(),
+        #                                std=effect.std(),
+        #                                ))
+        #             if return_detail:
+        #                 s['detail'] = effect.ravel()
+        #         else:
+        #             s = pd.Series(effect.ravel())
+        #         s.name = (x, f'{treat_i} vs {control_i}')
+        #         dfs.append(s)
+        def _to_ate(effect, x, t, c, preprocessed_data):
+            t, c = self.x_encoders_[x].inverse_transform([t, c]).tolist()
+            data = dict(mean=effect.mean(),
+                        min=effect.min(),
+                        max=effect.max(),
+                        std=effect.std(),
+                        )
+            if return_detail:
+                data['detail'] = effect.ravel()
+            return pd.Series(data, name=(x, f'{t} vs {c}'))
 
-            if treat is not None:
-                assert treat[i] in xe.classes_.tolist(), f'Invalid {x} treat "{treat[i]}"'
-                treats = [treat[i], ]
-            else:
-                if test_data is not None and x in test_data.columns.tolist():
-                    treats = np.unique(test_data[x]).tolist()
-                else:
-                    treats = xe.classes_.tolist()
-                treats = filter(lambda _: _ != control_i, treats)
+        def _to_ite(effect, x, t, c, preprocessed_data):
+            t, c = self.x_encoders_[x].inverse_transform([t, c]).tolist()
+            return pd.Series(effect.ravel(), name=(x, f'{t} vs {c}'))
 
-            if test_data is not None and x in test_data.columns.tolist():
-                test_data[x] = xe.transform(test_data[x])
-            c = xe.transform([control_i]).tolist()[0]
-            for treat_i in treats:
-                t = xe.transform([treat_i]).tolist()[0]
-                effect = est.estimate(data=test_data, treat=t, control=c)
-                if quantity == 'ATE':
-                    s = pd.Series(dict(mean=effect.mean(),
-                                       min=effect.min(),
-                                       max=effect.max(),
-                                       std=effect.std(),
-                                       ))
-                    if return_detail:
-                        s['detail'] = effect.ravel()
-                else:
-                    s = pd.Series(effect.ravel())
-                s.name = (x, f'{treat_i} vs {control_i}')
-                dfs.append(s)
+        if quantity == 'ATE':
+            dfs = self._map_effect(_to_ate, test_data, treatment=treatment, treat=treat, control=control)
+        else:
+            dfs = self._map_effect(_to_ite, test_data, treatment=treatment, treat=treat, control=control)
 
         result = pd.concat(dfs, axis=1)
         if quantity == 'ATE':
             result = result.T
         return result
 
-    def _causal_effect_continuous(self, test_data=None, treat=None, control=None, quantity='ATE', return_detail=False):
+    def _causal_effect_continuous(self, test_data=None, treatment=None, treat=None, control=None,
+                                  quantity='ATE', return_detail=False):
+        if treatment is None:
+            treatment = self.treatment_
+
         dfs = []
-        for i, x in enumerate(self.treatment_):
+        for i, x in enumerate(treatment):
             est = self.estimators_[x]
             treat_i = treat[i] if treat is not None else None
             control_i = control[i] if control is not None else None
@@ -842,7 +870,15 @@ class Why:
         else:
             return self._score_rloss(test_data, treat=treat, control=control)
 
-    def _score_auuc_qini(self, test_data, treat=None, control=None, scorer='auuc'):
+    def _score_auuc_qini(self, test_data, treatment=None, treat=None, control=None, scorer='auuc'):
+        treatment = _to_list(treatment, 'treatment') if treatment is not None else self.treatment_
+        self._check_test_data('_score_auuc_qini', test_data,
+                              treatment=treatment,
+                              allow_data_none=False,
+                              check_discrete_treatment=True,
+                              check_treatment=True,
+                              check_outcome=True)
+
         def scoring(effect, x, treat, control, preprocessed_data):
             df = pd.DataFrame(dict(effect=effect,
                                    x=preprocessed_data[x],
@@ -854,8 +890,7 @@ class Why:
                 s = M.qini_score(df, outcome='y', treatment='x', treat=treat, control=control, random_name=None)
             return s['effect']
 
-        self._check_x2(scorer)
-        sa = self._map_effect(scoring, test_data, treat=treat, control=control)
+        sa = self._map_effect(scoring, test_data, treatment=treatment, treat=treat, control=control)
         score = np.mean(sa)
         return score
 
@@ -994,20 +1029,51 @@ class Why:
         pi.fit(test_data, covariate=self.covariate_, est_model=None, effect_array=effect_array)
         return pi
 
-    def _check_x2(self, reason):
-        e_msg = f'Only binary treatment is support for {reason}'
+    def _check_test_data(self, reason, test_data,
+                         treatment=None,
+                         allow_data_none=True,
+                         check_covariate=True,
+                         check_instrument=False,
+                         check_treatment=False,
+                         check_outcome=False,
+                         check_discrete_treatment=False,
+                         ):
 
-        assert self.discrete_treatment, e_msg
-        for _, xe in self.x_encoders_.items():
-            assert len(xe.classes_) == 2, e_msg
+        if check_discrete_treatment:
+            assert self.discrete_treatment, f'[{reason}] Only discrete treatment is supported.'
 
-    def _map_effect(self, handler, test_data, treat=None, control=None):
+        if test_data is None:
+            assert allow_data_none, f'[{reason}] test_data is required.'
+            return
+
+        columns = test_data.columns.tolist()
+
+        if check_covariate:
+            notfound = [c for c in self.covariate_ if c not in columns]
+            assert len(notfound) == 0, f'[{reason}] Not found covariate: {notfound} in test_data.'
+
+        if check_instrument:
+            notfound = [c for c in self.instrument_ if c not in columns]
+            assert len(notfound) == 0, f'[{reason}] Not found instrument: {notfound} in test_data.'
+
+        if check_treatment:
+            if treatment is None:
+                treatment = self.treatment_
+            notfound = [c for c in treatment if c not in columns]
+            assert len(notfound) == 0, f'[{reason}] Not found treatment: {notfound} in test_data.'
+
+        if check_outcome:
+            assert self.outcome_ in columns, \
+                f'[{reason}] Not found outcome {self.outcome_} in test_data.'
+
+    def _map_effect(self, handler, test_data, treatment=None, treat=None, control=None):
         test_data = self._preprocess(test_data, encode_outcome=True, encode_treatment=True)
         treat = self._safe_treat_control(treat, 'treat')
         control = self._safe_treat_control(control, 'control')
         result = []
 
-        for i, x in enumerate(self.treatment_):
+        treatment = _to_list(treatment, 'treatment') if treatment is not None else self.treatment_
+        for i, x in enumerate(treatment):
             est = self.estimators_[x]
             if self.x_encoders_ is not None:
                 xe = self.x_encoders_[x]
@@ -1033,7 +1099,15 @@ class Why:
 
         return result
 
-    def get_cumlift(self, test_data, treat=None, control=None, ):
+    def get_cumlift(self, test_data, treatment=None, treat=None, control=None, ):
+        treatment = _to_list(treatment, 'treatment') if treatment is not None else self.treatment_
+        self._check_test_data('get_cumlift', test_data,
+                              treatment=treatment,
+                              allow_data_none=False,
+                              check_discrete_treatment=True,
+                              check_treatment=True,
+                              check_outcome=True)
+
         def _get_cumlift(effect, x, t, c, preprocessed_data):
             df_ = pd.DataFrame({x: effect,
                                 '_x_': preprocessed_data[x],
@@ -1041,14 +1115,21 @@ class Why:
                                 })
             return M.get_cumlift(df_, outcome='_y_', treatment='_x_',
                                  treat=t, control=c,
-                                 random_name='RANDOM' if x == self.treatment_[0] else None)
+                                 random_name='RANDOM' if x == treatment else None)
 
-        self._check_x2('get_gain')
-        sa = self._map_effect(_get_cumlift, test_data, treat=treat, control=control)
+        sa = self._map_effect(_get_cumlift, test_data, treatment=treatment, treat=treat, control=control)
         gain = pd.concat(sa, axis=1) if len(sa) > 1 else sa[0]
         return gain
 
-    def get_gain(self, test_data, treat=None, control=None, normalize=True):
+    def get_gain(self, test_data, treatment=None, treat=None, control=None, normalize=True):
+        treatment = _to_list(treatment, 'treatment') if treatment is not None else self.treatment_
+        self._check_test_data('get_gain', test_data,
+                              treatment=treatment,
+                              allow_data_none=False,
+                              check_discrete_treatment=True,
+                              check_treatment=True,
+                              check_outcome=True)
+
         def _get_gain(effect, x, t, c, preprocessed_data):
             df_ = pd.DataFrame({x: effect,
                                 '_x_': preprocessed_data[x],
@@ -1056,14 +1137,21 @@ class Why:
                                 })
             return M.get_gain(df_, outcome='_y_', treatment='_x_',
                               treat=t, control=c, normalize=normalize,
-                              random_name='RANDOM' if x == self.treatment_[0] else None)
+                              random_name='RANDOM' if x == treatment else None)
 
-        self._check_x2('get_gain')
-        sa = self._map_effect(_get_gain, test_data, treat=treat, control=control)
+        sa = self._map_effect(_get_gain, test_data, treatment=treatment, treat=treat, control=control)
         gain = pd.concat(sa, axis=1) if len(sa) > 1 else sa[0]
         return gain
 
-    def get_qini(self, test_data, treat=None, control=None, normalize=True):
+    def get_qini(self, test_data, treatment=None, treat=None, control=None, normalize=True):
+        treatment = _to_list(treatment, 'treatment') if treatment is not None else self.treatment_
+        self._check_test_data('get_qini', test_data,
+                              treatment=treatment,
+                              allow_data_none=False,
+                              check_discrete_treatment=True,
+                              check_treatment=True,
+                              check_outcome=True)
+
         def _get_qini(effect, x, t, c, preprocessed_data):
             df_ = pd.DataFrame({x: effect,
                                 '_x_': preprocessed_data[x],
@@ -1071,10 +1159,9 @@ class Why:
                                 })
             return M.get_qini(df_, outcome='_y_', treatment='_x_',
                               treat=t, control=c, normalize=normalize,
-                              random_name='RANDOM' if x == self.treatment_[0] else None)
+                              random_name='RANDOM' if x == treatment[0] else None)
 
-        self._check_x2('get_qini')
-        sa = self._map_effect(_get_qini, test_data, treat=treat, control=control)
+        sa = self._map_effect(_get_qini, test_data, treatment=treatment, treat=treat, control=control)
         qini = pd.concat(sa, axis=1) if len(sa) > 1 else sa[0]
         return qini
 
