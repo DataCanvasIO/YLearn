@@ -202,3 +202,15 @@ def test_customized_estimator():
     why.fit(data, outcome[0], treatment=treatment, adjustment=adjustment, covariate=covariate)
 
     _validate_it(why, test_data)
+
+
+def test_fn_cost():
+    def _cost(row):
+        eff = row['effect'] * 1.1
+        return eff
+
+    data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x2b_y1()
+    why = Why(fn_cost=_cost)
+    why.fit(data, outcome[0], treatment=treatment, adjustment=adjustment, covariate=covariate)
+
+    _validate_it(why, test_data)

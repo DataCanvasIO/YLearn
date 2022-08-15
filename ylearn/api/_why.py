@@ -16,6 +16,7 @@ from ylearn.estimator_model import ESTIMATOR_FACTORIES, BaseEstModel
 from ylearn.utils import logging, view_pydot, to_repr, drop_none, set_random_state
 from ._identifier import Identifier, DefaultIdentifier
 from ._identifier import IdentifierWithNotears, IdentifierWithLearner, IdentifierWithDiscovery
+from .utils import _cost_effect
 from .utils import _format, _task_tag, _empty, _is_discrete, _join_list, _to_list, _safe_remove
 
 logger = logging.get_logger(__name__)
@@ -110,6 +111,11 @@ class Why:
         Name of a valid EstimatorModel. One can also pass an instance of a valid estimator model
     estimator_options : dict, default=None
         Parameters (key-values) to initialize the estimator model.
+    fn_cost : callable, default None
+        Cost function,  used to readjust the causal effect based on cost.
+    effect_name: str, default 'effect'
+        The column name in the argument DataFrame passed to fn_cost.
+        Effective when fn_cost is not None.
     random_state : int, default=None
         Random state seed
 
@@ -142,6 +148,8 @@ class Why:
                  discovery_options=None,
                  estimator='auto',
                  estimator_options=None,
+                 fn_cost=None,
+                 effect_name='effect',
                  random_state=None):
         assert isinstance(estimator, (str, BaseEstModel))
         if isinstance(estimator, str):
@@ -155,6 +163,8 @@ class Why:
         self.discovery_options = discovery_options
         self.estimator = estimator
         self.estimator_options = estimator_options
+        self.fn_cost = fn_cost
+        self.effect_name = effect_name
         self.random_state = random_state
 
         # fitted
@@ -534,8 +544,8 @@ class Why:
         cg = CausalGraph(m)
         return cg
 
-    def causal_effect(self, test_data=None, treatment=None, treat=None, control=None, quantity='ATE',
-                      return_detail=False):
+    def causal_effect(self, test_data=None, treatment=None, treat=None, control=None,
+                      quantity='ATE', return_detail=False, ):
         """
         Estimate the causal effect.
 
@@ -564,6 +574,7 @@ class Why:
             'ATE' or 'ITE', default 'ATE'.
         return_detail: bool, default False
             If True, return effect details in result when quantity=='ATE'.
+            Effective when quantity='ATE' only.
 
         Returns
         -------
@@ -578,19 +589,19 @@ class Why:
             in the case of continuous treatment, the result DataFrame indices are treatment names.
 
         """
-        test_data = self._preprocess(test_data)
-        treat = self._safe_treat_control(treat, 'treat')
-        control = self._safe_treat_control(control, 'control')
+        assert test_data is None or isinstance(test_data, pd.DataFrame)
 
         if self.discrete_treatment:
             fn = self._causal_effect_discrete
         else:
             fn = self._causal_effect_continuous
-        return fn(test_data, treatment=treatment, treat=treat, control=control,
-                  quantity=quantity, return_detail=return_detail)
 
-    def _causal_effect_discrete(self, test_data=None, treatment=None, treat=None, control=None, quantity='ATE',
-                                return_detail=False):
+        options = dict(treatment=treatment, treat=treat, control=control,
+                       quantity=quantity, return_detail=return_detail)
+        return fn(test_data, **options)
+
+    def _causal_effect_discrete(self, test_data=None, treatment=None, treat=None, control=None,
+                                quantity='ATE', return_detail=False):
         # dfs = []
         # for i, x in enumerate(self.treatment_):
         #     est = self.estimators_[x]
@@ -644,10 +655,12 @@ class Why:
             t, c = self.x_encoders_[x].inverse_transform([t, c]).tolist()
             return pd.Series(effect.ravel(), name=(x, f'{t} vs {c}'))
 
+        options = dict(treatment=treatment, treat=treat, control=control)
+
         if quantity == 'ATE':
-            dfs = self._map_effect(_to_ate, test_data, treatment=treatment, treat=treat, control=control)
+            dfs = self._map_effect(_to_ate, test_data, **options)
         else:
-            dfs = self._map_effect(_to_ite, test_data, treatment=treatment, treat=treat, control=control)
+            dfs = self._map_effect(_to_ite, test_data, **options)
 
         result = pd.concat(dfs, axis=1)
         if quantity == 'ATE':
@@ -655,7 +668,11 @@ class Why:
         return result
 
     def _causal_effect_continuous(self, test_data=None, treatment=None, treat=None, control=None,
-                                  quantity='ATE', return_detail=False):
+                                  quantity='ATE', return_detail=False, ):
+        test_data_preprocessed = self._preprocess(test_data)
+        treat = self._safe_treat_control(treat, 'treat')
+        control = self._safe_treat_control(control, 'control')
+
         if treatment is None:
             treatment = self.treatment_
 
@@ -672,7 +689,9 @@ class Why:
                 control_i = np.zeros_like(treat_i)
             elif treat_i is None and control_i is not None:
                 treat_i = np.ones_like(control_i)
-            effect = est.estimate(data=test_data, treat=treat_i, control=control_i)
+            effect = est.estimate(data=test_data_preprocessed, treat=treat_i, control=control_i)
+            if self.fn_cost is not None:
+                effect = _cost_effect(self.fn_cost, test_data, effect, self.effect_name)
             if quantity == 'ATE':
                 s = pd.Series(dict(mean=effect.mean(),
                                    min=effect.min(),
@@ -721,9 +740,7 @@ class Why:
             (individual index in test_data, treatment name).
         """
         assert test_data is not None
-
-        test_data = self._preprocess(test_data)
-        control = self._safe_treat_control(control, 'control')
+        assert all(t in test_data.columns.tolist() for t in self.treatment_)
 
         if self.discrete_treatment:
             return self._individual_causal_effect_discrete(test_data, control)
@@ -731,12 +748,15 @@ class Why:
             return self._individual_causal_effect_continuous(test_data, control)
 
     def _individual_causal_effect_discrete(self, test_data, control=None):
+        test_data_preprocessed = self._preprocess(test_data)
+        control = self._safe_treat_control(control, 'control')
+
         if control is None:
             control = [self.x_encoders_[x].classes_.tolist()[0] for x in self.treatment_]
 
         dfs = []
-        for ri in test_data.index:
-            row_df = test_data.loc[ri:ri]
+        for ri in test_data_preprocessed.index:
+            row_df = test_data_preprocessed.loc[ri:ri]
             for xi, x in enumerate(self.treatment_):
                 treat_i = row_df[x].tolist()[0]
                 control_i = control[xi]
@@ -755,12 +775,15 @@ class Why:
         return pd.concat(dfs, axis=1).T
 
     def _individual_causal_effect_continuous(self, test_data, control=None):
+        test_data_preprocessed = self._preprocess(test_data)
+        control = self._safe_treat_control(control, 'control')
+
         dfs = []
         for i, x in enumerate(self.treatment_):
             est = self.estimators_[x]
-            treat_i = test_data[x]
+            treat_i = test_data_preprocessed[x]
             control_i = control[i] if control is not None else None
-            effect = est.estimate(data=test_data, treat=treat_i, control=control_i)
+            effect = est.estimate(data=test_data_preprocessed, treat=treat_i, control=control_i)
             s = pd.Series(effect.ravel(), name=x)
             dfs.append(s)
         return pd.concat(dfs, axis=1)
@@ -777,8 +800,8 @@ class Why:
             It should have the same length with test_data.
         treatment : str, default None
             Treatment name.
-            If str, it should be on of the fitted attribute **treatment_**.
-            If None, then first element in the attribute **treatment_** is used.
+            If str, it should be one of the fitted attribute **treatment_**.
+            If None, the first element in the attribute **treatment_** is used.
         Returns
         -------
         pd.Series
@@ -791,14 +814,15 @@ class Why:
         if treatment is None:
             treatment = self.treatment_[0]
 
-        data_t = self._preprocess(test_data)
         estimator = self.estimators_[treatment]
         if estimator.is_discrete_treatment:
-            return self._whatif_discrete(data_t, new_value, treatment, estimator)
+            return self._whatif_discrete(test_data, new_value, treatment, estimator)
         else:
-            return self._whatif_continuous(data_t, new_value, treatment, estimator)
+            return self._whatif_continuous(test_data, new_value, treatment, estimator)
 
-    def _whatif_discrete(self, data, new_value, treatment, estimator):
+    def _whatif_discrete(self, test_data, new_value, treatment, estimator):
+        data = self._preprocess(test_data)
+
         y_old = data[self.outcome_]
         old_value = data[treatment]
         xe = self.x_encoders_[treatment]
@@ -818,6 +842,8 @@ class Why:
                 data_rows = data.loc[tc_rows.index]
                 t_encoded, c_encoded = xe.transform([t, c]).tolist()
                 eff = estimator.estimate(data_rows, treat=t_encoded, control=c_encoded)
+            if self.fn_cost is not None:
+                eff = _cost_effect(self.fn_cost, test_data, eff, self.effect_name)
             effect.append(pd.DataFrame(dict(e=eff.ravel()), index=tc_rows.index))
         effect = pd.concat(effect, axis=0)
         assert len(effect) == len(df)
@@ -826,12 +852,16 @@ class Why:
         y_new = y_old + df['e']
         return y_new
 
-    def _whatif_continuous(self, data, new_value, treatment, estimator):
+    def _whatif_continuous(self, test_data, new_value, treatment, estimator):
+        data = self._preprocess(test_data)
+
         y_old = data[self.outcome_]
         old_value = data[treatment].values
         if isinstance(new_value, pd.Series):
             new_value = new_value.values
         effect = estimator.estimate(data, treat=new_value, control=old_value)
+        if self.fn_cost is not None:
+            effect = _cost_effect(self.fn_cost, test_data, effect, self.effect_name)
         y_new = y_old + effect.ravel()
         return y_new
 
@@ -1067,7 +1097,7 @@ class Why:
                 f'[{reason}] Not found outcome {self.outcome_} in test_data.'
 
     def _map_effect(self, handler, test_data, treatment=None, treat=None, control=None):
-        test_data = self._preprocess(test_data, encode_outcome=True, encode_treatment=True)
+        test_data_preprocessed = self._preprocess(test_data, encode_outcome=True, encode_treatment=True)
         treat = self._safe_treat_control(treat, 'treat')
         control = self._safe_treat_control(control, 'control')
         result = []
@@ -1094,12 +1124,33 @@ class Why:
             else:
                 t = treat[i] if treat is not None else None
                 c = control[i] if control is not None else None
-            effect = est.estimate(data=test_data, treat=t, control=c)
-            result.append(handler(effect.ravel(), x, t, c, test_data))
+            effect = est.estimate(data=test_data_preprocessed, treat=t, control=c)
+            if self.fn_cost is not None:
+                effect = _cost_effect(self.fn_cost, test_data, effect, self.effect_name)
+            result.append(handler(effect.ravel(), x, t, c, test_data_preprocessed))
 
         return result
 
     def get_cumlift(self, test_data, treatment=None, treat=None, control=None, ):
+        """
+        Get cumulative uplifts over one treatment.
+
+        Parameters
+        ----------
+        test_data : pd.DataFrame, required
+            The test data columns should contain all covariate, treatment and outcome.
+        treatment : str, default None
+            Treatment name.
+            If str, it should be one of the fitted attribute **treatment_**.
+            If None, the first element in the attribute **treatment_** is used.
+        treat : treatment value, default None
+            If None, the last element in the treatment encoder's attribute **classes_** is used.
+        control : treatment value, default None
+            If None, the first element in the treatment encoder's attribute **classes_** is used.
+        -------
+        pd.Series
+            The counterfactual prediction
+        """
         treatment = _to_list(treatment, 'treatment') if treatment is not None else self.treatment_
         self._check_test_data('get_cumlift', test_data,
                               treatment=treatment,

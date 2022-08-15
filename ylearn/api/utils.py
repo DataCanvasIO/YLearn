@@ -121,3 +121,28 @@ def _select_by_task(data, columns, count_limit, discrete):
 
     return selected
 
+
+def _cost_effect(fn_cost, test_data, effect, effect_name):
+    assert test_data is None or isinstance(test_data, pd.DataFrame)
+
+    if isinstance(effect, np.ndarray):
+        if effect.ndim > 1:
+            effect = effect.ravel()
+    elif isinstance(effect, pd.Series):
+        effect = effect.values
+    elif isinstance(effect, pd.DataFrame):
+        assert effect.shape[1] == 1
+        effect = effect.values.ravel()
+
+    if test_data is None:
+        df = pd.DataFrame({effect_name: effect})
+    else:
+        assert len(test_data) == len(effect)
+        df = test_data.copy()
+        df[effect_name] = effect
+
+    r = df.apply(fn_cost, axis=1)
+    if isinstance(r, (pd.Series, pd.DataFrame)):
+        r = r.values
+
+    return r
