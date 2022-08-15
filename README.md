@@ -208,7 +208,7 @@ We present several necessary example usages of YLearn in this section, which cov
 
 5. **Using the all-in-one API: Why**
 
-    For the purpose of *applying YLearn in a unified and eaiser manner*, YLearn provides the API `Why`. `Why` is an API which encapsulates almost everything in YLearn, such as identifying causal effects and scoring a trained estimator model. To use `Why`, one should first create an instance of `Why` which needs to be trained by calling its method `fit()`, after which other utilities, such as `causal_effect()`, `score()`, and `whatif()`, can be used. This procedure is illustrated in the following code example:
+    For the purpose of *applying YLearn in a unified and easier manner*, YLearn provides the API `Why`. `Why` is an API which encapsulates almost everything in YLearn, such as identifying causal effects and scoring a trained estimator model. To use `Why`, one should first create an instance of `Why` which needs to be trained by calling its method `fit()`, after which other utilities, such as `causal_effect()`, `score()`, and `whatif()`, can be used. This procedure is illustrated in the following code example:
 
     ```python
         from sklearn.datasets import fetch_california_housing
