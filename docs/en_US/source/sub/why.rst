@@ -286,8 +286,8 @@ Class Structures
         :param pandas.DataFrame, required test_data: The test data to predict.
         :param ndarray or pd.Series, required new_value: It should have the same length with test_data.
         :param str, default None treatment: Treatment name.
-            If str, it should be on of the fitted attribute **treatment_**.
-            If None, then first element in the attribute **treatment_** is used.
+            If str, it should be one of the fitted attribute **treatment_**.
+            If None, the first element in the attribute **treatment_** is used.
 
         :returns: The counterfactual prediction
         :rtype: pandas.Series
