@@ -4,7 +4,7 @@ import pytest
 
 from ylearn import Why
 from . import _dgp
-from ._common import if_torch_ready, if_policy_tree_ready
+from ._common import if_torch_ready, if_policy_tree_ready, is_policy_tree_ready
 
 
 def _validate_it(why, test_data, check_score=True):
@@ -215,5 +215,6 @@ def test_fn_cost():
 
     _validate_it(why, test_data)
 
-    pi = why.policy_interpreter(test_data)
-    assert pi is not None
+    if is_policy_tree_ready:
+        pi = why.policy_interpreter(test_data)
+        assert pi is not None
