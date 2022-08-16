@@ -452,7 +452,7 @@ class DML4CATE(BaseEstModel):
                 discrete_treat=dis_tr,
             )
 
-        if not isinstance(treat, np.ndarray) or dis_tr:
+        if not isinstance(control, np.ndarray) or dis_tr:
             control = get_tr_ctrl(
                 control,
                 self.comp_transormer,
@@ -522,12 +522,21 @@ class DML4CATE(BaseEstModel):
 
         return x
 
-    def effect_nji(self, data=None, control=0):
+    def effect_nji(self, data=None, control=None):
         y_nji = self._prepare4est(data=data)
         n, x_d = y_nji.shape[0], y_nji.shape[2]
 
         if self.is_discrete_treatment:
-            temp_y = y_nji[:, :, 0].reshape(n, -1, 1)
+            if hasattr(self, "control") and control is None:
+                control = self.control
+            control = get_tr_ctrl(
+                control,
+                self.comp_transormer,
+                treat=False,
+                one_hot=False,
+                discrete_treat=self.is_discrete_treatment,
+            )
+            temp_y = y_nji[:, :, control].reshape(n, -1, 1)
             temp_y = np.repeat(temp_y, x_d, axis=2)
             y_nji = y_nji - temp_y
 
