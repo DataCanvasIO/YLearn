@@ -214,3 +214,6 @@ def test_fn_cost():
     why.fit(data, outcome[0], treatment=treatment, adjustment=adjustment, covariate=covariate)
 
     _validate_it(why, test_data)
+
+    pi = why.policy_interpreter(test_data)
+    assert pi is not None

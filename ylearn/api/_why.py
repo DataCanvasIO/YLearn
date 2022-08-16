@@ -16,7 +16,7 @@ from ylearn.estimator_model import ESTIMATOR_FACTORIES, BaseEstModel
 from ylearn.utils import logging, view_pydot, to_repr, drop_none, set_random_state
 from ._identifier import Identifier, DefaultIdentifier
 from ._identifier import IdentifierWithNotears, IdentifierWithLearner, IdentifierWithDiscovery
-from .utils import _cost_effect
+from .utils import _cost_effect, _cost_effect_array
 from .utils import _format, _task_tag, _empty, _is_discrete, _join_list, _to_list, _safe_remove
 
 logger = logging.get_logger(__name__)
@@ -950,7 +950,10 @@ class Why:
 
         return score
 
-    def _effect_array(self, preprocessed_data, treatment, control=None):
+    def _effect_array(self, test_data, treatment, control=None):
+        preprocessed_data = self._preprocess(test_data, encode_treatment=True)
+        control = self._safe_treat_control(control, 'control')
+
         if treatment is None:
             treatment = self.treatment_[:2]
         else:
@@ -959,16 +962,14 @@ class Why:
         if len(treatment) > 2:
             raise ValueError(f'2 treatment are supported at most.')
 
-        if self.discrete_treatment:
-            for x in self.treatment_:
-                preprocessed_data[x] = self.x_encoders_[x].transform(preprocessed_data[x])
-
         if self.discrete_treatment and len(treatment) > 1:
             estimator = self.estimators_[tuple(treatment)]
             if control is not None:
                 control = [self.x_encoders_[x].transform([control[i]]).tolist()[0] for i, x in enumerate(treatment)]
             effect = estimator.effect_nji(preprocessed_data, **drop_none(control=control))
-            effect_array = effect.reshape(-1, effect.shape[2])
+            assert isinstance(effect, np.ndarray)
+            assert effect.ndim == 3 and effect.shape[1] == 1
+            effect_array = effect.squeeze(axis=1)
         else:
             effects = []
             for i, x in enumerate(treatment):
@@ -981,8 +982,12 @@ class Why:
                 effect = estimator.effect_nji(preprocessed_data, **drop_none(control=ci))
                 assert isinstance(effect, np.ndarray)
                 assert effect.ndim == 3 and effect.shape[1] == 1
-                effects.append(effect.reshape(-1, effect.shape[2]))
+                effects.append(effect.squeeze(axis=1))
             effect_array = np.hstack(effects)
+
+        if self.fn_cost is not None:
+            effect_array = _cost_effect_array(self.fn_cost, test_data, effect_array, self.effect_name)
+
         return effect_array
 
     def policy_tree(self, test_data, treatment=None, control=None, **kwargs):
@@ -1016,8 +1021,6 @@ class Why:
         """
         from ylearn.policy.policy_model import PolicyTree
 
-        test_data = self._preprocess(test_data)
-        control = self._safe_treat_control(control, 'control')
         effect_array = self._effect_array(test_data, treatment, control=control)
         ptree = PolicyTree(**kwargs)
         ptree.fit(test_data, covariate=self.covariate_, effect_array=effect_array)
@@ -1052,8 +1055,6 @@ class Why:
         PolicyInterpreter :
             The fitted PolicyInterpreter object
         """
-        test_data = self._preprocess(test_data)
-        control = self._safe_treat_control(control, 'control')
         effect_array = self._effect_array(test_data, treatment, control=control)
         pi = PolicyInterpreter(**kwargs)
         pi.fit(test_data, covariate=self.covariate_, est_model=None, effect_array=effect_array)

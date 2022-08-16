@@ -146,3 +146,10 @@ def _cost_effect(fn_cost, test_data, effect, effect_name):
         r = r.values
 
     return r
+
+
+def _cost_effect_array(fn_cost, test_data, effect_array, effect_name):
+    effects = [_cost_effect(fn_cost, test_data, effect_array[:, i], effect_name).reshape((-1, 1))
+               for i in range(effect_array.shape[1])]
+    result = np.hstack(effects)
+    return result
