@@ -1,27 +1,28 @@
 ********
-No-Tears
+No-Tears 算法
 ********
 
-The problem of revealing the structures of directed acyclic graphs (DAGs) can be solved by formulating
-a continuous optimization problem over real matrices with the constraint enforcing the acyclicity condition [Zheng2018]_.
-Specifically, for a given vector :math:`x \in \mathbb{R}^d` such that there exists a matrix :math:`V` which satisifies :math:`x = Vx + \eta` for some noise vector :math:`\eta \in \mathbb{R}^d`, the optimization problem can be summarized as follows:
+No-Tears 揭示了有向无环图 (DAG) 结构的问题可以通过在具有强制执行无环条件的约束的实矩阵上制定连续优化问题来解决 [Zheng2018]_.
+具体地说，对于给定的向量 :math:`x \in \mathbb{R}^d` ，存在一个矩阵 :math:`V` ，满足某个噪声向量 :math:`x = Vx + \eta` ，使 :math:`\eta \in \mathbb{R}^d`的优化问题可以描述如下:
 
 .. math::
 
     \min_{W \in \mathbb{R}^{d\times d}} & F(W) \\
     s.t. \quad & h(W) = 0,
 
-where :math:`F(W)` is a continuous function measuring :math:`\|x - Wx\|` and 
+其中， :math:`F(W)` 是一个衡量 :math:`\|x - Wx\|`  的连续方程；
+
+此外，
 
 .. math::
 
     h(W) = tr\left( e^{W \circ W} \right)
 
-where :math:`\circ` is the Hadamard product. This optimization can then be solved with some optimization technique, such as gradient desscent.
+其中 :math:`\circ` 是阿达玛乘积（Hadamard product）。整个公式可以通过一些优化技术来解决，比如梯度下降。
 
-The YLearn class for the NO-TEARS algorithm is :class:`CausalDiscovery`.
+NO-TEARS 算法的类是 :class:`CausalDiscovery`.
 
-.. topic:: Example
+.. topic:: 举例
 
     .. code-block:: python
 
