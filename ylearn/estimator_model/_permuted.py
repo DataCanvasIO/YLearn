@@ -163,6 +163,15 @@ class PermutedLearner(BaseEstModel):
         return self
 
     def estimate(self, data=None, treat=None, control=None, **kwargs):
+        treatment = self.treatment
+        if isinstance(treatment, str):
+            treatment = [treatment]
+        if len(treatment) == 1:
+            if isinstance(control, (tuple, list)):
+                control = control[0]
+            if isinstance(treat, (tuple, list)):
+                treat = treat[0]
+
         learner, sign = self._get_learner(treat, control)
         effect = learner.estimate(data, **kwargs)
         if sign < 0:
