@@ -1,8 +1,10 @@
+import sys
+from itertools import product
+
 import pandas as pd
 import numpy as np
 np.random.seed(0)
 
-from itertools import product
 from sklearn.ensemble import RandomForestRegressor,RandomForestClassifier
 from sklearn.preprocessing import PolynomialFeatures
 
@@ -12,7 +14,10 @@ from ylearn.effect_interpreter.ce_interpreter import CEInterpreter
 
 import pytest
 
+need_at_least_py37 = pytest.mark.skipif(sys.version_info[1] <= 6, reason="skip if <=python3.6")
 
+
+@need_at_least_py37
 class TestPolicyModel:
 
     def setup_class(cls):
