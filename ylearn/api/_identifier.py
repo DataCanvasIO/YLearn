@@ -9,7 +9,7 @@ from ylearn import sklearn_ex as skex
 from ylearn.causal_discovery import BaseDiscovery
 from ylearn.causal_model import CausalModel, CausalGraph
 from ylearn.utils import logging
-from .utils import _align_task_to_first, _select_by_task, _empty, _not_empty, _is_number
+from .utils import align_task_to_first, select_by_task, is_empty, non_empty, is_number
 
 logger = logging.get_logger(__name__)
 
@@ -36,9 +36,9 @@ class DefaultIdentifier(Identifier):
         selected = tf.selected_features_
 
         if discrete_treatment is None:
-            treatment = _align_task_to_first(data, selected, count_limit)
+            treatment = align_task_to_first(data, selected, count_limit)
         else:
-            treatment = _select_by_task(data, selected, count_limit, discrete_treatment)
+            treatment = select_by_task(data, selected, count_limit, discrete_treatment)
 
         return treatment
 
@@ -63,7 +63,7 @@ class IdentifierWithDiscovery(DefaultIdentifier):
         X = data.copy()
         y = X.pop(outcome)
 
-        if not _is_number(y.dtype):
+        if not is_number(y.dtype):
             y = LabelEncoder().fit_transform(y)
 
         # preprocessor = skex.general_preprocessor(number_scaler=True)
@@ -89,9 +89,9 @@ class IdentifierWithDiscovery(DefaultIdentifier):
 
         if len(treatment) > 0:
             if discrete_treatment is None:
-                treatment = _align_task_to_first(data, treatment, count_limit)
+                treatment = align_task_to_first(data, treatment, count_limit)
             else:
-                treatment = _select_by_task(data, treatment, count_limit, discrete_treatment)
+                treatment = select_by_task(data, treatment, count_limit, discrete_treatment)
         else:
             logger.info(f'Not found treatment with causal discovery, so identify treatment by default')
             treatment = super().identify_treatment(data, outcome, discrete_treatment, count_limit, excludes=excludes)
@@ -120,17 +120,17 @@ class IdentifierWithDiscovery(DefaultIdentifier):
             covariate, instrument = self._identify_ci_with_causal_model(
                 m, data, outcome, treatment, method=self.method)
 
-        if _empty(covariate):
+        if is_empty(covariate):
             logger.info('Not found covariate by discovery, so setup it as default')
             covariate = [c for c in data.columns.tolist()
-                         if c != outcome and c not in treatment and (_empty(instrument) or c not in instrument)]
+                         if c != outcome and c not in treatment and (is_empty(instrument) or c not in instrument)]
 
         if logger.is_info_enabled():
-            if _not_empty(instrument):
+            if non_empty(instrument):
                 logger.info(f'found instrument: {instrument}')
             logger.info(f'found covariate: {covariate}')
 
-        if _empty(instrument):
+        if is_empty(instrument):
             instrument = None
 
         return None, covariate, instrument
@@ -144,13 +144,13 @@ class IdentifierWithDiscovery(DefaultIdentifier):
         cm = CausalModel(cg)
         try:
             instrument = cm.get_iv(treatment[0], outcome)
-            if _not_empty(instrument):
+            if non_empty(instrument):
                 instrument = [c for c in instrument if c != outcome and c not in treatment]
             for x in treatment[1:]:
-                if _empty(instrument):
+                if is_empty(instrument):
                     break
                 iv = cm.get_iv(x, outcome)
-                if _empty(iv):
+                if is_empty(iv):
                     instrument = None
                     break
                 else:
@@ -163,7 +163,7 @@ class IdentifierWithDiscovery(DefaultIdentifier):
         ids = cm.identify(treatment, outcome, identify_method=method)
         covariate = list(set(ids['backdoor'][0]))
         covariate = [c for c in covariate if c != outcome and c not in treatment]
-        if not _empty(instrument):
+        if not is_empty(instrument):
             covariate = [c for c in covariate if c not in instrument]
 
         return covariate, instrument
@@ -217,7 +217,7 @@ class IdentifierWithLearner(IdentifierWithDiscovery):
 
         self.learner = learner
 
-        super().__init__(  **kwargs)
+        super().__init__(**kwargs)
 
     def _discovery_causation(self, X):
         assert isinstance(X, pd.DataFrame)

@@ -167,7 +167,7 @@ def test_default_identifier():
     _validate_it(why, test_data)
 
 
-def test_auuc_qini():
+def test_uplift():
     data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x2b_y1()
     data[outcome] = (data[outcome] > 0).astype('int')
     test_data[outcome] = (test_data[outcome] > 0).astype('int')
@@ -182,13 +182,13 @@ def test_auuc_qini():
     s = why.score(test_data, scorer='auuc')
     print('auuc:', s)
 
-    r = why.get_cumlift(test_data, )
+    um = why.uplift_model(test_data)
+    assert um is not None
+
+    r = um.get_gain()
     assert isinstance(r, pd.DataFrame)
 
-    r = why.get_gain(test_data, )
-    assert isinstance(r, pd.DataFrame)
-
-    r = why.get_qini(test_data, )
+    r = um.get_qini()
     assert isinstance(r, pd.DataFrame)
 
 
