@@ -26,12 +26,35 @@ class _CateTreeExporter(_MPLTreeExporter):
         self.treatment_names = treatment_names
         super().__init__(*args, **kwargs)
 
+    def get_color(self, value):
+        # Find the appropriate color & intensity for a node
+        if self.colors["bounds"] is None:
+            # Classification tree
+            color = list(self.colors["rgb"][np.argmax(value)])
+            sorted_values = sorted(value, reverse=True)
+            if len(sorted_values) == 1:
+                alpha = 0
+            else:
+                alpha = (sorted_values[0] - sorted_values[1]) / (1 - sorted_values[1])
+        else:
+            # Regression tree or multi-output
+            color = list(self.colors["rgb"][0])
+            alpha = (value - self.colors["bounds"][0]) / (
+                self.colors["bounds"][1] - self.colors["bounds"][0]
+            )
+        # unpack numpy scalars
+        alpha = float(alpha)
+        # compute the color as alpha against white
+        color = [int(round(alpha * c + (1 - alpha) * 255, 0)) for c in color]
+        # Return html color code in #RRGGBB format
+        return "#%02x%02x%02x" % tuple(color)
+
     def get_fill_color(self, tree, node_id):
 
         # Fetch appropriate color for node
         if 'rgb' not in self.colors:
             # red for negative, green for positive
-            self.colors['rgb'] = [(179, 108, 96), (81, 157, 96)]
+            self.colors['rgb'] = [(233, 150, 60), (6, 42, 220)]
 
         # in multi-target use mean of targets
         tree_min = np.min(np.mean(tree.value, axis=1)) - 1e-12
