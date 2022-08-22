@@ -9,8 +9,105 @@ import pandas as pd
 
 from sklearn.tree import plot_tree
 from sklearn.tree import DecisionTreeRegressor
+from sklearn.tree._export import _MPLTreeExporter
 
 from ylearn.estimator_model.utils import convert2array
+
+
+class _CateTreeExporter(_MPLTreeExporter):
+
+    def __init__(self, node_dict, include_uncertainty=False, uncertainty_level=0.1,
+                 *args, treatment_names=None, **kwargs):
+        self.node_dict = node_dict
+        self.include_uncertainty = include_uncertainty
+        self.uncertainty_level = uncertainty_level
+        self.treatment_names = treatment_names
+        super().__init__(*args, **kwargs)
+
+    def get_fill_color(self, tree, node_id):
+
+        # Fetch appropriate color for node
+        if 'rgb' not in self.colors:
+            # red for negative, green for positive
+            self.colors['rgb'] = [(179, 108, 96), (81, 157, 96)]
+
+        # in multi-target use mean of targets
+        tree_min = np.min(np.mean(tree.value, axis=1)) - 1e-12
+        tree_max = np.max(np.mean(tree.value, axis=1)) + 1e-12
+
+        node_val = np.mean(tree.value[node_id])
+
+        if node_val > 0:
+            value = [max(0, tree_min) / tree_max, node_val / tree_max]
+        elif node_val < 0:
+            value = [node_val / tree_min, min(0, tree_max) / tree_min]
+        else:
+            value = [0, 0]
+
+        return self.get_color(value)
+
+    def node_replacement_text(self, tree, node_id, criterion):
+
+        # Write node mean CATE
+        node_info = self.node_dict[node_id]
+        node_string = 'CATE mean' + self.characters[4]
+        value_text = ""
+        mean = node_info['mean']
+        if hasattr(mean, 'shape') and (len(mean.shape) > 0):
+            if len(mean.shape) == 1:
+                for i in range(mean.shape[0]):
+                    value_text += "{}".format(np.around(mean[i], self.precision))
+                    if 'ci' in node_info:
+                        value_text += " ({}, {})".format(np.around(node_info['ci'][0][i], self.precision),
+                                                         np.around(node_info['ci'][1][i], self.precision))
+                    if i != mean.shape[0] - 1:
+                        value_text += ", "
+                value_text += self.characters[4]
+            elif len(mean.shape) == 2:
+                for i in range(mean.shape[0]):
+                    for j in range(mean.shape[1]):
+                        value_text += "{}".format(np.around(mean[i, j], self.precision))
+                        if 'ci' in node_info:
+                            value_text += " ({}, {})".format(np.around(node_info['ci'][0][i, j], self.precision),
+                                                             np.around(node_info['ci'][1][i, j], self.precision))
+                        if j != mean.shape[1] - 1:
+                            value_text += ", "
+                    value_text += self.characters[4]
+            else:
+                raise ValueError("can only handle up to 2d values")
+        else:
+            value_text += "{}".format(np.around(mean, self.precision))
+            if 'ci' in node_info:
+                value_text += " ({}, {})".format(np.around(node_info['ci'][0], self.precision),
+                                                 np.around(node_info['ci'][1], self.precision))
+            value_text += self.characters[4]
+        node_string += value_text
+
+        # Write node std of CATE
+        node_string += "CATE std" + self.characters[4]
+        std = node_info['std']
+        value_text = ""
+        if hasattr(std, 'shape') and (len(std.shape) > 0):
+            if len(std.shape) == 1:
+                for i in range(std.shape[0]):
+                    value_text += "{}".format(np.around(std[i], self.precision))
+                    if i != std.shape[0] - 1:
+                        value_text += ", "
+            elif len(std.shape) == 2:
+                for i in range(std.shape[0]):
+                    for j in range(std.shape[1]):
+                        value_text += "{}".format(np.around(std[i, j], self.precision))
+                        if j != std.shape[1] - 1:
+                            value_text += ", "
+                    if i != std.shape[0] - 1:
+                        value_text += self.characters[4]
+            else:
+                raise ValueError("can only handle up to 2d values")
+        else:
+            value_text += "{}".format(np.around(std, self.precision))
+        node_string += value_text
+        node_string += "\nTreated=1000\nUnTreated=2000"
+        return node_string
 
 
 class CEInterpreter:
@@ -128,6 +225,7 @@ class CEInterpreter:
         )
 
         self._est_model = None
+        self.node_dict_ = None
 
     def fit(
         self,
@@ -167,6 +265,16 @@ class CEInterpreter:
 
         self._tree_model.fit(v, causal_effect.reshape((n, -1)))
 
+        paths = self._tree_model.decision_path(v)
+
+        node_dict = {}
+        for node_id in range(paths.shape[1]):
+            mask = paths.getcol(node_id).toarray().flatten().astype(bool)
+            # Xsub = v[mask]
+            cate_node = causal_effect[mask]
+            node_dict[node_id] = {'mean': np.mean(cate_node, axis=0), 'std': np.std(cate_node, axis=0)}
+
+        self.node_dict_ = node_dict
         self._is_fitted = True
 
         return self
@@ -266,7 +374,7 @@ class CEInterpreter:
         max_depth=None,
         class_names=None,
         label='all',
-        filled=False,
+        filled=True,
         node_ids=False,
         proportion=False,
         rounded=False,
@@ -340,8 +448,8 @@ class CEInterpreter:
         if feature_names == None:
             feature_names = self.covariate
 
-        return plot_tree(
-            self._tree_model,
+        exporter = _CateTreeExporter(
+            self.node_dict_,
             max_depth=max_depth,
             feature_names=feature_names,
             class_names=class_names,
@@ -352,6 +460,6 @@ class CEInterpreter:
             proportion=proportion,
             rounded=rounded,
             precision=precision,
-            ax=ax,
             fontsize=fontsize,
         )
+        return exporter.export(self._tree_model, ax=ax)
