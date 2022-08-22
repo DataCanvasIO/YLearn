@@ -5,9 +5,11 @@ import pandas as pd
 def _sample(df, n_sample, reset_index=True):
     assert isinstance(df, pd.DataFrame) and len(df) > n_sample
 
-    result = df.iloc[np.linspace(0, len(df) - 1, n_sample, endpoint=True)]
+    idx = np.linspace(0, len(df) - 1, n_sample, endpoint=True)
+    result = df.iloc[idx]
     if reset_index:
-        result = result.reset_index(drop=True)
+        # result = result.reset_index(drop=True)
+        result.index = idx
     return result
 
 
@@ -28,13 +30,14 @@ def _split(df_cumlift, n_bins):
 
 
 def plot_cumlift(*cumlift, n_bins=10, **kwargs):
-    assert all(isinstance(e, pd.DataFrame) or hasattr(e, 'cumlift_') for e in cumlift)
+    assert all(isinstance(e, pd.DataFrame) or hasattr(e, 'get_cumlift') for e in cumlift)
 
-    dfs = [e if isinstance(e, pd.DataFrame) else e.cumlift_ for e in cumlift]
+    dfs = [e if isinstance(e, pd.DataFrame) else e.get_cumlift() for e in cumlift]
     dfs = [_split(df, n_bins) for df in dfs]
     df = pd.concat(dfs, axis=1) if len(dfs) > 1 else dfs[0]
 
-    options = dict(rot=0, ylabel='cumlift', **kwargs)
+    options = dict(rot=0, ylabel='cumlift')
+    options.update(kwargs)
     df.plot.bar(**options)
 
 
@@ -45,7 +48,8 @@ def plot_gain(*gain, n_sample=100, normalize=False, **kwargs):
     dfs = [_sample(df, n_sample) for df in dfs]
     df = pd.concat(dfs, axis=1) if len(dfs) > 1 else dfs[0]
 
-    options = dict(ylabel='Gain', xlabel='Population', **kwargs)
+    options = dict(ylabel='Gain', xlabel='Population', )
+    options.update(kwargs)
     df.plot(**options)
 
 
@@ -56,5 +60,6 @@ def plot_qini(*qini, n_sample=100, normalize=False, **kwargs):
     dfs = [_sample(df, n_sample) for df in dfs]
     df = pd.concat(dfs, axis=1) if len(dfs) > 1 else dfs[0]
 
-    options = dict(ylabel='Qini', xlabel='Population', **kwargs)
+    options = dict(ylabel='Qini', xlabel='Population')
+    options.update(kwargs)
     df.plot(**options)

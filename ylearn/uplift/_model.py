@@ -4,6 +4,17 @@ from ._metric import get_gain, get_qini, get_cumlift, auuc_score, qini_score
 from ._plot import plot_gain, plot_qini, plot_cumlift
 
 
+def _check_fitted(fn):
+    def _exec(obj, *args, **kwargs):
+        assert isinstance(obj, UpliftModel)
+        if obj.cumlift_ is None:
+            raise ValueError(f'fit {type(obj).__name__} before call {fn.__name__}() please.')
+
+        return fn(obj, *args, **kwargs)
+
+    return _exec
+
+
 class UpliftModel(object):
     def __init__(self):
         # fitted
@@ -33,16 +44,21 @@ class UpliftModel(object):
         self.auuc_score_ = auuc_score(
             df_lift, outcome=outcome, treatment=treatment, true_effect=true_effect,
             treat=treat, control=control, random_name=random,
-            normalize=False
+            normalize=True
         )
         self.qini_score_ = qini_score(
             df_lift, outcome=outcome, treatment=treatment, true_effect=true_effect,
             treat=treat, control=control, random_name=random,
-            normalize=False
+            normalize=True
         )
 
         return self
 
+    @_check_fitted
+    def get_cumlift(self):
+        return self.cumlift_.copy()
+
+    @_check_fitted
     def get_gain(self, normalize=False):
         gain = self.gain_
         if normalize:
@@ -50,6 +66,7 @@ class UpliftModel(object):
 
         return gain.copy()
 
+    @_check_fitted
     def get_qini(self, normalize=False):
         qini = self.qini_
         if normalize:
@@ -58,18 +75,23 @@ class UpliftModel(object):
         return qini.copy()
 
     @property
+    @_check_fitted
     def auuc_score(self):
         return self.auuc_score_.values.tolist()[0]
 
     @property
+    @_check_fitted
     def qini_score(self):
         return self.qini_score_.values.tolist()[0]
 
+    @_check_fitted
     def plot_qini(self, n_sample=100, normalize=False, **kwargs):
         plot_qini(self.get_qini(normalize=normalize), n_sample=n_sample, **kwargs)
 
+    @_check_fitted
     def plot_gain(self, n_sample=100, normalize=False, **kwargs):
         plot_gain(self.get_gain(normalize=normalize), n_sample=n_sample, **kwargs)
 
+    @_check_fitted
     def plot_cumlift(self, n_bins=10, **kwargs):
-        plot_cumlift(self.qini_, n_bins=n_bins, **kwargs)
+        plot_cumlift(self.get_cumlift(), n_bins=n_bins, **kwargs)
