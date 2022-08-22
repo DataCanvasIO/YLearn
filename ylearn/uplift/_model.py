@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 
 from ._metric import get_gain, get_qini, get_cumlift, auuc_score, qini_score
 from ._plot import plot_gain, plot_qini, plot_cumlift
@@ -26,8 +27,11 @@ class UpliftModel(object):
         self.qini_top_point_ = None
         self.auuc_score_ = None
         self.qini_score_ = None
+        self.random_ = None
 
     def fit(self, df_lift, outcome='y', treatment='x', true_effect=None, treat=1, control=0, random='RANDOM'):
+        assert isinstance(df_lift, pd.DataFrame)
+
         # self.df_lift_ = df_lift
 
         self.cumlift_ = get_cumlift(
@@ -51,6 +55,7 @@ class UpliftModel(object):
             treat=treat, control=control, random_name=random,
             normalize=True
         )
+        self.random_ = random
 
         return self
 
@@ -74,15 +79,41 @@ class UpliftModel(object):
 
         return qini.copy()
 
-    @property
     @_check_fitted
-    def auuc_score(self):
-        return self.auuc_score_.values.tolist()[0]
+    def gain_top_point(self, name=None):
+        if name is None:
+            return list(self.gain_top_point_.values())[0]
+        else:
+            return self.gain_top_point_[name]
 
-    @property
     @_check_fitted
-    def qini_score(self):
-        return self.qini_score_.values.tolist()[0]
+    def qini_top_point(self, name=None):
+        if name is None:
+            return list(self.qini_top_point_.values())[0]
+        else:
+            return self.qini_top_point_[name]
+
+    @_check_fitted
+    def auuc_score(self, name=None):
+        s = self.auuc_score_
+        if name is None:
+            if self.random_ is not None:
+                return s[s.index != self.random_].mean()
+            else:
+                return s.mean()
+        else:
+            return s[name]
+
+    @_check_fitted
+    def qini_score(self, name=None):
+        s = self.qini_score_
+        if name is None:
+            if self.random_ is not None:
+                return s[s.index != self.random_].mean()
+            else:
+                return s.mean()
+        else:
+            return s[name]
 
     @_check_fitted
     def plot_qini(self, n_sample=100, normalize=False, **kwargs):

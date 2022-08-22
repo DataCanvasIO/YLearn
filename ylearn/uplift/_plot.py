@@ -48,7 +48,7 @@ def plot_gain(*gain, n_sample=100, normalize=False, **kwargs):
     dfs = [_sample(df, n_sample) for df in dfs]
     df = pd.concat(dfs, axis=1) if len(dfs) > 1 else dfs[0]
 
-    options = dict(ylabel='Gain', xlabel='Population', )
+    options = dict(ylabel='Gain', xlabel='Population', grid=True)
     options.update(kwargs)
     df.plot(**options)
 
@@ -60,6 +60,6 @@ def plot_qini(*qini, n_sample=100, normalize=False, **kwargs):
     dfs = [_sample(df, n_sample) for df in dfs]
     df = pd.concat(dfs, axis=1) if len(dfs) > 1 else dfs[0]
 
-    options = dict(ylabel='Qini', xlabel='Population')
+    options = dict(ylabel='Qini', xlabel='Population', grid=True)
     options.update(kwargs)
     df.plot(**options)

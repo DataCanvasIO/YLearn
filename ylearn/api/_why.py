@@ -899,32 +899,37 @@ class Why:
             return self._score_rloss(test_data, treat=treat, control=control)
 
     def _score_auuc_qini(self, test_data, treatment=None, treat=None, control=None, scorer='auuc'):
-        treatment = utils.to_list(treatment, 'treatment') if treatment is not None else self.treatment_
-        self._check_test_data('_score_auuc_qini', test_data,
-                              treatment=treatment,
-                              allow_data_none=False,
-                              check_discrete_treatment=True,
-                              check_treatment=True,
-                              check_outcome=True)
-
-        def scoring(effect, x, treat, control, preprocessed_data):
-            df = pd.DataFrame(dict(effect=effect,
-                                   x=preprocessed_data[x],
-                                   y=preprocessed_data[self.outcome_],
-                                   ))
-            if scorer == 'auuc':
-                s = L.auuc_score(df, outcome='y', treatment='x', treat=treat, control=control, random_name=None)
-            else:
-                s = L.qini_score(df, outcome='y', treatment='x', treat=treat, control=control, random_name=None)
-            return s['effect']
-
-        sa = self._map_effect(scoring, test_data, treatment=treatment, treat=treat, control=control)
-        score = np.mean(sa)
+        # treatment = utils.to_list(treatment, 'treatment') if treatment is not None else self.treatment_
+        # self._check_test_data('_score_auuc_qini', test_data,
+        #                       treatment=treatment,
+        #                       allow_data_none=False,
+        #                       check_discrete_treatment=True,
+        #                       check_treatment=True,
+        #                       check_outcome=True)
+        #
+        # def scoring(effect, x, treat, control, preprocessed_data):
+        #     df = pd.DataFrame(dict(effect=effect,
+        #                            x=preprocessed_data[x],
+        #                            y=preprocessed_data[self.outcome_],
+        #                            ))
+        #     if scorer == 'auuc':
+        #         s = L.auuc_score(df, outcome='y', treatment='x', treat=treat, control=control, random_name=None)
+        #     else:
+        #         s = L.qini_score(df, outcome='y', treatment='x', treat=treat, control=control, random_name=None)
+        #     return s['effect']
+        #
+        # sa = self._map_effect(scoring, test_data, treatment=treatment, treat=treat, control=control)
+        # score = np.mean(sa)
+        um = self.uplift_model(test_data, treatment=treatment, treat=treat, control=control)
+        if scorer == 'auuc':
+            score = um.auuc_score()
+        else:
+            score = um.qini_score()
         return score
 
     def _score_rloss(self, test_data=None, treat=None, control=None):
         scorers = self._create_scorers(test_data, scorer='rloss')
-        test_data = self._preprocess(test_data)
+        test_data = self._preprocess(test_data, encode_treatment=True)
         treat = self._safe_treat_control(self.treatment_, treat, 'treat')
         control = self._safe_treat_control(self.treatment_, control, 'control')
         fit_options = drop_none(adjustment=self.adjustment_, covariate=self.covariate_, instrument=self.instrument_)
@@ -934,7 +939,6 @@ class Why:
             logger.info(f'fit scorer for {x} with {scorer}')
             if self.discrete_treatment:
                 xe = self.x_encoders_[x]
-                test_data[x] = xe.transform(test_data[x])
                 treat_i = xe.transform([treat[i], ]).tolist()[0] if treat is not None else None
                 control_i = xe.transform([control[i], ]).tolist()[0] if control is not None else None
             else:
