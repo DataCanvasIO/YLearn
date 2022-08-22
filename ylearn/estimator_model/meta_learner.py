@@ -97,6 +97,7 @@ class SLearner(BaseEstModel):
         model,
         random_state=2022,
         is_discrete_treatment=True,
+        is_dicrete_outcome=False,
         categories="auto",
         *args,
         **kwargs,
@@ -121,6 +122,7 @@ class SLearner(BaseEstModel):
         super().__init__(
             random_state=random_state,
             is_discrete_treatment=is_discrete_treatment,
+            is_discrete_outcome=is_dicrete_outcome,
             categories=categories,
             *args,
             **kwargs,
@@ -219,7 +221,7 @@ class SLearner(BaseEstModel):
         else:
             return self._fit_separate_treat(x, wv, y, categories, **kwargs)
 
-    def _prepare4est(self, data=None, **kwargs):
+    def _prepare4est(self, data=None, proba_output=False, **kwargs):
         if not self._is_fitted:
             raise Exception("The estimator has not been fitted yet.")
 
@@ -233,11 +235,11 @@ class SLearner(BaseEstModel):
             wv = get_wv(w, v)
 
         if self.combined_treat:
-            return self._prepare_combined_treat(wv)
+            return self._prepare_combined_treat(wv, proba_output=proba_output)
         else:
-            return self._prepare_separate_treat(wv)
+            return self._prepare_separate_treat(wv, proba_output=proba_output)
 
-    def estimate(self, data=None, quantity=None, **kwargs):
+    def estimate(self, data=None, quantity=None, proba_output=False, **kwargs):
         """Estimate the causal effect with the type of the quantity.
 
         Parameters
@@ -258,7 +260,7 @@ class SLearner(BaseEstModel):
         -------
         ndarray
         """
-        effect = self._prepare4est(data, **kwargs)
+        effect = self._prepare4est(data, proba_output=proba_output, **kwargs)
         if quantity == "CATE" or quantity == "ATE":
             return np.mean(effect, axis=0)
         else:
@@ -414,7 +416,7 @@ class SLearner(BaseEstModel):
 
         return self
 
-    def _prepare_combined_treat(self, wv):
+    def _prepare_combined_treat(self, wv, proba_output=False):
         n = wv.shape[0]
         self.treat = get_tr_ctrl(
             self.treat,
@@ -451,27 +453,44 @@ class SLearner(BaseEstModel):
         xt = np.concatenate((wv, xt), axis=1)
         x0 = np.concatenate((wv, x0), axis=1)
 
-        yt = self.model.predict(xt)
-        y0 = self.model.predict(x0)
+        if self.is_discrete_outcome and proba_output:
+            yt = self.model.predict_proba(xt)
+            y0 = self.model.predict_proba(x0)
+        else:
+            yt = self.model.predict(xt)
+            y0 = self.model.predict(x0)
         return yt - y0
 
-    def _prepare_separate_treat(self, wv):
+    def _prepare_separate_treat(self, wv, proba_output=False):
         n = wv.shape[0]
         x_control = np.zeros((1, self._x_d))
         x_control[:, 0] = 1
         x_control = np.repeat(x_control, n, axis=0).astype(int)
         x_control = np.concatenate((wv, x_control), axis=1)
+        
+        if self.is_discrete_outcome and proba_output:
+            f_nj0 = self.model.predict_proba(x_control)
+            y_d = f_nj0.shape[1]
+            f_nji = np.full((n, y_d, self._x_d - 1), np.NaN)
 
-        f_nji = np.full((n, self._y_d, self._x_d - 1), np.NaN)
-        f_nj0 = self.model.predict(x_control)
+            for i in range(self._x_d - 1):
+                x_treat = np.zeros((1, self._x_d))
+                x_treat[:, i + 1] = 1
+                x_treat = np.repeat(x_treat, n, axis=0).astype(int)
+                x_treat = np.concatenate((wv, x_treat), axis=1)
+                fnji = (self.model.predict_proba(x_treat) - f_nj0).reshape(n, y_d)
+                f_nji[:, :, i] = fnji
+        else:
+            f_nj0 = self.model.predict(x_control)        
+            f_nji = np.full((n, self._y_d, self._x_d - 1), np.NaN)
 
-        for i in range(self._x_d - 1):
-            x_treat = np.zeros((1, self._x_d))
-            x_treat[:, i + 1] = 1
-            x_treat = np.repeat(x_treat, n, axis=0).astype(int)
-            x_treat = np.concatenate((wv, x_treat), axis=1)
-            fnji = (self.model.predict(x_treat) - f_nj0).reshape(n, self._y_d)
-            f_nji[:, :, i] = fnji
+            for i in range(self._x_d - 1):
+                x_treat = np.zeros((1, self._x_d))
+                x_treat[:, i + 1] = 1
+                x_treat = np.repeat(x_treat, n, axis=0).astype(int)
+                x_treat = np.concatenate((wv, x_treat), axis=1)
+                fnji = (self.model.predict(x_treat) - f_nj0).reshape(n, self._y_d)
+                f_nji[:, :, i] = fnji
 
         return f_nji.squeeze()
 
@@ -560,6 +579,7 @@ class TLearner(BaseEstModel):
         model,
         random_state=2022,
         is_discrete_treatment=True,
+        is_discrete_outcome=False,
         categories="auto",
         **kwargs,
     ):
@@ -586,6 +606,7 @@ class TLearner(BaseEstModel):
         super().__init__(
             random_state=random_state,
             is_discrete_treatment=is_discrete_treatment,
+            is_discrete_outcome=is_discrete_outcome,
             categories=categories,
             **kwargs,
         )
@@ -684,7 +705,7 @@ class TLearner(BaseEstModel):
         else:
             return self._fit_separate_treat(x, wv, y, categories, **kwargs)
 
-    def estimate(self, data=None, quantity=None, **kwargs):
+    def estimate(self, data=None, quantity=None, proba_output=False, **kwargs):
         """Estimate the causal effect with the type of the quantity.
 
         Parameters
@@ -702,14 +723,14 @@ class TLearner(BaseEstModel):
         -------
         ndarray
         """
-        effect = self._prepare4est(data)
+        effect = self._prepare4est(data, proba_output=proba_output)
         if quantity == "CATE" or quantity == "ATE":
             return np.mean(effect, axis=0)
         else:
             return effect
 
-    def effect_nji(self, data=None):
-        y_nji = self._prepare4est(data=data)
+    def effect_nji(self, data=None, proba_output=False):
+        y_nji = self._prepare4est(data=data, proba_output=proba_output)
 
         if y_nji.ndim == 3:
             n, y_d, x_d = y_nji.shape
@@ -725,7 +746,7 @@ class TLearner(BaseEstModel):
 
         return y_nji
 
-    def _prepare4est(self, data=None):
+    def _prepare4est(self, data=None, proba_output=False):
         if not self._is_fitted:
             raise Exception("The estimator has not been fitted yet.")
 
@@ -738,9 +759,9 @@ class TLearner(BaseEstModel):
             wv = get_wv(w, v)
 
         if self.combined_treat:
-            return self._prepare_combined_treat(wv)
+            return self._prepare_combined_treat(wv, proba_output=proba_output)
         else:
-            return self._prepare_separate_treat(wv)
+            return self._prepare_separate_treat(wv, proba_output=proba_output)
 
     def _fit_combined_treat(self, x, wv, y, treat, control, categories, **kwargs):
         """Fit function which is used when multiple treatments are combined to
@@ -905,20 +926,32 @@ class TLearner(BaseEstModel):
 
         return self
 
-    def _prepare_combined_treat(self, wv):
-        yt = self.xt_model.predict(wv)
-        y0 = self.x0_model.predict(wv)
+    def _prepare_combined_treat(self, wv, proba_output=False):
+        if self.is_discrete_outcome and proba_output:
+            yt = self.xt_model.predict_proba(wv)
+            y0 = self.x0_model.predict_proba(wv)
+        else:
+            yt = self.xt_model.predict(wv)
+            y0 = self.x0_model.predict(wv)
         return yt - y0
 
-    def _prepare_separate_treat(self, wv):
+    def _prepare_separate_treat(self, wv, proba_output=False):
         n_treatments = len(self._fitted_dict_separa["treatment"])
         n = wv.shape[0]
-        f_nji = np.full((n, self._y_d, n_treatments - 1), np.NaN)
-        f_nj0 = self._fitted_dict_separa["models"][0].predict(wv)
+        if self.is_discrete_outcome and proba_output:
+            f_nj0 = self._fitted_dict_separa["models"][0].predict_proba(wv)
+            y_d = f_nj0.shape[1]
+            f_nji = np.full((n, y_d, n_treatments - 1), np.NaN)
+            for i, model in enumerate(self._fitted_dict_separa["models"][1:]):
+                fnji = (model.predict_proba(wv) - f_nj0).reshape(n, y_d)
+                f_nji[:, :, i] = fnji
+        else:
+            f_nji = np.full((n, self._y_d, n_treatments - 1), np.NaN)
+            f_nj0 = self._fitted_dict_separa["models"][0].predict(wv)
 
-        for i, model in enumerate(self._fitted_dict_separa["models"][1:]):
-            fnji = (model.predict(wv) - f_nj0).reshape(n, self._y_d)
-            f_nji[:, :, i] = fnji
+            for i, model in enumerate(self._fitted_dict_separa["models"][1:]):
+                fnji = (model.predict(wv) - f_nj0).reshape(n, self._y_d)
+                f_nji[:, :, i] = fnji
 
         return f_nji.squeeze()
 
@@ -1005,6 +1038,7 @@ class XLearner(BaseEstModel):
         model,
         random_state=2022,
         is_discrete_treatment=True,
+        is_discrete_outcome=False,
         categories="auto",
         **kwargs,
     ):
@@ -1032,6 +1066,7 @@ class XLearner(BaseEstModel):
         super().__init__(
             random_state=random_state,
             is_discrete_treatment=is_discrete_treatment,
+            is_discrete_outcome=is_discrete_outcome,
             categories=categories,
             **kwargs,
         )
@@ -1131,7 +1166,7 @@ class XLearner(BaseEstModel):
         else:
             return self._fit_separate_treat(x, wv, y, categories, **kwargs)
 
-    def _prepare4est(self, data=None, rho=0.5, *args, **kwargs):
+    def _prepare4est(self, data=None, rho=0.5, proba_output=False, *args, **kwargs):
         if not self._is_fitted:
             raise Exception("The estimator has not been fitted yet.")
 
@@ -1144,23 +1179,23 @@ class XLearner(BaseEstModel):
             wv = get_wv(w, v)
 
         if self.combined_treat:
-            effect = self._prepare_combined_treat(wv, rho)
+            effect = self._prepare_combined_treat(wv, rho, proba_output=proba_output)
         else:
-            effect = self._prepare_separate_treat(wv, rho)
+            effect = self._prepare_separate_treat(wv, rho, proba_output=proba_output)
 
         return effect
 
-    def estimate(self, data=None, rho=0.5, quantity=None, *args, **kwargs):
+    def estimate(self, data=None, rho=0.5, quantity=None, proba_output=False, *args, **kwargs):
         # TODO: add support for other types of rho
-        effect = self._prepare4est(data, rho, *args, **kwargs)
+        effect = self._prepare4est(data, rho, proba_output=proba_output,*args, **kwargs)
 
         if quantity == "CATE" or quantity == "ATE":
             return np.mean(effect, axis=0)
         else:
             return effect
 
-    def effect_nji(self, data=None):
-        y_nji = self._prepare4est(data=data)
+    def effect_nji(self, data=None, proba_output=False):
+        y_nji = self._prepare4est(data=data, proba_output=proba_output)
 
         if y_nji.ndim == 3:
             n, y_d, x_d = y_nji.shape
@@ -1362,24 +1397,39 @@ class XLearner(BaseEstModel):
 
         return self
 
-    def _prepare_combined_treat(self, wv, rho):
+    def _prepare_combined_treat(self, wv, rho, proba_output=False):
         # TODO: add support for training to select rho
-        kt_pred = self.kt_model.predict(wv)
-        k0_pred = self.k0_model.predict(wv)
+        if self.is_discrete_outcome and proba_output:
+            kt_pred = self.kt_model.predict_proba(wv)
+            k0_pred = self.k0_model.predict_proba(wv)
+        else:
+            kt_pred = self.kt_model.predict(wv)
+            k0_pred = self.k0_model.predict(wv)
 
         return rho * kt_pred + (1 - rho) * k0_pred
 
-    def _prepare_separate_treat(self, wv, rho):
+    def _prepare_separate_treat(self, wv, rho, proba_output=False):
         model_list = self._fitted_dict_separa["models"]
         n_treatments = len(self._fitted_dict_separa["treatment"])
         n = wv.shape[0]
-        f_nji = np.full((n, self._y_d, n_treatments), np.NaN)
 
-        for i, (kt_model, k0_model) in enumerate(model_list):
-            pred_t = kt_model.predict(wv)
-            pred_0 = k0_model.predict(wv)
-            fnji = (rho * pred_t + (1 - rho) * pred_0).reshape(n, self._y_d)
-            f_nji[:, :, i] = fnji
+        if self.is_discrete_outcome and proba_output:
+            y_d = model_list[0][0].predict_proba(wv).shape[1]
+            f_nji = np.full((n, y_d, n_treatments), np.NaN)
+
+            for i, (kt_model, k0_model) in enumerate(model_list):
+                pred_t = kt_model.predict_proba(wv)
+                pred_0 = k0_model.predict_proba(wv)
+                fnji = (rho * pred_t + (1 - rho) * pred_0).reshape(n, y_d)
+                f_nji[:, :, i] = fnji
+        else:
+            f_nji = np.full((n, self._y_d, n_treatments), np.NaN)
+
+            for i, (kt_model, k0_model) in enumerate(model_list):
+                pred_t = kt_model.predict(wv)
+                pred_0 = k0_model.predict(wv)
+                fnji = (rho * pred_t + (1 - rho) * pred_0).reshape(n, self._y_d)
+                f_nji[:, :, i] = fnji
 
         return f_nji.squeeze()
 
