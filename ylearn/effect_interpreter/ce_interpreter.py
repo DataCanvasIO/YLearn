@@ -10,6 +10,8 @@ import pandas as pd
 from sklearn.tree import plot_tree
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.tree._export import _MPLTreeExporter
+from sklearn.tree._reingold_tilford import buchheim
+
 
 from ylearn.estimator_model.utils import convert2array
 
@@ -45,6 +47,118 @@ class _CateTreeExporter(_MPLTreeExporter):
             value = [0, 0]
 
         return self.get_color(value)
+
+    def export(self, decision_tree, ax=None):
+        import matplotlib.pyplot as plt
+        from matplotlib.text import Annotation
+
+        if ax is None:
+            ax = plt.gca()
+        ax.clear()
+        ax.set_axis_off()
+        my_tree = self._make_tree(0, decision_tree.tree_, decision_tree.criterion)
+        draw_tree = buchheim(my_tree)
+
+        # important to make sure we're still
+        # inside the axis after drawing the box
+        # this makes sense because the width of a box
+        # is about the same as the distance between boxes
+        max_x, max_y = draw_tree.max_extents() + 1
+        ax_width = ax.get_window_extent().width
+        ax_height = ax.get_window_extent().height
+
+        scale_x = ax_width / max_x
+        scale_y = ax_height / max_y
+        self.recurse(draw_tree, decision_tree.tree_, ax, max_x, max_y, text_pos=0)
+
+        anns = [ann for ann in ax.get_children() if isinstance(ann, Annotation)]
+
+        # update sizes of all bboxes
+        renderer = ax.figure.canvas.get_renderer()
+
+        for ann in anns:
+            ann.update_bbox_position_size(renderer)
+
+        if self.fontsize is None:
+            # get figure to data transform
+            # adjust fontsize to avoid overlap
+            # get max box width and height
+            extents = [ann.get_bbox_patch().get_window_extent() for ann in anns]
+            max_width = max([extent.width for extent in extents])
+            max_height = max([extent.height for extent in extents])
+            # width should be around scale_x in axis coordinates
+            size = anns[0].get_fontsize() * min(
+                scale_x / max_width, scale_y / max_height
+            )
+            for ann in anns:
+                ann.set_fontsize(size)
+
+        return anns
+
+    def recurse(self, node, tree, ax, max_x, max_y, text_pos,  depth=0):
+        import matplotlib.pyplot as plt
+
+        kwargs = dict(
+            bbox=self.bbox_args.copy(),
+            ha="center",
+            va="center",
+            zorder=100 - 10 * depth,
+            xycoords="axes fraction",
+            arrowprops=self.arrow_args.copy(),
+        )
+        kwargs["arrowprops"]["edgecolor"] = plt.rcParams["text.color"]
+
+        if self.fontsize is not None:
+            kwargs["fontsize"] = self.fontsize
+
+        # offset things by .5 to center them in plot
+        xy = ((node.x + 0.5) / max_x, (max_y - node.y - 0.5) / max_y)
+
+        if self.max_depth is None or depth <= self.max_depth:
+            if self.filled:
+                kwargs["bbox"]["fc"] = self.get_fill_color(tree, node.tree.node_id)
+            else:
+                kwargs["bbox"]["fc"] = ax.get_facecolor()
+
+            if node.parent is None:
+                # root
+                ax.annotate(node.tree.label, xy, **kwargs)
+            else:
+                xy_parent = (
+                    (node.parent.x + 0.5) / max_x,
+                    (max_y - node.parent.y - 0.5) / max_y,
+                )
+                ax.annotate(node.tree.label, xy_parent, xy, **kwargs)
+
+                text_pos_mapping = {
+                    1: ('yes', 'right', -0.015),
+                    -1: ('no', 'left', 0.015)
+                    # 0: ('center', 0, '')
+                }
+
+                if text_pos in [1, -1]:
+                    text_pos_config = text_pos_mapping[text_pos]
+                    ax.text((xy_parent[0] - xy[0])/2 + xy[0] + text_pos_config[2],
+                            (xy_parent[1] - xy[1])/2 + xy[1],
+                            text_pos_config[0], va="center", ha=text_pos_config[1], rotation=0)
+
+            n_children = len(node.children)
+            for i, child in enumerate(node.children):
+                if i == 0:
+                    next_text_pos = 1
+                elif i == n_children - 1:
+                    next_text_pos = -1
+                else:
+                    next_text_pos = 0
+                self.recurse(child, tree, ax, max_x, max_y, text_pos=next_text_pos, depth=depth + 1)
+
+        else:
+            xy_parent = (
+                (node.parent.x + 0.5) / max_x,
+                (max_y - node.parent.y - 0.5) / max_y,
+            )
+            kwargs["bbox"]["fc"] = "grey"
+            ax.annotate("\n  (...)  \n", xy_parent, xy, **kwargs)
 
     def node_replacement_text(self, tree, node_id, criterion):
 
