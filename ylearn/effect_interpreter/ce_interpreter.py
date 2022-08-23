@@ -3,6 +3,7 @@
 # we can directly apply the fitted tree model to new test dataset and add support
 # for such method. In the later version, we may need to verify the correctness of
 # doing so and modify the method accordingly.
+import re
 
 import numpy as np
 import pandas as pd
@@ -184,7 +185,6 @@ class _CateTreeExporter(_MPLTreeExporter):
             ax.annotate("\n  (...)  \n", xy_parent, xy, **kwargs)
 
     def node_replacement_text(self, tree, node_id, criterion):
-
         # Write node mean CATE
         node_info = self.node_dict[node_id]
         node_string = 'CATE mean' + self.characters[4]
@@ -243,8 +243,20 @@ class _CateTreeExporter(_MPLTreeExporter):
         else:
             value_text += "{}".format(np.around(std, self.precision))
         node_string += value_text
-        node_string += "\nTreated=1000\nUnTreated=2000"
         return node_string
+
+    def node_to_str(self, tree, node_id, criterion):
+        text = super().node_to_str(tree, node_id, criterion)
+        replacement = self.node_replacement_text(tree, node_id, criterion)
+        if replacement is not None:
+            # HACK: it's not optimal to use a regex like this, but the base class's node_to_str doesn't expose any
+            #       clean way of achieving this
+            text = re.sub("value = .*(?=" + re.escape(self.characters[5]) + ")",
+                          # make sure we don't accidentally escape anything in the substitution
+                          replacement.replace('\\', '\\\\'),
+                          text,
+                          flags=re.S)
+        return text
 
 
 class CEInterpreter:

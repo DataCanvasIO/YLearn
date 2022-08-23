@@ -1,3 +1,273 @@
+from ..policy.policy_model import PolicyTree
+
+import re
+
+from ..utils._common import convert2array
+from sklearn.tree._export import _BaseTreeExporter, _MPLTreeExporter, _DOTTreeExporter
+from sklearn.tree._reingold_tilford import buchheim
+from sklearn.tree import _tree
+import numpy as np
+
+
+def _color_brew(n):
+    """Generate n colors with equally spaced hues.
+    Parameters
+    ----------
+    n : int
+        The number of colors required.
+    Returns
+    -------
+    color_list : list, length n
+        List of n tuples of form (R, G, B) being the components of each color.
+    """
+    color_list = []
+
+    # Initialize saturation & value; calculate chroma & value shift
+    s, v = 0.75, 0.9
+    c = s * v
+    m = v - c
+
+    for h in np.arange(25, 385, 360. / n).astype(int):
+        # Calculate some intermediate values
+        h_bar = h / 60.
+        x = c * (1 - abs((h_bar % 2) - 1))
+        # Initialize RGB with same hue & chroma as our color
+        rgb = [(c, x, 0),
+               (x, c, 0),
+               (0, c, x),
+               (0, x, c),
+               (x, 0, c),
+               (c, 0, x),
+               (c, x, 0)]
+        r, g, b = rgb[int(h_bar)]
+        # Shift the initial RGB values to match value and store
+        rgb = [(int(255 * (r + m))),
+               (int(255 * (g + m))),
+               (int(255 * (b + m)))]
+        color_list.append(rgb)
+
+    return color_list
+
+
+class _PolicyTreeMPLExporter(_MPLTreeExporter):
+    """
+    Mixin that supports writing out the nodes of a policy tree
+
+    Parameters
+    ----------
+    treatment_names : list of strings, optional, default None
+        The names of the two treatments
+    """
+
+    def __init__(self, *args, treatment_names=None, **kwargs):
+        self.treatment_names = treatment_names
+        super().__init__(*args, **kwargs)
+
+        self.node_dict = None
+
+    def get_fill_color(self, tree, node_id):
+        # TODO. Create our own color pallete for multiple treatments. The one below is for binary treatments.
+        # Fetch appropriate color for node
+        if 'rgb' not in self.colors:
+            self.colors['rgb'] = _color_brew(tree.n_outputs)  # [(179, 108, 96), (81, 157, 96)]
+
+        node_val = tree.value[node_id][:, 0]
+        node_val = node_val - np.min(node_val)
+        if np.max(node_val) > 0:
+            node_val = node_val / np.max(node_val)
+        return self.get_color(node_val)
+
+    def recurse(self, node, tree, ax, max_x, max_y, text_pos,  depth=0):
+        import matplotlib.pyplot as plt
+
+        kwargs = dict(
+            bbox=self.bbox_args.copy(),
+            ha="center",
+            va="center",
+            zorder=100 - 10 * depth,
+            xycoords="axes fraction",
+            arrowprops=self.arrow_args.copy(),
+        )
+        kwargs["arrowprops"]["edgecolor"] = plt.rcParams["text.color"]
+
+        if self.fontsize is not None:
+            kwargs["fontsize"] = self.fontsize
+
+        # offset things by .5 to center them in plot
+        xy = ((node.x + 0.5) / max_x, (max_y - node.y - 0.5) / max_y)
+
+        if self.max_depth is None or depth <= self.max_depth:
+            if self.filled:
+                kwargs["bbox"]["fc"] = self.get_fill_color(tree, node.tree.node_id)
+            else:
+                kwargs["bbox"]["fc"] = ax.get_facecolor()
+
+            if node.parent is None:
+                # root
+                ax.annotate(node.tree.label, xy, **kwargs)
+            else:
+                xy_parent = (
+                    (node.parent.x + 0.5) / max_x,
+                    (max_y - node.parent.y - 0.5) / max_y,
+                )
+                ax.annotate(node.tree.label, xy_parent, xy, **kwargs)
+
+                text_pos_mapping = {
+                    1: ('yes', 'right', -0.015),
+                    -1: ('no', 'left', 0.015)
+                    # 0: ('center', 0, '')
+                }
+
+                if text_pos in [1, -1]:
+                    text_pos_config = text_pos_mapping[text_pos]
+                    ax.text((xy_parent[0] - xy[0])/2 + xy[0] + text_pos_config[2],
+                            (xy_parent[1] - xy[1])/2 + xy[1],
+                            text_pos_config[0], va="center", ha=text_pos_config[1], rotation=0)
+
+            n_children = len(node.children)
+            for i, child in enumerate(node.children):
+                if i == 0:
+                    next_text_pos = 1
+                elif i == n_children - 1:
+                    next_text_pos = -1
+                else:
+                    next_text_pos = 0
+                self.recurse(child, tree, ax, max_x, max_y, text_pos=next_text_pos, depth=depth + 1)
+
+        else:
+            xy_parent = (
+                (node.parent.x + 0.5) / max_x,
+                (max_y - node.parent.y - 0.5) / max_y,
+            )
+            kwargs["bbox"]["fc"] = "grey"
+            ax.annotate("\n  (...)  \n", xy_parent, xy, **kwargs)
+
+    def node_replacement_text(self, tree, node_id, criterion):
+        if self.node_dict is not None:
+            return self._node_replacement_text_with_dict(tree, node_id, criterion)
+        value = tree.value[node_id][:, 0]
+        node_string = 'value = %s' % np.round(value[1:] - value[0], self.precision)
+
+        if tree.children_left[node_id] == _tree.TREE_LEAF:
+            node_string += self.characters[4]
+            # Write node mean CATE
+            node_string += 'Treatment = '
+            if self.treatment_names:
+                class_name = self.treatment_names[np.argmax(value)]
+            else:
+                class_name = "T%s%s%s" % (self.characters[1],
+                                          np.argmax(value),
+                                          self.characters[2])
+            node_string += class_name
+
+        return node_string
+
+    def _node_replacement_text_with_dict(self, tree, node_id, criterion):
+
+        # Write node mean CATE
+        node_info = self.node_dict[node_id]
+        node_string = 'CATE' + self.characters[4]
+        value_text = ""
+        mean = node_info['mean']
+        if hasattr(mean, 'shape') and (len(mean.shape) > 0):
+            if len(mean.shape) == 1:
+                for i in range(mean.shape[0]):
+                    value_text += "{}".format(np.around(mean[i], self.precision))
+                    if 'ci' in node_info:
+                        value_text += " ({}, {})".format(np.around(node_info['ci'][0][i], self.precision),
+                                                         np.around(node_info['ci'][1][i], self.precision))
+                    if i != mean.shape[0] - 1:
+                        value_text += ", "
+                value_text += self.characters[4]
+            else:
+                raise ValueError("can only handle up to 1d values")
+        else:
+            value_text += "{}".format(np.around(mean, self.precision))
+            if 'ci' in node_info:
+                value_text += " ({}, {})".format(np.around(node_info['ci'][0], self.precision),
+                                                 np.around(node_info['ci'][1], self.precision))
+            value_text += self.characters[4]
+        node_string += value_text
+
+        if tree.children_left[node_id] == _tree.TREE_LEAF:
+            # Write recommended treatment and value - cost
+            value = tree.value[node_id][:, 0]
+            node_string += 'value - cost = %s' % np.round(value[1:], self.precision) + self.characters[4]
+
+            value = tree.value[node_id][:, 0]
+            node_string += "Treatment: "
+            if self.treatment_names:
+                class_name = self.treatment_names[np.argmax(value)]
+            else:
+                class_name = "T%s%s%s" % (self.characters[1],
+                                          np.argmax(value),
+                                          self.characters[2])
+            node_string += "{}".format(class_name)
+            node_string += self.characters[4]
+
+        return node_string
+
+    def node_to_str(self, tree, node_id, criterion):
+        text = super().node_to_str(tree, node_id, criterion)
+        replacement = self.node_replacement_text(tree, node_id, criterion)
+        if replacement is not None:
+            # HACK: it's not optimal to use a regex like this, but the base class's node_to_str doesn't expose any
+            #       clean way of achieving this
+            text = re.sub("value = .*(?=" + re.escape(self.characters[5]) + ")",
+                          # make sure we don't accidentally escape anything in the substitution
+                          replacement.replace('\\', '\\\\'),
+                          text,
+                          flags=re.S)
+        return text
+
+    def export(self, decision_tree, ax=None):
+        import matplotlib.pyplot as plt
+        from matplotlib.text import Annotation
+
+        if ax is None:
+            ax = plt.gca()
+        ax.clear()
+        ax.set_axis_off()
+        my_tree = self._make_tree(0, decision_tree.tree_, decision_tree.criterion)
+        draw_tree = buchheim(my_tree)
+
+        # important to make sure we're still
+        # inside the axis after drawing the box
+        # this makes sense because the width of a box
+        # is about the same as the distance between boxes
+        max_x, max_y = draw_tree.max_extents() + 1
+        ax_width = ax.get_window_extent().width
+        ax_height = ax.get_window_extent().height
+
+        scale_x = ax_width / max_x
+        scale_y = ax_height / max_y
+        self.recurse(draw_tree, decision_tree.tree_, ax, max_x, max_y, text_pos=0)
+
+        anns = [ann for ann in ax.get_children() if isinstance(ann, Annotation)]
+
+        # update sizes of all bboxes
+        renderer = ax.figure.canvas.get_renderer()
+
+        for ann in anns:
+            ann.update_bbox_position_size(renderer)
+
+        if self.fontsize is None:
+            # get figure to data transform
+            # adjust fontsize to avoid overlap
+            # get max box width and height
+            extents = [ann.get_bbox_patch().get_window_extent() for ann in anns]
+            max_width = max([extent.width for extent in extents])
+            max_height = max([extent.height for extent in extents])
+            # width should be around scale_x in axis coordinates
+            size = anns[0].get_fontsize() * min(
+                scale_x / max_width, scale_y / max_height
+            )
+            for ann in anns:
+                ann.set_fontsize(size)
+
+        return anns
+
+
 class PolicyInterpreter:
     """
     Attributes
@@ -164,6 +434,9 @@ class PolicyInterpreter:
         self.min_weight_fraction_leaf = min_weight_fraction_leaf
         self.max_features = max_features
 
+        self.node_dict_ = None
+
+
     def fit(
         self,
         data,
@@ -271,10 +544,11 @@ class PolicyInterpreter:
     def plot(
         self, *,
         feature_names=None,
+        treatment_names=None,
         max_depth=None,
         class_names=None,
         label='all',
-        filled=False,
+        filled=True,
         node_ids=False,
         proportion=False,
         rounded=False,
@@ -343,20 +617,13 @@ class PolicyInterpreter:
         """
         assert self._is_fitted
 
-
         if feature_names == None:
             feature_names = self.covariate
 
-        return self._tree_model.plot(
-            max_depth=max_depth,
-            feature_names=feature_names,
-            class_names=class_names,
-            label=label,
-            filled=filled,
-            node_ids=node_ids,
-            proportion=proportion,
-            rounded=rounded,
-            precision=precision,
-            ax=ax,
-            fontsize=fontsize,
-        )
+        #
+        exporter = _PolicyTreeMPLExporter(feature_names=feature_names, treatment_names=treatment_names,
+                                           max_depth=max_depth,
+                                           filled=filled,
+                                           rounded=rounded, precision=precision, fontsize=fontsize)
+
+        exporter.export(self._tree_model, ax=ax)
