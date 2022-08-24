@@ -425,43 +425,42 @@ class _PolicyTreeMPLExporter(_TreeExporter):
             node_val = node_val / np.max(node_val)
         return self.get_color(node_val)
 
-    def node_replacement_text(self, tree, node_id, criterion):
-        if self.node_dict is not None:
-            return self._node_replacement_text_with_dict(tree, node_id, criterion)
-        value = tree.value[node_id][:, 0]
-
-        node_string = ""
-        if not self.show_all_treatments:
-            node_string = 'value = %s' % np.round(value[1:] - value[0], self.precision)
-
-        if tree.children_left[node_id] == _tree.TREE_LEAF:
-
-            treatments = self.ensure_treatments(value)
-            if self.show_all_treatments:
-                treatments_str = ""
-                for k, v in zip(treatments, value):
-                    treatments_str += f"{k}={np.round(v, self.precision)}\n"
-
-            else:
-                treatments_str = "Treatment: "
-                if self.treatment_names:
-                    # f"{}={}"
-                    treatments_str += self.treatment_names[np.argmax(value)]
-                else:
-                    treatments_str += "T%s%s%s" % (self.characters[1],
-                                                   np.argmax(value),
-                                                   self.characters[2])
-
-            node_string += treatments_str
-
-        return node_string
-
     def ensure_treatments(self, value):
         if self.treatment_names is not None:
             return self.treatment_names
         else:
             return ["T%s%s%s" % (self.characters[1], i,self.characters[2]) for i in range(len(value))]
 
+    def node_replacement_text(self, tree, node_id, criterion):
+        # NOTE does not calc node_dict yet
+        # if self.node_dict is not None:
+        #     return self._node_replacement_text_with_dict(tree, node_id, criterion)
+        value = tree.value[node_id][:, 0]
+
+        node_string = ""
+        if not self.show_all_treatments:
+            node_string = 'value = %s' % np.round(value[1:] - value[0], self.precision)
+
+        # if tree.children_left[node_id] == _tree.TREE_LEAF:  # NOTE: for all node not only leaf
+
+        treatments = self.ensure_treatments(value)
+        if self.show_all_treatments:
+            treatments_str = ""
+            for k, v in zip(treatments, value):
+                treatments_str += f"{k}={np.round(v, self.precision)}\n"
+
+        else:
+            treatments_str = "Treatment: "
+            if self.treatment_names:
+                # f"{}={}"
+                treatments_str += self.treatment_names[np.argmax(value)]
+            else:
+                treatments_str += "T%s%s%s" % (self.characters[1],
+                                               np.argmax(value),
+                                               self.characters[2])
+        node_string += treatments_str
+
+        return node_string
 
     def _node_replacement_text_with_dict(self, tree, node_id, criterion):
 
