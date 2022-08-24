@@ -248,8 +248,8 @@ class CEInterpreter:
             assert isinstance(data, pd.DataFrame)
 
             v = convert2array(data, self.covariate)[0]
-            if hasattr(self, 'cov_transformer'):
-                v = self.cov_transformer.transform(v)
+            if hasattr(self._est_model, 'covariate_transformer'):
+                v = self._est_model.covariate_transformer.transform(v)
 
             assert v.shape[1] == self._tree_model.n_features_in_
             v = v.reshape(-1, 1) if v.ndim == 1 else v
