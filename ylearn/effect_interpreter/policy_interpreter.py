@@ -1,4 +1,3 @@
-from ..policy.policy_model import PolicyTree
 from ._export import _PolicyTreeMPLExporter
 
 
