@@ -3,13 +3,15 @@
 # we can directly apply the fitted tree model to new test dataset and add support
 # for such method. In the later version, we may need to verify the correctness of
 # doing so and modify the method accordingly.
+import re
 
 import numpy as np
 import pandas as pd
 
-from sklearn.tree import plot_tree
 from sklearn.tree import DecisionTreeRegressor
 
+
+from ylearn.effect_interpreter._export import _CateTreeExporter
 from ylearn.estimator_model.utils import convert2array
 
 
@@ -128,6 +130,7 @@ class CEInterpreter:
         )
 
         self._est_model = None
+        self.node_dict_ = None
 
     def fit(
         self,
@@ -167,6 +170,15 @@ class CEInterpreter:
 
         self._tree_model.fit(v, causal_effect.reshape((n, -1)))
 
+        paths = self._tree_model.decision_path(v)
+
+        node_dict = {}
+        for node_id in range(paths.shape[1]):
+            mask = paths.getcol(node_id).toarray().flatten().astype(bool)
+            cate_node = causal_effect[mask]
+            node_dict[node_id] = {'mean': np.mean(cate_node, axis=0), 'std': np.std(cate_node, axis=0)}
+
+        self.node_dict_ = node_dict
         self._is_fitted = True
 
         return self
@@ -236,8 +248,7 @@ class CEInterpreter:
             assert isinstance(data, pd.DataFrame)
 
             v = convert2array(data, self.covariate)[0]
-            if hasattr(self, 'cov_transformer'):
-                v = self.cov_transformer.transform(v)
+            v = self._transform_data(v)
 
             assert v.shape[1] == self._tree_model.n_features_in_
             v = v.reshape(-1, 1) if v.ndim == 1 else v
@@ -247,14 +258,18 @@ class CEInterpreter:
         return v
 
     def _transform_data(self, data):
-        if hasattr(self._est_model, 'covariate_transformer'):
-            ct = self._est_model.covariate_transformer
-            if ct is not None:
-                return ct.transform(data)
-            else:
-                return data
+        ct = self.cov_transformer
+        if ct is not None:
+            return ct.transform(data)
         else:
             return data
+
+    @property
+    def cov_transformer(self):
+        if hasattr(self._est_model, 'covariate_transformer'):
+            return self._est_model.covariate_transformer
+        else:
+            return None
 
     def decide(self, data):
         data_t = self._transform_data(data)
@@ -266,7 +281,7 @@ class CEInterpreter:
         max_depth=None,
         class_names=None,
         label='all',
-        filled=False,
+        filled=True,
         node_ids=False,
         proportion=False,
         rounded=False,
@@ -340,8 +355,7 @@ class CEInterpreter:
         if feature_names == None:
             feature_names = self.covariate
 
-        return plot_tree(
-            self._tree_model,
+        exporter = _CateTreeExporter(
             max_depth=max_depth,
             feature_names=feature_names,
             class_names=class_names,
@@ -352,6 +366,7 @@ class CEInterpreter:
             proportion=proportion,
             rounded=rounded,
             precision=precision,
-            ax=ax,
             fontsize=fontsize,
         )
+
+        return exporter.export(self._tree_model, self.node_dict_, ax=ax)
