@@ -47,7 +47,7 @@ class Cumulator:
         result.loc[0] = np.zeros((result.shape[1],))
         result = result.sort_index().interpolate()
 
-        return result, result_top_point
+        return result, pd.Series(result_top_point)
 
     def cumulate_with_random(self, df):
         assert self.random_name is not None

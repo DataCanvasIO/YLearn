@@ -884,7 +884,7 @@ class Why:
         control : int or list, default None
             This is similar to the cases of treat, by default None
         scorer: str, default 'auto'
-            Reserved.
+            One of 'auto', 'rloss', 'auuc', 'qini'. default 'rloss'.
 
         Returns
         -------
@@ -922,9 +922,11 @@ class Why:
         # score = np.mean(sa)
         um = self.uplift_model(test_data, treatment=treatment, treat=treat, control=control)
         if scorer == 'auuc':
-            score = um.auuc_score()
+            s = um.auuc_score()
         else:
-            score = um.qini_score()
+            s = um.qini_score()
+        assert isinstance(s, pd.Series)
+        score = s.mean()
         return score
 
     def _score_rloss(self, test_data=None, treat=None, control=None):
@@ -1229,11 +1231,11 @@ class Why:
         effect = estimator.estimate(data_tc, treat=t_encoded, control=c_encoded)
         df_lift = pd.DataFrame({
             name: effect.ravel(),
-            'x': utils.encode_treat_control(data_tc, treatment=treatment, treat=t_encoded, control=c_encoded),
-            'y': data_tc[self.outcome_]
-        })
+            '_x_': utils.encode_treat_control(data_tc, treatment=treatment, treat=t_encoded, control=c_encoded),
+            '_y_': data_tc[self.outcome_]
+        }, index=data_tc.index)
         um = L.UpliftModel()
-        um.fit(df_lift, treatment='x', outcome='y', random=random)
+        um.fit(df_lift, treatment='_x_', outcome='_y_', random=random)
         return um
 
     def plot_policy_tree(self, test_data, treatment=None, control=None, **kwargs):

@@ -8,7 +8,7 @@ from ._plot import plot_gain, plot_qini, plot_cumlift
 def _check_fitted(fn):
     def _exec(obj, *args, **kwargs):
         assert isinstance(obj, UpliftModel)
-        if obj.cumlift_ is None:
+        if obj.lift_ is None:
             raise ValueError(f'fit {type(obj).__name__} before call {fn.__name__}() please.')
 
         return fn(obj, *args, **kwargs)
@@ -19,7 +19,7 @@ def _check_fitted(fn):
 class UpliftModel(object):
     def __init__(self):
         # fitted
-        # self.df_lift_ = None
+        self.lift_ = None
         self.cumlift_ = None
         self.gain_ = None
         self.gain_top_point_ = None
@@ -56,6 +56,7 @@ class UpliftModel(object):
             normalize=True
         )
         self.random_ = random
+        self.lift_ = df_lift.copy()
 
         return self
 
@@ -79,41 +80,31 @@ class UpliftModel(object):
 
         return qini.copy()
 
+    def _get_value_or_series(self, s, name=None):
+        assert isinstance(s, pd.Series)
+        if name is None:
+            if self.random_ is not None:
+                return s[s.index != self.random_].copy()
+            else:
+                return s.copy()
+        else:
+            return s[name]
+
     @_check_fitted
     def gain_top_point(self, name=None):
-        if name is None:
-            return list(self.gain_top_point_.values())[0]
-        else:
-            return self.gain_top_point_[name]
+        return self._get_value_or_series(self.gain_top_point_, name)
 
     @_check_fitted
     def qini_top_point(self, name=None):
-        if name is None:
-            return list(self.qini_top_point_.values())[0]
-        else:
-            return self.qini_top_point_[name]
+        return self._get_value_or_series(self.qini_top_point_, name)
 
     @_check_fitted
     def auuc_score(self, name=None):
-        s = self.auuc_score_
-        if name is None:
-            if self.random_ is not None:
-                return s[s.index != self.random_].mean()
-            else:
-                return s.mean()
-        else:
-            return s[name]
+        return self._get_value_or_series(self.auuc_score_, name)
 
     @_check_fitted
     def qini_score(self, name=None):
-        s = self.qini_score_
-        if name is None:
-            if self.random_ is not None:
-                return s[s.index != self.random_].mean()
-            else:
-                return s.mean()
-        else:
-            return s[name]
+        return self._get_value_or_series(self.qini_score_, name)
 
     @_check_fitted
     def plot_qini(self, n_sample=100, normalize=False, **kwargs):

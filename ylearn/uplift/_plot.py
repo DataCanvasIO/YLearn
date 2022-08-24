@@ -5,7 +5,7 @@ import pandas as pd
 def _sample(df, n_sample, reset_index=True):
     assert isinstance(df, pd.DataFrame) and len(df) > n_sample
 
-    idx = np.linspace(0, len(df) - 1, n_sample, endpoint=True)
+    idx = np.linspace(0, len(df) - 1, n_sample, endpoint=True, dtype='int')
     result = df.iloc[idx]
     if reset_index:
         # result = result.reset_index(drop=True)
