@@ -966,33 +966,36 @@ class Why:
         preprocessed_data = self._preprocess(test_data, encode_treatment=True)
         control = self._safe_treat_control(treatment, control, 'control')
 
-        if self.discrete_treatment and len(treatment) > 1:
-            estimator = self.estimators_[tuple(treatment)]
+        if self.discrete_treatment:
+            estimator = self._get_estimator(treatment)
             if control is not None:
                 control = [self.x_encoders_[x].transform([control[i]]).tolist()[0] for i, x in enumerate(treatment)]
+                if len(treatment) == 1:
+                    control = control[0]
             effect = estimator.effect_nji(preprocessed_data, **drop_none(control=control))
             assert isinstance(effect, np.ndarray)
             assert effect.ndim == 3 and effect.shape[1] == 1
             effect_array = effect.squeeze(axis=1)
+            classes = [self.x_encoders_[x].classes_.tolist() for x in treatment]
+            effect_labels = list(map(lambda pair: '_'.join(map(str, pair)), product(*classes)))
         else:
             effects = []
             for i, x in enumerate(treatment):
                 estimator = self.estimators_[x]
-                if self.discrete_treatment:
-                    xe = self.x_encoders_[x]
-                    ci = xe.transform([control[i], ]).tolist()[0] if control is not None else None
-                else:
-                    ci = control[i] if control is not None else None
+                ci = control[i] if control is not None else None
                 effect = estimator.effect_nji(preprocessed_data, **drop_none(control=ci))
                 assert isinstance(effect, np.ndarray)
                 assert effect.ndim == 3 and effect.shape[1] == 1
                 effects.append(effect.squeeze(axis=1))
             effect_array = np.hstack(effects)
+            effect_labels = treatment
+
+        assert effect_array.shape[1] == len(effect_labels)
 
         if self.fn_cost is not None:
             effect_array = utils.cost_effect_array(self.fn_cost, test_data, effect_array, self.effect_name)
 
-        return effect_array
+        return effect_array, effect_labels
 
     def policy_tree(self, test_data, treatment=None, control=None, **kwargs):
         """
@@ -1025,9 +1028,10 @@ class Why:
         """
         from ylearn.policy.policy_model import PolicyTree
 
-        effect_array = self._effect_array(test_data, treatment, control=control)
+        effect_array, labels = self._effect_array(test_data, treatment, control=control)
         ptree = PolicyTree(**kwargs)
-        ptree.fit(test_data, covariate=self.covariate_, effect_array=effect_array)
+        ptree.fit(test_data, covariate=self.covariate_,
+                  effect_array=effect_array, treatment_names=labels)
 
         return ptree
 
@@ -1059,9 +1063,10 @@ class Why:
         PolicyInterpreter :
             The fitted PolicyInterpreter object
         """
-        effect_array = self._effect_array(test_data, treatment, control=control)
+        effect_array, labels = self._effect_array(test_data, treatment, control=control)
         pi = PolicyInterpreter(**kwargs)
-        pi.fit(test_data, covariate=self.covariate_, est_model=None, effect_array=effect_array)
+        pi.fit(test_data, covariate=self.covariate_, est_model=None,
+               effect_array=effect_array, treatment_names=labels)
         return pi
 
     def _check_test_data(self, reason, test_data,
