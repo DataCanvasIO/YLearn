@@ -406,8 +406,9 @@ class _PolicyTreeMPLExporter(_TreeExporter):
         The names of the two treatments
     """
 
-    def __init__(self, *args, treatment_names=None, **kwargs):
+    def __init__(self, *args, treatment_names=None, show_all_treatments=True, **kwargs):
         self.treatment_names = treatment_names
+        self.show_all_treatments = show_all_treatments
         super().__init__(*args, **kwargs)
 
         self.node_dict = None
@@ -428,21 +429,39 @@ class _PolicyTreeMPLExporter(_TreeExporter):
         if self.node_dict is not None:
             return self._node_replacement_text_with_dict(tree, node_id, criterion)
         value = tree.value[node_id][:, 0]
-        node_string = 'value = %s' % np.round(value[1:] - value[0], self.precision)
+
+        node_string = ""
+        if not self.show_all_treatments:
+            node_string = 'value = %s' % np.round(value[1:] - value[0], self.precision)
 
         if tree.children_left[node_id] == _tree.TREE_LEAF:
-            node_string += self.characters[4]
-            # Write node mean CATE
-            node_string += 'Treatment = '
-            if self.treatment_names:
-                class_name = self.treatment_names[np.argmax(value)]
+
+            treatments = self.ensure_treatments(value)
+            if self.show_all_treatments:
+                treatments_str = ""
+                for k, v in zip(treatments, value):
+                    treatments_str += f"{k}={np.round(v, self.precision)}\n"
+
             else:
-                class_name = "T%s%s%s" % (self.characters[1],
-                                          np.argmax(value),
-                                          self.characters[2])
-            node_string += class_name
+                treatments_str = "Treatment: "
+                if self.treatment_names:
+                    # f"{}={}"
+                    treatments_str += self.treatment_names[np.argmax(value)]
+                else:
+                    treatments_str += "T%s%s%s" % (self.characters[1],
+                                                   np.argmax(value),
+                                                   self.characters[2])
+
+            node_string += treatments_str
 
         return node_string
+
+    def ensure_treatments(self, value):
+        if self.treatment_names is not None:
+            return self.treatment_names
+        else:
+            return ["T%s%s%s" % (self.characters[1], i,self.characters[2]) for i in range(len(value))]
+
 
     def _node_replacement_text_with_dict(self, tree, node_id, criterion):
 
@@ -477,14 +496,24 @@ class _PolicyTreeMPLExporter(_TreeExporter):
             node_string += 'value - cost = %s' % np.round(value[1:], self.precision) + self.characters[4]
 
             value = tree.value[node_id][:, 0]
-            node_string += "Treatment: "
-            if self.treatment_names:
-                class_name = self.treatment_names[np.argmax(value)]
+            treatments = self.ensure_treatments(value)
+
+            if self.show_all_treatments:
+                treatments_str = ""
+                for k, v in zip(treatments, value):
+                    treatments_str += f"{k}={v}"
+
             else:
-                class_name = "T%s%s%s" % (self.characters[1],
-                                          np.argmax(value),
-                                          self.characters[2])
-            node_string += "{}".format(class_name)
+                treatments_str = "Treatment: "
+                if self.treatment_names:
+                    # f"{}={}"
+                    treatments_str += self.treatment_names[np.argmax(value)]
+                else:
+                    treatments_str += "T%s%s%s" % (self.characters[1],
+                                              np.argmax(value),
+                                              self.characters[2])
+
+            node_string += treatments_str
             node_string += self.characters[4]
 
         return node_string
