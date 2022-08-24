@@ -169,6 +169,7 @@ class PolicyInterpreter:
         self.max_features = max_features
 
         self.node_dict_ = None
+        self.treatment_names_ = None
 
 
     def fit(
@@ -177,6 +178,7 @@ class PolicyInterpreter:
         est_model,
         *,
         covariate=None,
+        treatment_names=None,
         effect=None,
         effect_array=None,
     ):
@@ -232,6 +234,7 @@ class PolicyInterpreter:
         )
 
         self._is_fitted = True
+        self.treatment_names_ = treatment_names
 
         return self
 
@@ -278,7 +281,6 @@ class PolicyInterpreter:
     def plot(
         self, *,
         feature_names=None,
-        treatment_names=None,
         max_depth=None,
         class_names=None,
         label='all',
@@ -355,7 +357,7 @@ class PolicyInterpreter:
             feature_names = self.covariate
 
         exporter = _PolicyTreeMPLExporter(feature_names=feature_names,
-                                          treatment_names=treatment_names,
+                                          treatment_names=self.treatment_names_,
                                           max_depth=max_depth,
                                           filled=filled,
                                           rounded=rounded,

@@ -406,8 +406,7 @@ class _PolicyTreeMPLExporter(_TreeExporter):
         The names of the two treatments
     """
 
-    def __init__(self, *args, treatment_names=None, show_all_treatments=True, **kwargs):
-        self.treatment_names = treatment_names
+    def __init__(self, *args, show_all_treatments=True, **kwargs):
         self.show_all_treatments = show_all_treatments
         super().__init__(*args, **kwargs)
 
