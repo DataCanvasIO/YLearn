@@ -146,6 +146,16 @@ def infer_task_type(y, *, dropna=True, excludes=None, regression_exponent=0.382)
 
 
 def get_params(obj, include_default=False):
+    def _get_sk_estimator_params(est):
+        try:
+            from sklearn.base import BaseEstimator
+            if isinstance(est, BaseEstimator):
+                return est.get_params()
+            else:
+                return None
+        except ImportError:
+            return None
+
     def _get_init_params(cls):
         init = cls.__init__
         if init is object.__init__:
@@ -156,9 +166,9 @@ def get_params(obj, include_default=False):
                       if p.name != 'self']  # and p.kind != p.VAR_KEYWORD]
         return parameters
 
-    fn_get_params = getattr(obj, 'get_params', None)
-    if callable(fn_get_params):
-        return fn_get_params()
+    sk_params = _get_sk_estimator_params(obj)
+    if sk_params is not None:
+        return sk_params
 
     out = OrderedDict()
     for p in _get_init_params(type(obj)):

@@ -1,3 +1,8 @@
+import numpy as np
+
+from ._export import _PolicyTreeMPLExporter
+
+
 class PolicyInterpreter:
     """
     Attributes
@@ -164,12 +169,17 @@ class PolicyInterpreter:
         self.min_weight_fraction_leaf = min_weight_fraction_leaf
         self.max_features = max_features
 
+        self.node_dict_ = None
+        self.treatment_names_ = None
+
+
     def fit(
         self,
         data,
         est_model,
         *,
         covariate=None,
+        treatment_names=None,
         effect=None,
         effect_array=None,
     ):
@@ -225,8 +235,21 @@ class PolicyInterpreter:
         )
 
         self._is_fitted = True
+        self.treatment_names_ = treatment_names
 
         return self
+
+    def decide(self, data):
+        assert self._is_fitted, 'The model is not fitted yet. Please use the fit method first.'
+        y_pred_ind = self._tree_model.predict_ind(data)  # y_pred_ind.shape=(n,)
+        if self.treatment_names_ is not None:
+            return np.array(self.treatment_names_).take(y_pred_ind)
+        else:
+            return y_pred_ind
+
+    def predict(self, data):
+        assert self._is_fitted, 'The model is not fitted yet. Please use the fit method first.'
+        return self._tree_model.predict_opt_effect(data)
 
     def interpret(self, data=None):
         assert self._is_fitted, 'The model is not fitted yet. Please use the fit method first.'
@@ -274,7 +297,7 @@ class PolicyInterpreter:
         max_depth=None,
         class_names=None,
         label='all',
-        filled=False,
+        filled=True,
         node_ids=False,
         proportion=False,
         rounded=False,
@@ -343,20 +366,15 @@ class PolicyInterpreter:
         """
         assert self._is_fitted
 
-
         if feature_names == None:
             feature_names = self.covariate
 
-        return self._tree_model.plot(
-            max_depth=max_depth,
-            feature_names=feature_names,
-            class_names=class_names,
-            label=label,
-            filled=filled,
-            node_ids=node_ids,
-            proportion=proportion,
-            rounded=rounded,
-            precision=precision,
-            ax=ax,
-            fontsize=fontsize,
-        )
+        exporter = _PolicyTreeMPLExporter(feature_names=feature_names,
+                                          treatment_names=self.treatment_names_,
+                                          max_depth=max_depth,
+                                          filled=filled,
+                                          rounded=rounded,
+                                          precision=precision,
+                                          fontsize=fontsize)
+
+        exporter.export(self._tree_model, node_dict=self.node_dict_, ax=ax)

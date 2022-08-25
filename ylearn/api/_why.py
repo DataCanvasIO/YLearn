@@ -884,7 +884,7 @@ class Why:
         control : int or list, default None
             This is similar to the cases of treat, by default None
         scorer: str, default 'auto'
-            Reserved.
+            One of 'auto', 'rloss', 'auuc', 'qini'. default 'rloss'.
 
         Returns
         -------
@@ -899,32 +899,39 @@ class Why:
             return self._score_rloss(test_data, treat=treat, control=control)
 
     def _score_auuc_qini(self, test_data, treatment=None, treat=None, control=None, scorer='auuc'):
-        treatment = utils.to_list(treatment, 'treatment') if treatment is not None else self.treatment_
-        self._check_test_data('_score_auuc_qini', test_data,
-                              treatment=treatment,
-                              allow_data_none=False,
-                              check_discrete_treatment=True,
-                              check_treatment=True,
-                              check_outcome=True)
-
-        def scoring(effect, x, treat, control, preprocessed_data):
-            df = pd.DataFrame(dict(effect=effect,
-                                   x=preprocessed_data[x],
-                                   y=preprocessed_data[self.outcome_],
-                                   ))
-            if scorer == 'auuc':
-                s = L.auuc_score(df, outcome='y', treatment='x', treat=treat, control=control, random_name=None)
-            else:
-                s = L.qini_score(df, outcome='y', treatment='x', treat=treat, control=control, random_name=None)
-            return s['effect']
-
-        sa = self._map_effect(scoring, test_data, treatment=treatment, treat=treat, control=control)
-        score = np.mean(sa)
+        # treatment = utils.to_list(treatment, 'treatment') if treatment is not None else self.treatment_
+        # self._check_test_data('_score_auuc_qini', test_data,
+        #                       treatment=treatment,
+        #                       allow_data_none=False,
+        #                       check_discrete_treatment=True,
+        #                       check_treatment=True,
+        #                       check_outcome=True)
+        #
+        # def scoring(effect, x, treat, control, preprocessed_data):
+        #     df = pd.DataFrame(dict(effect=effect,
+        #                            x=preprocessed_data[x],
+        #                            y=preprocessed_data[self.outcome_],
+        #                            ))
+        #     if scorer == 'auuc':
+        #         s = L.auuc_score(df, outcome='y', treatment='x', treat=treat, control=control, random_name=None)
+        #     else:
+        #         s = L.qini_score(df, outcome='y', treatment='x', treat=treat, control=control, random_name=None)
+        #     return s['effect']
+        #
+        # sa = self._map_effect(scoring, test_data, treatment=treatment, treat=treat, control=control)
+        # score = np.mean(sa)
+        um = self.uplift_model(test_data, treatment=treatment, treat=treat, control=control)
+        if scorer == 'auuc':
+            s = um.auuc_score()
+        else:
+            s = um.qini_score()
+        assert isinstance(s, pd.Series)
+        score = s.mean()
         return score
 
     def _score_rloss(self, test_data=None, treat=None, control=None):
         scorers = self._create_scorers(test_data, scorer='rloss')
-        test_data = self._preprocess(test_data)
+        test_data = self._preprocess(test_data, encode_treatment=True)
         treat = self._safe_treat_control(self.treatment_, treat, 'treat')
         control = self._safe_treat_control(self.treatment_, control, 'control')
         fit_options = drop_none(adjustment=self.adjustment_, covariate=self.covariate_, instrument=self.instrument_)
@@ -934,7 +941,6 @@ class Why:
             logger.info(f'fit scorer for {x} with {scorer}')
             if self.discrete_treatment:
                 xe = self.x_encoders_[x]
-                test_data[x] = xe.transform(test_data[x])
                 treat_i = xe.transform([treat[i], ]).tolist()[0] if treat is not None else None
                 control_i = xe.transform([control[i], ]).tolist()[0] if control is not None else None
             else:
@@ -948,7 +954,7 @@ class Why:
 
         return score
 
-    def _effect_array(self, test_data, treatment, control=None):
+    def _effect_array(self, test_data, preprocessed_data, treatment, control=None):
         if treatment is None:
             treatment = self.treatment_[:2]
         else:
@@ -957,36 +963,38 @@ class Why:
         if len(treatment) > 2:
             raise ValueError(f'2 treatment are supported at most.')
 
-        preprocessed_data = self._preprocess(test_data, encode_treatment=True)
         control = self._safe_treat_control(treatment, control, 'control')
 
-        if self.discrete_treatment and len(treatment) > 1:
-            estimator = self.estimators_[tuple(treatment)]
+        if self.discrete_treatment:
+            estimator = self._get_estimator(treatment)
             if control is not None:
                 control = [self.x_encoders_[x].transform([control[i]]).tolist()[0] for i, x in enumerate(treatment)]
+                if len(treatment) == 1:
+                    control = control[0]
             effect = estimator.effect_nji(preprocessed_data, **drop_none(control=control))
             assert isinstance(effect, np.ndarray)
             assert effect.ndim == 3 and effect.shape[1] == 1
             effect_array = effect.squeeze(axis=1)
+            classes = [self.x_encoders_[x].classes_.tolist() for x in treatment]
+            effect_labels = list(map(lambda pair: '_'.join(map(str, pair)), product(*classes)))
         else:
             effects = []
             for i, x in enumerate(treatment):
                 estimator = self.estimators_[x]
-                if self.discrete_treatment:
-                    xe = self.x_encoders_[x]
-                    ci = xe.transform([control[i], ]).tolist()[0] if control is not None else None
-                else:
-                    ci = control[i] if control is not None else None
+                ci = control[i] if control is not None else None
                 effect = estimator.effect_nji(preprocessed_data, **drop_none(control=ci))
                 assert isinstance(effect, np.ndarray)
                 assert effect.ndim == 3 and effect.shape[1] == 1
                 effects.append(effect.squeeze(axis=1))
             effect_array = np.hstack(effects)
+            effect_labels = treatment
+
+        assert effect_array.shape[1] == len(effect_labels)
 
         if self.fn_cost is not None:
             effect_array = utils.cost_effect_array(self.fn_cost, test_data, effect_array, self.effect_name)
 
-        return effect_array
+        return effect_array, effect_labels
 
     def policy_tree(self, test_data, treatment=None, control=None, **kwargs):
         """
@@ -1019,9 +1027,11 @@ class Why:
         """
         from ylearn.policy.policy_model import PolicyTree
 
-        effect_array = self._effect_array(test_data, treatment, control=control)
+        preprocessed_data = self._preprocess(test_data, encode_treatment=True)
+        effect_array, labels = self._effect_array(test_data, preprocessed_data, treatment, control=control)
         ptree = PolicyTree(**kwargs)
-        ptree.fit(test_data, covariate=self.covariate_, effect_array=effect_array)
+        ptree.fit(preprocessed_data, covariate=self.covariate_,
+                  effect_array=effect_array, treatment_names=labels)
 
         return ptree
 
@@ -1053,9 +1063,11 @@ class Why:
         PolicyInterpreter :
             The fitted PolicyInterpreter object
         """
-        effect_array = self._effect_array(test_data, treatment, control=control)
+        preprocessed_data = self._preprocess(test_data, encode_treatment=True)
+        effect_array, labels = self._effect_array(test_data, preprocessed_data, treatment, control=control)
         pi = PolicyInterpreter(**kwargs)
-        pi.fit(test_data, covariate=self.covariate_, est_model=None, effect_array=effect_array)
+        pi.fit(preprocessed_data, covariate=self.covariate_, est_model=None,
+               effect_array=effect_array, treatment_names=labels)
         return pi
 
     def _check_test_data(self, reason, test_data,
@@ -1225,11 +1237,11 @@ class Why:
         effect = estimator.estimate(data_tc, treat=t_encoded, control=c_encoded)
         df_lift = pd.DataFrame({
             name: effect.ravel(),
-            'x': utils.encode_treat_control(data_tc, treatment=treatment, treat=t_encoded, control=c_encoded),
-            'y': data_tc[self.outcome_]
-        })
+            '_x_': utils.encode_treat_control(data_tc, treatment=treatment, treat=t_encoded, control=c_encoded),
+            '_y_': data_tc[self.outcome_]
+        }, index=data_tc.index)
         um = L.UpliftModel()
-        um.fit(df_lift, treatment='x', outcome='y', random=random)
+        um.fit(df_lift, treatment='_x_', outcome='_y_', random=random)
         return um
 
     def plot_policy_tree(self, test_data, treatment=None, control=None, **kwargs):

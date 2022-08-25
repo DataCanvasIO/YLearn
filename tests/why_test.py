@@ -171,7 +171,7 @@ def test_uplift():
     data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x2b_y1()
     data[outcome] = (data[outcome] > 0).astype('int')
     test_data[outcome] = (test_data[outcome] > 0).astype('int')
-    why = Why()
+    why = Why(estimator='dml')
     why.fit(data, outcome[0], treatment=treatment, adjustment=adjustment, covariate=covariate)
 
     _validate_it(why, test_data)
@@ -190,6 +190,12 @@ def test_uplift():
 
     r = um.get_qini()
     assert isinstance(r, pd.DataFrame)
+
+    s = um.auuc_score()
+    print('auuc:', s)
+
+    s = um.gain_top_point()
+    print('gain_top_point:', s)
 
 
 def test_customized_estimator():
