@@ -337,7 +337,7 @@ class _CateTreeExporter(_TreeExporter):
     def node_replacement_text(self, tree, node_id, criterion):
         # Write node mean CATE
         node_info = tree.nodes_ext[node_id]
-        node_string = 'CATE mean' + self.characters[4]
+        node_string = '------CATE mean------' + self.characters[4]
         value_text = ""
         mean = node_info['mean']
         if hasattr(mean, 'shape') and (len(mean.shape) > 0):
@@ -371,7 +371,7 @@ class _CateTreeExporter(_TreeExporter):
         node_string += value_text
 
         # Write node std of CATE
-        node_string += "CATE std" + self.characters[4]
+        node_string += "------CATE std------" + self.characters[4]
         std = node_info['std']
         value_text = ""
         if hasattr(std, 'shape') and (len(std.shape) > 0):
@@ -397,14 +397,6 @@ class _CateTreeExporter(_TreeExporter):
 
 
 class _PolicyTreeMPLExporter(_TreeExporter):
-    """
-    Mixin that supports writing out the nodes of a policy tree
-
-    Parameters
-    ----------
-    treatment_names : list of strings, optional, default None
-        The names of the two treatments
-    """
 
     def __init__(self, *args, show_all_treatments=True, **kwargs):
         self.show_all_treatments = show_all_treatments
@@ -413,8 +405,6 @@ class _PolicyTreeMPLExporter(_TreeExporter):
         self.node_dict = None
 
     def get_fill_color(self, tree, node_id):
-        # TODO. Create our own color pallete for multiple treatments. The one below is for binary treatments.
-        # Fetch appropriate color for node
         if 'rgb' not in self.colors:
             self.colors['rgb'] = _color_brew(tree.n_outputs)  # [(179, 108, 96), (81, 157, 96)]
 
@@ -443,13 +433,13 @@ class _PolicyTreeMPLExporter(_TreeExporter):
         # if tree.children_left[node_id] == _tree.TREE_LEAF:  # NOTE: for all node not only leaf
 
         treatments = self.ensure_treatments(value)
+        treatments_str = "------CATE mean------\n"
         if self.show_all_treatments:
-            treatments_str = ""
             for k, v in zip(treatments, value):
                 treatments_str += f"{k}={np.round(v, self.precision)}\n"
 
         else:
-            treatments_str = "Treatment: "
+            treatments_str += "Treatment: "
             if self.treatment_names:
                 # f"{}={}"
                 treatments_str += self.treatment_names[np.argmax(value)]
