@@ -1,3 +1,5 @@
+import numpy as np
+
 from ._export import _PolicyTreeMPLExporter
 
 
@@ -237,11 +239,11 @@ class PolicyInterpreter:
 
         return self
 
-    def decide(self, data, treatment_names=None):
+    def decide(self, data):
         assert self._is_fitted, 'The model is not fitted yet. Please use the fit method first.'
-        y_pred_ind = self._tree_model.predict_ind(data)
-        if treatment_names is not None:
-            return [treatment_names [i] for i in y_pred_ind]
+        y_pred_ind = self._tree_model.predict_ind(data)  # y_pred_ind.shape=(n,)
+        if self.treatment_names_ is not None:
+            return np.array(self.treatment_names_).take(y_pred_ind)
         else:
             return y_pred_ind
 
