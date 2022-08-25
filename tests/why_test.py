@@ -26,11 +26,32 @@ def _validate_it(why, test_data, check_score=True):
 
 
 def test_basis():
+    data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x1b_y1()
+    why = Why()
+    why.fit(data, outcome[0], treatment=treatment, adjustment=adjustment, covariate=covariate)
+
+    _validate_it(why, test_data)
+    effect = why.causal_effect(combine_treatment=True)
+    assert effect is not None
+
+
+def test_x2b():
     data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x2b_y1()
     why = Why()
     why.fit(data, outcome[0], treatment=treatment, adjustment=adjustment, covariate=covariate)
 
     _validate_it(why, test_data)
+
+
+def test_x2mb():
+    data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x2mb_y1()
+    why = Why()
+    why.fit(data, outcome[0], treatment=treatment, adjustment=adjustment, covariate=covariate)
+
+    _validate_it(why, test_data)
+
+    effect = why.causal_effect(combine_treatment=True)
+    assert effect is not None
 
 
 @pytest.mark.xfail(reason='to be fixed')
@@ -123,6 +144,9 @@ def test_policy_interpreter():
 
     pi = why.policy_interpreter(test_data)
     assert pi is not None
+
+    r = pi.decide(test_data)
+    assert isinstance(r, np.ndarray) and len(r) == len(test_data)
 
 
 @if_policy_tree_ready
