@@ -954,7 +954,7 @@ class Why:
 
         return score
 
-    def _effect_array(self, preprocessed_data, treatment, control=None):
+    def _effect_array(self, test_data, preprocessed_data, treatment, control=None):
         if treatment is None:
             treatment = self.treatment_[:2]
         else:
@@ -1028,7 +1028,7 @@ class Why:
         from ylearn.policy.policy_model import PolicyTree
 
         preprocessed_data = self._preprocess(test_data, encode_treatment=True)
-        effect_array, labels = self._effect_array(preprocessed_data, treatment, control=control)
+        effect_array, labels = self._effect_array(test_data, preprocessed_data, treatment, control=control)
         ptree = PolicyTree(**kwargs)
         ptree.fit(preprocessed_data, covariate=self.covariate_,
                   effect_array=effect_array, treatment_names=labels)
@@ -1064,7 +1064,7 @@ class Why:
             The fitted PolicyInterpreter object
         """
         preprocessed_data = self._preprocess(test_data, encode_treatment=True)
-        effect_array, labels = self._effect_array(preprocessed_data, treatment, control=control)
+        effect_array, labels = self._effect_array(test_data, preprocessed_data, treatment, control=control)
         pi = PolicyInterpreter(**kwargs)
         pi.fit(preprocessed_data, covariate=self.covariate_, est_model=None,
                effect_array=effect_array, treatment_names=labels)
