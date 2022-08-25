@@ -272,6 +272,9 @@ class CEInterpreter:
             return None
 
     def decide(self, data):
+        return self.predict(data)
+
+    def predict(self, data):
         data_t = self._transform_data(data)
         return self._tree_model.predict(data_t)
 

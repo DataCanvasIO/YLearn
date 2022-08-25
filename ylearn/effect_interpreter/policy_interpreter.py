@@ -237,6 +237,18 @@ class PolicyInterpreter:
 
         return self
 
+    def decide(self, data, treatment_names=None):
+        assert self._is_fitted, 'The model is not fitted yet. Please use the fit method first.'
+        y_pred_ind = self._tree_model.predict_ind(data)
+        if treatment_names is not None:
+            return [treatment_names [i] for i in y_pred_ind]
+        else:
+            return y_pred_ind
+
+    def predict(self, data):
+        assert self._is_fitted, 'The model is not fitted yet. Please use the fit method first.'
+        return self._tree_model.predict_opt_effect(data)
+
     def interpret(self, data=None):
         assert self._is_fitted, 'The model is not fitted yet. Please use the fit method first.'
 
