@@ -954,7 +954,7 @@ class Why:
 
         return score
 
-    def _effect_array(self, test_data, treatment, control=None):
+    def _effect_array(self, preprocessed_data, treatment, control=None):
         if treatment is None:
             treatment = self.treatment_[:2]
         else:
@@ -963,7 +963,6 @@ class Why:
         if len(treatment) > 2:
             raise ValueError(f'2 treatment are supported at most.')
 
-        preprocessed_data = self._preprocess(test_data, encode_treatment=True)
         control = self._safe_treat_control(treatment, control, 'control')
 
         if self.discrete_treatment:
@@ -1028,9 +1027,10 @@ class Why:
         """
         from ylearn.policy.policy_model import PolicyTree
 
-        effect_array, labels = self._effect_array(test_data, treatment, control=control)
+        preprocessed_data = self._preprocess(test_data, encode_treatment=True)
+        effect_array, labels = self._effect_array(preprocessed_data, treatment, control=control)
         ptree = PolicyTree(**kwargs)
-        ptree.fit(test_data, covariate=self.covariate_,
+        ptree.fit(preprocessed_data, covariate=self.covariate_,
                   effect_array=effect_array, treatment_names=labels)
 
         return ptree
@@ -1063,9 +1063,10 @@ class Why:
         PolicyInterpreter :
             The fitted PolicyInterpreter object
         """
-        effect_array, labels = self._effect_array(test_data, treatment, control=control)
+        preprocessed_data = self._preprocess(test_data, encode_treatment=True)
+        effect_array, labels = self._effect_array(preprocessed_data, treatment, control=control)
         pi = PolicyInterpreter(**kwargs)
-        pi.fit(test_data, covariate=self.covariate_, est_model=None,
+        pi.fit(preprocessed_data, covariate=self.covariate_, est_model=None,
                effect_array=effect_array, treatment_names=labels)
         return pi
 
