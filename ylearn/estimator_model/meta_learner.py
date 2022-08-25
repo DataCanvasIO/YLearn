@@ -290,8 +290,8 @@ class SLearner(BaseEstModel):
         else:
             return effect
 
-    def effect_nji(self, data=None, prob_output=False):
-        y_nji = self._prepare4est(data=data, proba_output=prob_output)
+    def effect_nji(self, data=None):
+        y_nji = self._prepare4est(data=data)
 
         if y_nji.ndim == 3:
             n, y_d, x_d = y_nji.shape
@@ -1316,8 +1316,8 @@ class XLearner(BaseEstModel):
         else:
             return effect
 
-    def effect_nji(self, data=None, proba_output=False):
-        y_nji = self._prepare4est(data=data, proba_output=proba_output)
+    def effect_nji(self, data=None):
+        y_nji = self._prepare4est(data=data)
 
         if y_nji.ndim == 3:
             n, y_d, x_d = y_nji.shape
