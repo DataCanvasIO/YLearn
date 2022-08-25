@@ -15,6 +15,7 @@ from ..base_models import BaseEstModel
 from ..causal_tree import CausalTree
 
 
+# we ignore the warm start and inference parts in the current version
 class BaseForest:
     @abstractmethod
     def __init__(
@@ -237,10 +238,4 @@ class BaseCausalForest(BaseEstModel, BaseForest):
         pass
 
     def _prepare4est(self, data=None):
-        pass
-
-    def _make_estimator(self, append=True, random_state=None):
-        pass
-
-    def _validate_estimator(self, default=None):
         pass
