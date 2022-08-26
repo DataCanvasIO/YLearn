@@ -795,8 +795,8 @@ class TLearner(BaseEstModel):
                 classes_ = self.xt_model.classes_
             except:
                 classes_ = self._fitted_dict_separa["models"][0].classes_
-            else:
-                classes_ = None
+            # else:
+            #     classes_ = None
         else:
             classes_ = None
 
@@ -1267,8 +1267,8 @@ class XLearner(BaseEstModel):
                 )  # TODO: note that, in some extreme case when the treat group only has one class of outcome, then this will render an error, but currently we ignore such case
             except:
                 classes_ = self._fitted_dict_separa["models"][0].classes_
-            else:
-                classes_ = None
+            # else:
+            #     classes_ = None
         else:
             classes_ = None
 
