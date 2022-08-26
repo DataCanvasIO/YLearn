@@ -1506,7 +1506,7 @@ class XLearner(BaseEstModel):
 
         if self.proba_output:
             self._outcome_oh = OneHotEncoder(categories=[f0_model.classes_])
-            _y_control = self._outcome_oh.fit_transform(_y_control)
+            _y_control = self._outcome_oh.fit_transform(_y_control.reshape(-1, 1))
             for treat in treat_arrays[1:]:
                 ft_model = clone(self.ft_model)
                 _wv, _y = get_groups(treat, x, False, wv, y)
