@@ -1,4 +1,5 @@
 import copy
+import inspect
 from itertools import product
 
 import numpy as np
@@ -18,6 +19,21 @@ except ImportError as e:
     class CausalTree:
         def __init__(self, *args, **kwargs):
             raise ImportError(msg)
+
+
+def _default_estimate_options(learner, effect_nji=False):
+    options = {}
+    if learner.is_discrete_outcome:
+        if effect_nji:
+            fn = learner.effect_nji
+        else:
+            fn = learner.estimate
+        params = inspect.signature(fn).parameters
+        if 'target_outcome' in params.keys():
+            classes = getattr(learner, 'outcome_classes_', None)
+            if isinstance(classes, (list, tuple, np.ndarray)):
+                options['target_outcome'] = classes[-1]
+    return options
 
 
 def _copy_and_fit(learner, data, outcome, treatment, treat, control, **kwargs):
@@ -173,7 +189,12 @@ class PermutedLearner(BaseEstModel):
                 treat = treat[0]
 
         learner, sign = self._get_learner(treat, control)
-        effect = learner.estimate(data, **kwargs)
+        if self.is_discrete_outcome:
+            options = _default_estimate_options(learner)
+            options.update(kwargs)
+        else:
+            options = kwargs
+        effect = learner.estimate(data, **options)
         if sign < 0:
             effect = effect * sign
 
@@ -233,20 +254,64 @@ class PermutedLearner(BaseEstModel):
 
 
 class PermutedSLearner(PermutedLearner):
-    def __init__(self, model, *args, **kwargs):
-        learner = SLearner(model, *args, **kwargs)
+    def __init__(self, model,
+                 is_discrete_treatment=True,
+                 is_discrete_outcome=False,
+                 categories="auto",
+                 proba_output=None,
+                 random_state=2022,
+                 **kwargs):
+        if proba_output is None:
+            proba_output = is_discrete_outcome
+        learner = SLearner(model,
+                           random_state=random_state,
+                           is_discrete_treatment=is_discrete_treatment,
+                           is_discrete_outcome=is_discrete_outcome,
+                           categories=categories,
+                           proba_output=proba_output,
+                           **kwargs)
         super().__init__(learner)
 
 
 class PermutedTLearner(PermutedLearner):
-    def __init__(self, model, *args, **kwargs):
-        learner = TLearner(model, *args, **kwargs)
+    def __init__(self, model,
+                 is_discrete_treatment=True,
+                 is_discrete_outcome=False,
+                 proba_output=None,
+                 categories="auto",
+                 random_state=2022,
+                 **kwargs):
+        if proba_output is None:
+            proba_output = is_discrete_outcome
+        learner = TLearner(model,
+                           random_state=random_state,
+                           is_discrete_treatment=is_discrete_treatment,
+                           is_discrete_outcome=is_discrete_outcome,
+                           categories=categories,
+                           proba_output=proba_output,
+                           **kwargs)
         super().__init__(learner)
 
 
 class PermutedXLearner(PermutedLearner):
-    def __init__(self, model, *args, **kwargs):
-        learner = XLearner(model, *args, **kwargs)
+    def __init__(self, model,
+                 final_proba_model=None,
+                 is_discrete_treatment=True,
+                 is_discrete_outcome=False,
+                 proba_output=None,
+                 categories="auto",
+                 random_state=2022,
+                 **kwargs):
+        if proba_output is None:
+            proba_output = is_discrete_outcome
+        learner = XLearner(model,
+                           random_state=random_state,
+                           is_discrete_treatment=is_discrete_treatment,
+                           is_discrete_outcome=is_discrete_outcome,
+                           proba_output=proba_output,
+                           final_proba_model=final_proba_model,
+                           categories=categories,
+                           **kwargs)
         super().__init__(learner)
 
 

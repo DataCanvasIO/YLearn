@@ -108,11 +108,12 @@ class DRFactory(BaseEstimatorFactory):
 @register()
 @register(name='ml')
 class MetaLearnerFactory(BaseEstimatorFactory):
-    def __init__(self, learner='tlearner', model='gb'):
+    def __init__(self, learner='tlearner', model='gb', **kwargs):
         assert learner.strip().lower()[0] in {'s', 't', 'x'}
 
         self.learner = learner
         self.model = model
+        self.options = kwargs.copy()
 
     def __call__(self, data, outcome, treatment, y_task, x_task,
                  adjustment=None, covariate=None, instrument=None, random_state=None):
@@ -124,13 +125,15 @@ class MetaLearnerFactory(BaseEstimatorFactory):
         tag = self.learner.strip().lower()[0]
         learners = dict(s=PermutedSLearner, t=PermutedTLearner, x=PermutedXLearner)
         est_cls = learners[tag]
-        return est_cls(
+        options = dict(
             model=self._model(data, task=y_task, estimator=self.model, random_state=random_state),
             is_discrete_outcome=y_task if isinstance(y_task, bool) else y_task != const.TASK_REGRESSION,
             is_discrete_treatment=x_task if isinstance(x_task, bool) else x_task != const.TASK_REGRESSION,
             random_state=random_state,
             # combined_treatment=False,
         )
+        options.update(self.options)
+        return est_cls(**options)
 
 
 @register()
