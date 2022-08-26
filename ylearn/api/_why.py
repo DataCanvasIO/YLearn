@@ -333,7 +333,7 @@ class Why:
         if instrument is not None and len(instrument) > 0:
             estimator = 'iv'
         # elif x_task in {const.TASK_BINARY, const.TASK_MULTICLASS}:
-        elif self.discrete_treatment:
+        elif self.discrete_treatment or self.discrete_outcome:
             estimator = 'ml'
         else:
             estimator = 'dml'
@@ -542,7 +542,8 @@ class Why:
         return cg
 
     def causal_effect(self, test_data=None, treatment=None, treat=None, control=None,
-                      quantity='ATE', combine_treatment=False, return_detail=False, ):
+                      quantity='ATE', combine_treatment=False, return_detail=False,
+                      **kwargs):
         """
         Estimate the causal effect.
 
@@ -574,6 +575,8 @@ class Why:
         return_detail: bool, default False
             If True, return effect details in result when quantity=='ATE'.
             Effective when quantity='ATE' only.
+        kwargs : dict,
+            Other options to call estimator.estimate().
 
         Returns
         -------
@@ -598,10 +601,12 @@ class Why:
         options = dict(treatment=treatment, treat=treat, control=control,
                        quantity=quantity, combine_treatment=combine_treatment,
                        return_detail=return_detail)
+        options.update(kwargs)
         return fn(test_data, **options)
 
     def _causal_effect_discrete(self, test_data=None, treatment=None, treat=None, control=None,
-                                quantity='ATE', combine_treatment=False, return_detail=False):
+                                quantity='ATE', combine_treatment=False, return_detail=False,
+                                **kwargs):
         # dfs = []
         # for i, x in enumerate(self.treatment_):
         #     est = self.estimators_[x]
@@ -667,6 +672,7 @@ class Why:
             return pd.Series(effect.ravel(), name=(f'{x}', f'{t} vs {c}'))
 
         options = dict(treatment=treatment, treat=treat, control=control, combined=combine_treatment)
+        options.update(kwargs)
 
         if quantity == 'ATE':
             dfs = self._map_effect(_to_ate, test_data, **options)
@@ -679,7 +685,8 @@ class Why:
         return result
 
     def _causal_effect_continuous(self, test_data=None, treatment=None, treat=None, control=None,
-                                  quantity='ATE', combine_treatment=False, return_detail=False, ):
+                                  quantity='ATE', combine_treatment=False, return_detail=False,
+                                  **kwargs):
         assert not combine_treatment, \
             '"combine_treatment" is not supported for continuous treatment.'
 
@@ -703,7 +710,7 @@ class Why:
                 control_i = np.zeros_like(treat_i)
             elif treat_i is None and control_i is not None:
                 treat_i = np.ones_like(control_i)
-            effect = est.estimate(data=test_data_preprocessed, treat=treat_i, control=control_i)
+            effect = est.estimate(data=test_data_preprocessed, treat=treat_i, control=control_i, **kwargs)
             if self.fn_cost is not None:
                 effect = utils.cost_effect(self.fn_cost, test_data, effect, self.effect_name)
             if quantity == 'ATE':
@@ -1214,8 +1221,8 @@ class Why:
             control_i = control[i]
 
             if treats is not None:
-                assert treats[i] in xe.classes_.tolist(), f'Invalid {x} treat "{treats[i]}"'
-                treats_i = [treats[i], ]
+                # assert treats[i] in xe.classes_.tolist(), f'Invalid {x} treat "{treats[i]}"'
+                treats_i = [t[i] for t in treats]
             else:
                 treats_i = filter(lambda _: _ != control_i, xe.classes_.tolist())
 
