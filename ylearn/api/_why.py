@@ -11,7 +11,6 @@ from ylearn import sklearn_ex as skex
 from ylearn import uplift as L
 from ylearn.causal_discovery import BaseDiscovery
 from ylearn.causal_model import CausalGraph
-from ylearn.effect_interpreter.policy_interpreter import PolicyInterpreter
 from ylearn.estimator_model import ESTIMATOR_FACTORIES, BaseEstModel
 from ylearn.utils import logging, view_pydot, to_repr, drop_none, set_random_state
 from . import utils
@@ -543,7 +542,7 @@ class Why:
         return cg
 
     def causal_effect(self, test_data=None, treatment=None, treat=None, control=None,
-                      quantity='ATE', return_detail=False, ):
+                      quantity='ATE', combine_treatment=False, return_detail=False, ):
         """
         Estimate the causal effect.
 
@@ -570,6 +569,8 @@ class Why:
             This is similar to the cases of treat, by default None
         quantity : str, optional, default 'ATE'
             'ATE' or 'ITE', default 'ATE'.
+        combine_treatment : bool, default False
+            Only supported for discrete treatment.
         return_detail: bool, default False
             If True, return effect details in result when quantity=='ATE'.
             Effective when quantity='ATE' only.
@@ -595,11 +596,12 @@ class Why:
             fn = self._causal_effect_continuous
 
         options = dict(treatment=treatment, treat=treat, control=control,
-                       quantity=quantity, return_detail=return_detail)
+                       quantity=quantity, combine_treatment=combine_treatment,
+                       return_detail=return_detail)
         return fn(test_data, **options)
 
     def _causal_effect_discrete(self, test_data=None, treatment=None, treat=None, control=None,
-                                quantity='ATE', return_detail=False):
+                                quantity='ATE', combine_treatment=False, return_detail=False):
         # dfs = []
         # for i, x in enumerate(self.treatment_):
         #     est = self.estimators_[x]
@@ -638,8 +640,19 @@ class Why:
         #             s = pd.Series(effect.ravel())
         #         s.name = (x, f'{treat_i} vs {control_i}')
         #         dfs.append(s)
+        def _inverse_transform(x, t, c):
+            if isinstance(x, (list, tuple)):
+                assert isinstance(t, (list, tuple)) and isinstance(c, (list, tuple))
+                assert len(x) == len(t) == len(c)
+                tc = []
+                for xi, ti, ci in zip(x, t, c):
+                    tc.append(self.x_encoders_[xi].inverse_transform([ti, ci]).tolist())
+                return np.array(tc).T.tolist()
+            else:
+                return self.x_encoders_[x].inverse_transform([t, c]).tolist()
+
         def _to_ate(effect, x, t, c, preprocessed_data):
-            t, c = self.x_encoders_[x].inverse_transform([t, c]).tolist()
+            t, c = _inverse_transform(x, t, c)
             data = dict(mean=effect.mean(),
                         min=effect.min(),
                         max=effect.max(),
@@ -647,13 +660,13 @@ class Why:
                         )
             if return_detail:
                 data['detail'] = effect.ravel()
-            return pd.Series(data, name=(x, f'{t} vs {c}'))
+            return pd.Series(data, name=(f'{x}', f'{t} vs {c}'))
 
         def _to_ite(effect, x, t, c, preprocessed_data):
-            t, c = self.x_encoders_[x].inverse_transform([t, c]).tolist()
-            return pd.Series(effect.ravel(), name=(x, f'{t} vs {c}'))
+            t, c = _inverse_transform(x, t, c)
+            return pd.Series(effect.ravel(), name=(f'{x}', f'{t} vs {c}'))
 
-        options = dict(treatment=treatment, treat=treat, control=control)
+        options = dict(treatment=treatment, treat=treat, control=control, combined=combine_treatment)
 
         if quantity == 'ATE':
             dfs = self._map_effect(_to_ate, test_data, **options)
@@ -666,7 +679,10 @@ class Why:
         return result
 
     def _causal_effect_continuous(self, test_data=None, treatment=None, treat=None, control=None,
-                                  quantity='ATE', return_detail=False, ):
+                                  quantity='ATE', combine_treatment=False, return_detail=False, ):
+        assert not combine_treatment, \
+            '"combine_treatment" is not supported for continuous treatment.'
+
         if treatment is None:
             treatment = self.treatment_
 
@@ -1063,11 +1079,14 @@ class Why:
         PolicyInterpreter :
             The fitted PolicyInterpreter object
         """
+        # from ylearn.effect_interpreter.policy_interpreter import PolicyInterpreter
+        from ._wrapper import WrappedPolicyInterpreter
         preprocessed_data = self._preprocess(test_data, encode_treatment=True)
         effect_array, labels = self._effect_array(test_data, preprocessed_data, treatment, control=control)
-        pi = PolicyInterpreter(**kwargs)
+        pi = WrappedPolicyInterpreter(**kwargs)
         pi.fit(preprocessed_data, covariate=self.covariate_, est_model=None,
                effect_array=effect_array, treatment_names=labels)
+        pi.transformer = self.preprocessor_
         return pi
 
     def _check_test_data(self, reason, test_data,
@@ -1107,42 +1126,33 @@ class Why:
             assert self.outcome_ in columns, \
                 f'[{reason}] Not found outcome {self.outcome_} in test_data.'
 
-    def _map_effect(self, handler, test_data, treatment=None, treat=None, control=None):
+    def _map_effect(self, handler, test_data, treatment=None, treat=None, control=None, combined=False):
+        assert self.discrete_treatment, 'Only discrete treatment is supported'
+
         test_data_preprocessed = self._preprocess(test_data, encode_outcome=True, encode_treatment=True)
         treatment = utils.to_list(treatment, 'treatment') if treatment is not None else self.treatment_
+        if combined:
+            assert len(treatment) <= 2, f'2 treatment are supported at most.'
+
         treat = self._safe_treat_control(treatment, treat, 'treat')
         control = self._safe_treat_control(treatment, control, 'control')
+
+        if combined:
+            itr = self._permute_treat_control_combined(treatment, treat, control, encode=True)
+        else:
+            itr = self._permute_treat_control_sequential(treatment, treat, control, encode=True)
+
         result = []
-
-        for i, x in enumerate(treatment):
-            est = self.estimators_[x]
-            if self.x_encoders_ is not None:
-                xe = self.x_encoders_[x]
-                classes = xe.classes_.tolist()
-                if control is not None:
-                    assert control[i] in classes, f'Invalid {x} control "{control[i]}" for treatment {x}'
-                    control_i = control[i]
-                else:
-                    control_i = classes[0]
-
-                if treat is not None:
-                    assert treat[i] in classes, f'Invalid {x} treat "{treat[i]}" for treatment {x}'
-                    treat_i = treat[i]
-                else:
-                    treat_i = classes[-1]
-
-                t, c = xe.transform([treat_i, control_i]).tolist()
-            else:
-                t = treat[i] if treat is not None else None
-                c = control[i] if control is not None else None
+        for x, t, c in itr:
+            est = self._get_estimator(x)
             effect = est.estimate(data=test_data_preprocessed, treat=t, control=c)
-            if self.fn_cost is not None:
+            if self.fn_cost is not None and test_data is not None:
                 effect = utils.cost_effect(self.fn_cost, test_data, effect, self.effect_name)
             result.append(handler(effect.ravel(), x, t, c, test_data_preprocessed))
 
         return result
 
-    def _permute_treat_control(self, treatment, treats, control):
+    def _permute_treat_control_combined(self, treatment, treats, control, encode=False):
         assert self.discrete_treatment, 'Only discrete treatment is supported'
 
         if treatment is None:
@@ -1150,38 +1160,71 @@ class Why:
         else:
             treatment = utils.to_list(treatment, 'treatment')
         assert len(treatment) > 0
-        assert len(treatment) <= 2, f'2 treatment are supported at most.'
 
-        treats = self._safe_treat_control_list(treats, 'treats')
-        control = self._safe_treat_control(control, 'control')
+        treats = self._safe_treat_control_list(treatment, treats, 'treats')
+        control = self._safe_treat_control(treatment, control, 'control')
 
-        # def _encode(t_or_c):
-        #     assert isinstance(t_or_c, (tuple, list)) and len(t_or_c) == len(treatment)
-        #     t_or_c = [self.x_encoders_[x].transform([t_or_c[i]]).tolist()[0] for i, x in enumerate(treatment)]
-        #     return t_or_c
+        def _encode(t_or_c):
+            assert isinstance(t_or_c, (tuple, list)) and len(t_or_c) == len(treatment)
+            t_or_c = [self.x_encoders_[x].transform([t_or_c[i]]).tolist()[0] for i, x in enumerate(treatment)]
+            return t_or_c
 
         if control is None:
             control = [self.x_encoders_[x].classes_.tolist()[0] for x in treatment]
-        # else:
-        #     control = _encode(control)
 
         if treats is None:
             if len(treatment) == 1:
                 treats = [(t,) for t in self.x_encoders_[treatment[0]].classes_.tolist()]
             else:  # len(treatment)==2:
-                classes0 = self.x_encoders_[treatment[0]].classes_.tolist()
-                classes1 = self.x_encoders_[treatment[1]].classes_.tolist()
-                treats = product(classes0, classes1)
-            treats = filter(lambda t: tuple(t) != tuple(control), treats)
-        # else:
-        #     treats = map(_encode, treats)
+                classes = [self.x_encoders_[x].classes_.tolist() for x in treatment]
+                treats = product(*classes)
+
+        if encode:
+            control = _encode(control)
+            treats = map(_encode, treats)
 
         single_treatment = len(treatment) == 1
         for t in treats:
+            if tuple(t) == tuple(control):
+                continue
             if single_treatment:
-                yield t[0], control[0]
+                yield treatment[0], t[0], control[0]
             else:
-                yield tuple(t), tuple(control)
+                yield treatment, tuple(t), tuple(control)
+
+    def _permute_treat_control_sequential(self, treatment, treats, control, encode=False):
+        assert self.discrete_treatment, 'Only discrete treatment is supported'
+
+        if treatment is None:
+            treatment = self.treatment_
+        else:
+            treatment = utils.to_list(treatment, 'treatment')
+        assert len(treatment) > 0
+        # assert len(treatment) <= 2, f'2 treatment are supported at most.'
+
+        treats = self._safe_treat_control_list(treatment, treats, 'treats')
+        control = self._safe_treat_control(treatment, control, 'control')
+
+        if control is None:
+            control = [self.x_encoders_[x].classes_.tolist()[0] for x in treatment]
+        for i, x in enumerate(treatment):
+            xe = self.x_encoders_[x]
+
+            assert control[i] in xe.classes_.tolist(), f'Invalid {x} control "{control[i]}"'
+            control_i = control[i]
+
+            if treats is not None:
+                assert treats[i] in xe.classes_.tolist(), f'Invalid {x} treat "{treats[i]}"'
+                treats_i = [treats[i], ]
+            else:
+                treats_i = filter(lambda _: _ != control_i, xe.classes_.tolist())
+
+            for treat_i in treats_i:
+                if encode:
+                    t, c = xe.transform([treat_i, control_i]).tolist()
+                    yield x, t, c
+                else:
+                    yield x, treat_i, control_i
 
     def uplift_model(self, test_data, treatment=None, treat=None, control=None, name=None, random=None):
         """

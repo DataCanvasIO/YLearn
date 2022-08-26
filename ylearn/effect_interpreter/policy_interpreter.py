@@ -373,6 +373,7 @@ class PolicyInterpreter:
                                           treatment_names=self.treatment_names_,
                                           max_depth=max_depth,
                                           filled=filled,
+                                          impurity=False,
                                           rounded=rounded,
                                           precision=precision,
                                           fontsize=fontsize)
