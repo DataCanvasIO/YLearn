@@ -137,6 +137,69 @@ class MetaLearnerFactory(BaseEstimatorFactory):
 
 
 @register()
+class SLearnerFactory(BaseEstimatorFactory):
+    def __init__(self, model='rf'):
+        self.model = model
+
+    def __call__(self, data, outcome, treatment, y_task, x_task,
+                 adjustment=None, covariate=None, instrument=None, random_state=None):
+        from ylearn.estimator_model import PermutedSLearner
+
+        return PermutedSLearner(
+            model=self._model(data, task=y_task, estimator=self.model, random_state=random_state),
+            is_discrete_outcome=y_task if isinstance(y_task, bool) else y_task != const.TASK_REGRESSION,
+            is_discrete_treatment=x_task if isinstance(x_task, bool) else x_task != const.TASK_REGRESSION,
+            random_state=random_state,
+            # combined_treatment=False,
+        )
+
+
+@register()
+class TLearnerFactory(BaseEstimatorFactory):
+    def __init__(self, model='rf'):
+        self.model = model
+
+    def __call__(self, data, outcome, treatment, y_task, x_task,
+                 adjustment=None, covariate=None, instrument=None, random_state=None):
+        from ylearn.estimator_model import PermutedTLearner
+
+        return PermutedTLearner(
+            model=self._model(data, task=y_task, estimator=self.model, random_state=random_state),
+            is_discrete_outcome=y_task if isinstance(y_task, bool) else y_task != const.TASK_REGRESSION,
+            is_discrete_treatment=x_task if isinstance(x_task, bool) else x_task != const.TASK_REGRESSION,
+            random_state=random_state,
+            # combined_treatment=False,
+        )
+
+
+@register()
+class XLearnerFactory(BaseEstimatorFactory):
+    def __init__(self, model='rf', final_proba_model='rf'):
+        self.model = model
+        self.final_proba_model = final_proba_model
+
+    def __call__(self, data, outcome, treatment, y_task, x_task,
+                 adjustment=None, covariate=None, instrument=None, random_state=None):
+        from ylearn.estimator_model import PermutedXLearner
+
+        is_discrete_outcome = y_task if isinstance(y_task, bool) else y_task != const.TASK_REGRESSION
+        if is_discrete_outcome:
+            final_proba_model = self._model(
+                data, task=const.TASK_REGRESSION, estimator=self.final_proba_model, random_state=random_state)
+        else:
+            final_proba_model = None
+
+        return PermutedXLearner(
+            model=self._model(data, task=y_task, estimator=self.model, random_state=random_state),
+            final_proba_model=final_proba_model,
+            is_discrete_outcome=is_discrete_outcome,
+            is_discrete_treatment=x_task if isinstance(x_task, bool) else x_task != const.TASK_REGRESSION,
+            random_state=random_state,
+            # combined_treatment=False,
+        )
+
+
+@register()
 @register(name='tree')
 class CausalTreeFactory(BaseEstimatorFactory):
     def __init__(self, **kwargs):
