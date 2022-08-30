@@ -154,7 +154,8 @@ def test_policy_interpreter_discrete_x2_yb():
     m = data[outcome].values.mean()
     data[outcome] = (data[outcome] > m).astype('int')
     test_data[outcome] = (test_data[outcome] > m).astype('int')
-    why = Why()
+    # why = Why()
+    why = Why(estimator='ml', estimator_options=dict(learner='t', model='lr'))
     why.fit(data, outcome[0], treatment=treatment, adjustment=adjustment, covariate=covariate)
 
     pi = why.policy_interpreter(test_data)
