@@ -150,7 +150,7 @@ def test_policy_interpreter_discrete_x2():
 
 @if_policy_tree_ready
 def test_policy_interpreter_discrete_x2_yb():
-    data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x2mb_y1()
+    data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x2b_y1()
     m = data[outcome].values.mean()
     data[outcome] = (data[outcome] > m).astype('int')
     test_data[outcome] = (test_data[outcome] > m).astype('int')
