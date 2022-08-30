@@ -508,6 +508,12 @@ class Why:
         assert self._is_fitted
         return utils.safe_treat_control_list(treatment, t_or_c, name)
 
+    def _inverse_transform_outcome(self, v):
+        if self.y_encoder_ is not None and v is not None:
+            return self.y_encoder_.inverse_transform([v])[0]
+        else:
+            return v
+
     def causal_graph(self):
         """
         Get identified causal graph
@@ -541,7 +547,7 @@ class Why:
         cg = CausalGraph(m)
         return cg
 
-    def causal_effect(self, test_data=None, treatment=None, treat=None, control=None,
+    def causal_effect(self, test_data=None, treatment=None, treat=None, control=None, target_outcome=None,
                       quantity='ATE', combine_treatment=False, return_detail=False,
                       **kwargs):
         """
@@ -568,6 +574,8 @@ class Why:
             by default None
         control : treatment value or list or ndarray or pandas.Series, default None
             This is similar to the cases of treat, by default None
+        target_outcome : outcome value, optional
+            Only effective when the outcome is discrete. Default the last one in y_encoder_.classes_.
         quantity : str, optional, default 'ATE'
             'ATE' or 'ITE', default 'ATE'.
         combine_treatment : bool, default False
@@ -599,12 +607,13 @@ class Why:
             fn = self._causal_effect_continuous
 
         options = dict(treatment=treatment, treat=treat, control=control,
+                       target_outcome=target_outcome,
                        quantity=quantity, combine_treatment=combine_treatment,
                        return_detail=return_detail)
         options.update(kwargs)
         return fn(test_data, **options)
 
-    def _causal_effect_discrete(self, test_data=None, treatment=None, treat=None, control=None,
+    def _causal_effect_discrete(self, test_data=None, treatment=None, treat=None, control=None, target_outcome=None,
                                 quantity='ATE', combine_treatment=False, return_detail=False,
                                 **kwargs):
         # dfs = []
@@ -671,7 +680,8 @@ class Why:
             t, c = _inverse_transform(x, t, c)
             return pd.Series(effect.ravel(), name=(f'{x}', f'{t} vs {c}'))
 
-        options = dict(treatment=treatment, treat=treat, control=control, combined=combine_treatment)
+        options = dict(treatment=treatment, treat=treat, control=control,
+                       target_outcome=target_outcome, combined=combine_treatment)
         options.update(kwargs)
 
         if quantity == 'ATE':
@@ -684,7 +694,7 @@ class Why:
             result = result.T
         return result
 
-    def _causal_effect_continuous(self, test_data=None, treatment=None, treat=None, control=None,
+    def _causal_effect_continuous(self, test_data=None, treatment=None, treat=None, control=None, target_outcome=None,
                                   quantity='ATE', combine_treatment=False, return_detail=False,
                                   **kwargs):
         assert not combine_treatment, \
@@ -730,7 +740,7 @@ class Why:
             result = result.T
         return result
 
-    def individual_causal_effect(self, test_data, control=None):
+    def individual_causal_effect(self, test_data, control=None, target_outcome=None):
         """
         Estimate the causal effect for each individual.
 
@@ -749,6 +759,8 @@ class Why:
             and that of the second treatment is taken as 'read';
             in the case of continuous treatment, treat should be a float or a ndarray or pandas.Series,
             by default None
+        target_outcome : outcome value, optional
+            Only effective when  the outcome is discrete. Default the last one in y_encoder_.classes_.
 
         Returns
         -------
@@ -764,16 +776,18 @@ class Why:
         assert all(t in test_data.columns.tolist() for t in self.treatment_)
 
         if self.discrete_treatment:
-            return self._individual_causal_effect_discrete(test_data, control)
+            return self._individual_causal_effect_discrete(test_data, control, target_outcome)
         else:
-            return self._individual_causal_effect_continuous(test_data, control)
+            return self._individual_causal_effect_continuous(test_data, control, target_outcome)
 
-    def _individual_causal_effect_discrete(self, test_data, control=None):
+    def _individual_causal_effect_discrete(self, test_data, control=None, target_outcome=None):
         test_data_preprocessed = self._preprocess(test_data)
         control = self._safe_treat_control(self.treatment_, control, 'control')
 
         if control is None:
             control = [self.x_encoders_[x].classes_.tolist()[0] for x in self.treatment_]
+        if target_outcome is not None:
+            target_outcome = self._inverse_transform_outcome(target_outcome)
 
         dfs = []
         for ri in test_data_preprocessed.index:
@@ -789,13 +803,17 @@ class Why:
                     row_df[x] = xe.transform(row_df[x])
                     t, c = xe.transform([treat_i, control_i]).tolist()
                     est = self.estimators_[x]
-                    effect = est.estimate(data=row_df, treat=t, control=c).ravel()[0]
+                    if self.discrete_outcome:
+                        effect = est.estimate(data=row_df, treat=t, control=c, target_outcome=target_outcome)
+                    else:
+                        effect = est.estimate(data=row_df, treat=t, control=c)
+                    effect = effect.ravel()[0]
                 s = pd.Series(dict(effect=effect),
                               name=(ri, x, f'{treat_i} vs {control_i}'))
                 dfs.append(s)
         return pd.concat(dfs, axis=1).T
 
-    def _individual_causal_effect_continuous(self, test_data, control=None):
+    def _individual_causal_effect_continuous(self, test_data, control=None, target_outcome=None):
         test_data_preprocessed = self._preprocess(test_data)
         control = self._safe_treat_control(self.treatment_, control, 'control')
 
@@ -809,7 +827,7 @@ class Why:
             dfs.append(s)
         return pd.concat(dfs, axis=1)
 
-    def whatif(self, test_data, new_value, treatment=None):
+    def whatif(self, test_data, new_value, treatment=None, target_outcome=None):
         """
         Get counterfactual predictions when treatment is changed to new_value from its observational counterpart.
 
@@ -823,6 +841,8 @@ class Why:
             Treatment name.
             If str, it should be one of the fitted attribute **treatment_**.
             If None, the first element in the attribute **treatment_** is used.
+        target_outcome : outcome value, optional
+            Only effective when  the outcome is discrete. Default the last one in y_encoder_.classes_.
         Returns
         -------
         pd.Series
@@ -837,19 +857,18 @@ class Why:
 
         estimator = self.estimators_[treatment]
         if estimator.is_discrete_treatment:
-            return self._whatif_discrete(test_data, new_value, treatment, estimator)
+            return self._whatif_discrete(test_data, new_value, treatment, estimator, target_outcome)
         else:
-            return self._whatif_continuous(test_data, new_value, treatment, estimator)
+            return self._whatif_continuous(test_data, new_value, treatment, estimator, target_outcome)
 
-    def _whatif_discrete(self, test_data, new_value, treatment, estimator):
-        data = self._preprocess(test_data)
+    def _whatif_discrete(self, test_data, new_value, treatment, estimator, target_outcome):
+        data = self._preprocess(test_data, encode_treatment=True)
 
         y_old = data[self.outcome_]
         old_value = data[treatment]
         xe = self.x_encoders_[treatment]
 
-        for x in self.treatment_:
-            data[x] = self.x_encoders_[x].transform(data[x])
+        target_outcome = self._inverse_transform_outcome(target_outcome)
 
         df = pd.DataFrame(dict(c=old_value, t=new_value), index=old_value.index)
         df['tc'] = df[['t', 'c']].apply(tuple, axis=1)
@@ -862,7 +881,11 @@ class Why:
             else:
                 data_rows = data.loc[tc_rows.index]
                 t_encoded, c_encoded = xe.transform([t, c]).tolist()
-                eff = estimator.estimate(data_rows, treat=t_encoded, control=c_encoded)
+                if self.discrete_outcome:
+                    eff = estimator.estimate(data_rows, treat=t_encoded, control=c_encoded,
+                                             target_outcome=target_outcome)
+                else:
+                    eff = estimator.estimate(data_rows, treat=t_encoded, control=c_encoded)
             if self.fn_cost is not None:
                 eff = utils.cost_effect(self.fn_cost, test_data, eff, self.effect_name)
             effect.append(pd.DataFrame(dict(e=eff.ravel()), index=tc_rows.index))
@@ -873,7 +896,7 @@ class Why:
         y_new = y_old + df['e']
         return y_new
 
-    def _whatif_continuous(self, test_data, new_value, treatment, estimator):
+    def _whatif_continuous(self, test_data, new_value, treatment, estimator, target_outcome=None):
         data = self._preprocess(test_data)
 
         y_old = data[self.outcome_]
@@ -886,7 +909,7 @@ class Why:
         y_new = y_old + effect.ravel()
         return y_new
 
-    def score(self, test_data=None, treat=None, control=None, scorer='auto'):
+    def score(self, test_data=None, treat=None, control=None, target_outcome=None, scorer='auto'):
         """
         Scoring the fitted estimator models.
 
@@ -906,6 +929,8 @@ class Why:
             by default None
         control : int or list, default None
             This is similar to the cases of treat, by default None
+        target_outcome : outcome value, optional
+            Only effective when  the outcome is discrete. Default the last one in y_encoder_.classes_.
         scorer: str, default 'auto'
             One of 'auto', 'rloss', 'auuc', 'qini'. default 'rloss'.
 
@@ -921,7 +946,7 @@ class Why:
         else:
             return self._score_rloss(test_data, treat=treat, control=control)
 
-    def _score_auuc_qini(self, test_data, treatment=None, treat=None, control=None, scorer='auuc'):
+    def _score_auuc_qini(self, test_data, treatment=None, treat=None, control=None, target_outcome=None, scorer='auuc'):
         # treatment = utils.to_list(treatment, 'treatment') if treatment is not None else self.treatment_
         # self._check_test_data('_score_auuc_qini', test_data,
         #                       treatment=treatment,
@@ -943,7 +968,8 @@ class Why:
         #
         # sa = self._map_effect(scoring, test_data, treatment=treatment, treat=treat, control=control)
         # score = np.mean(sa)
-        um = self.uplift_model(test_data, treatment=treatment, treat=treat, control=control)
+        um = self.uplift_model(test_data, treatment=treatment, treat=treat, control=control,
+                               target_outcome=target_outcome)
         if scorer == 'auuc':
             s = um.auuc_score()
         else:
@@ -977,7 +1003,7 @@ class Why:
 
         return score
 
-    def _effect_array(self, test_data, preprocessed_data, treatment, control=None):
+    def _effect_array(self, test_data, preprocessed_data, treatment, control=None, target_outcome=None):
         if treatment is None:
             treatment = self.treatment_[:2]
         else:
@@ -987,6 +1013,7 @@ class Why:
             raise ValueError(f'2 treatment are supported at most.')
 
         control = self._safe_treat_control(treatment, control, 'control')
+        target_outcome = self._inverse_transform_outcome(target_outcome)
 
         if self.discrete_treatment:
             estimator = self._get_estimator(treatment)
@@ -994,7 +1021,8 @@ class Why:
                 control = [self.x_encoders_[x].transform([control[i]]).tolist()[0] for i, x in enumerate(treatment)]
                 if len(treatment) == 1:
                     control = control[0]
-            effect = estimator.effect_nji(preprocessed_data, **drop_none(control=control))
+            options = drop_none(control=control, target_outcome=target_outcome)
+            effect = estimator.effect_nji(preprocessed_data, **options)
             assert isinstance(effect, np.ndarray)
             assert effect.ndim == 3 and effect.shape[1] == 1
             effect_array = effect.squeeze(axis=1)
@@ -1005,7 +1033,8 @@ class Why:
             for i, x in enumerate(treatment):
                 estimator = self.estimators_[x]
                 ci = control[i] if control is not None else None
-                effect = estimator.effect_nji(preprocessed_data, **drop_none(control=ci))
+                options = drop_none(control=ci, target_outcome=target_outcome)
+                effect = estimator.effect_nji(preprocessed_data, **options)
                 assert isinstance(effect, np.ndarray)
                 assert effect.ndim == 3 and effect.shape[1] == 1
                 effects.append(effect.squeeze(axis=1))
@@ -1019,46 +1048,7 @@ class Why:
 
         return effect_array, effect_labels
 
-    def policy_tree(self, test_data, treatment=None, control=None, **kwargs):
-        """
-        Get the policy tree
-
-        Parameters
-        ----------
-        test_data : pd.DataFrame, required
-        treatment: str or list, optional
-            Treatment names, should be one or two element.
-            default the first two elements in attribute **treatment_**
-        control : treatment value or list or ndarray or pandas.Series, default None
-            In the case of single discrete treatment, control should be an int or
-            str of one of all possible treatment values which indicates the
-            value of the intended treatment;
-            in the case of multiple discrete treatment, control should be a list
-            where control[i] indicates the value of the i-th intended treatment,
-            for example, when there are multiple discrete treatments,
-            list(['run', 'read']) means the control value of the first treatment is taken as 'run'
-            and that of the second treatment is taken as 'read';
-            in the case of continuous treatment, control should be a float or a ndarray or pandas.Series,
-            by default None
-        kwargs : dict
-            options to initialize the PolicyTree
-
-        Returns
-        -------
-        PolicyTree :
-            The fitted PolicyTree object
-        """
-        from ylearn.policy.policy_model import PolicyTree
-
-        preprocessed_data = self._preprocess(test_data, encode_treatment=True)
-        effect_array, labels = self._effect_array(test_data, preprocessed_data, treatment, control=control)
-        ptree = PolicyTree(**kwargs)
-        ptree.fit(preprocessed_data, covariate=self.covariate_,
-                  effect_array=effect_array, treatment_names=labels)
-
-        return ptree
-
-    def policy_interpreter(self, test_data, treatment=None, control=None, **kwargs):
+    def policy_interpreter(self, test_data, treatment=None, control=None, target_outcome=None, **kwargs):
         """
         Get the policy interpreter
 
@@ -1079,6 +1069,8 @@ class Why:
             and that of the second treatment is taken as 'read';
             in the case of continuous treatment, treat should be a float or a ndarray or pandas.Series,
             by default None
+        target_outcome : outcome value, optional
+            Only effective when  the outcome is discrete. Default the last one in y_encoder_.classes_.
         kwargs : options to initialize the PolicyInterpreter
 
         Returns
@@ -1089,7 +1081,8 @@ class Why:
         # from ylearn.effect_interpreter.policy_interpreter import PolicyInterpreter
         from ._wrapper import WrappedPolicyInterpreter
         preprocessed_data = self._preprocess(test_data, encode_treatment=True)
-        effect_array, labels = self._effect_array(test_data, preprocessed_data, treatment, control=control)
+        effect_array, labels = self._effect_array(test_data, preprocessed_data, treatment, control=control,
+                                                  target_outcome=target_outcome)
         pi = WrappedPolicyInterpreter(**kwargs)
         pi.fit(preprocessed_data, covariate=self.covariate_, est_model=None,
                effect_array=effect_array, treatment_names=labels)
@@ -1133,7 +1126,8 @@ class Why:
             assert self.outcome_ in columns, \
                 f'[{reason}] Not found outcome {self.outcome_} in test_data.'
 
-    def _map_effect(self, handler, test_data, treatment=None, treat=None, control=None, combined=False):
+    def _map_effect(self, handler, test_data, treatment=None, treat=None, control=None,
+                    target_outcome=None, combined=False):
         assert self.discrete_treatment, 'Only discrete treatment is supported'
 
         test_data_preprocessed = self._preprocess(test_data, encode_outcome=True, encode_treatment=True)
@@ -1149,10 +1143,16 @@ class Why:
         else:
             itr = self._permute_treat_control_sequential(treatment, treat, control, encode=True)
 
+        if target_outcome is not None:
+            target_outcome = self.y_encoder_.inverse_transform([target_outcome]).tolist()[0]
+
         result = []
         for x, t, c in itr:
             est = self._get_estimator(x)
-            effect = est.estimate(data=test_data_preprocessed, treat=t, control=c)
+            if self.discrete_outcome:
+                effect = est.estimate(data=test_data_preprocessed, treat=t, control=c, target_outcome=target_outcome)
+            else:
+                effect = est.estimate(data=test_data_preprocessed, treat=t, control=c)
             if self.fn_cost is not None and test_data is not None:
                 effect = utils.cost_effect(self.fn_cost, test_data, effect, self.effect_name)
             result.append(handler(effect.ravel(), x, t, c, test_data_preprocessed))
@@ -1233,7 +1233,8 @@ class Why:
                 else:
                     yield x, treat_i, control_i
 
-    def uplift_model(self, test_data, treatment=None, treat=None, control=None, name=None, random=None):
+    def uplift_model(self, test_data, treatment=None, treat=None, control=None, target_outcome=None, name=None,
+                     random=None):
         """
         Get cumulative uplifts over one treatment.
 
@@ -1249,6 +1250,8 @@ class Why:
             If None, the last element in the treatment encoder's attribute **classes_** is used.
         control : treatment value, default None
             If None, the first element in the treatment encoder's attribute **classes_** is used.
+        target_outcome : outcome value, optional
+            Only effective when  the outcome is discrete. Default the last one in y_encoder_.classes_.
         name : str, default None
             Lift name.
             If None, treat value is used.
@@ -1270,6 +1273,7 @@ class Why:
         test_data_preprocessed = self._preprocess(test_data, encode_treatment=True)
         treat = self._safe_treat_control(treatment, treat, 'treat')
         control = self._safe_treat_control(treatment, control, 'control')
+        target_outcome = self._inverse_transform_outcome(target_outcome)
 
         encoders = [self.x_encoders_[x] for x in treatment]
         estimator = self._get_estimator(treatment)
@@ -1284,7 +1288,10 @@ class Why:
         t_encoded, c_encoded = utils.transform_treat_control(encoders, treat=treat, control=control)
         data_tc = utils.select_by_treat_control(test_data_preprocessed, treatment, t_encoded, c_encoded)
 
-        effect = estimator.estimate(data_tc, treat=t_encoded, control=c_encoded)
+        if self.discrete_outcome:
+            effect = estimator.estimate(data_tc, treat=t_encoded, control=c_encoded, target_outcome=target_outcome)
+        else:
+            effect = estimator.estimate(data_tc, treat=t_encoded, control=c_encoded)
         df_lift = pd.DataFrame({
             name: effect.ravel(),
             '_x_': utils.encode_treat_control(data_tc, treatment=treatment, treat=t_encoded, control=c_encoded),
@@ -1294,20 +1301,7 @@ class Why:
         um.fit(df_lift, treatment='_x_', outcome='_y_', random=random)
         return um
 
-    def plot_policy_tree(self, test_data, treatment=None, control=None, **kwargs):
-        """
-        Plot the policy tree
-
-        Returns
-        -------
-        PolicyTree :
-            The fitted PolicyTree object
-        """
-        ptree = self.policy_tree(test_data, treatment=treatment, control=control, **kwargs)
-        ptree.plot()
-        return ptree
-
-    def plot_policy_interpreter(self, test_data, treatment=None, control=None, **kwargs):
+    def plot_policy_interpreter(self, test_data, treatment=None, control=None, target_outcome=None, **kwargs):
         """
         Plot the policy interpreter
 
@@ -1316,7 +1310,8 @@ class Why:
         PolicyInterpreter :
             The fitted PolicyInterpreter object
         """
-        pi = self.policy_interpreter(test_data, treatment=treatment, control=control, **kwargs)
+        pi = self.policy_interpreter(test_data, treatment=treatment, control=control, target_outcome=target_outcome,
+                                     **kwargs)
         pi.plot()
         return pi
 
