@@ -42,7 +42,7 @@ def _copy_and_fit(learner, data, outcome, treatment, treat, control, **kwargs):
     return learner
 
 
-def _effect_nji(learner_and_sign, data, outcome, treatment, treat, control, ):
+def _effect_nji(learner_and_sign, data, outcome, treatment, treat, control, target_outcome):
     y_count = 1 if isinstance(outcome, str) else len(outcome)
 
     if treat == control:
@@ -52,8 +52,23 @@ def _effect_nji(learner_and_sign, data, outcome, treatment, treat, control, ):
 
         learner, sign = learner_and_sign
         effect = learner.effect_nji(data)
-        assert effect.shape[1] == y_count
+        assert len(effect.shape) == 3
         assert effect.shape[2] == 2
+
+        classes = getattr(learner, 'outcome_classes_', None) if learner.is_discrete_outcome else None
+        if classes is not None:
+            assert effect.shape[1] == len(classes)
+            if target_outcome is not None:
+                assert isinstance(classes, (list, tuple, np.ndarray))
+                nz = np.nonzero(np.array(classes) == target_outcome)[0]
+                if len(nz) == 0:
+                    assert ValueError(f'Invalid target_outcome: "{target_outcome}"')
+                outcome_idx = nz[0]
+            else:
+                outcome_idx = len(classes) - 1
+            effect = effect[:, outcome_idx:outcome_idx + 1, :]
+        else:
+            assert effect.shape[1] == y_count
 
         if np.all(effect[:, :, 1:] == 0.0):
             effect = effect[:, :, :1]
@@ -178,7 +193,7 @@ class PermutedLearner(BaseEstModel):
         self._is_fitted = True
         return self
 
-    def estimate(self, data=None, treat=None, control=None, **kwargs):
+    def estimate(self, data=None, treat=None, control=None, target_outcome=None, **kwargs):
         treatment = self.treatment
         if isinstance(treatment, str):
             treatment = [treatment]
@@ -191,6 +206,8 @@ class PermutedLearner(BaseEstModel):
         learner, sign = self._get_learner(treat, control)
         if self.is_discrete_outcome:
             options = _default_estimate_options(learner)
+            if target_outcome is not None:
+                options['target_outcome'] = target_outcome
             options.update(kwargs)
         else:
             options = kwargs
@@ -201,7 +218,7 @@ class PermutedLearner(BaseEstModel):
         self._last_treat_control = (treat, control)
         return effect
 
-    def effect_nji(self, data=None, control=None, n_jobs=None, **kwargs):
+    def effect_nji(self, data=None, control=None, target_outcome=None, n_jobs=None, **kwargs):
         treatment = self.treatment
         if isinstance(treatment, str):
             treatment = [treatment]
@@ -223,14 +240,14 @@ class PermutedLearner(BaseEstModel):
             # estimate learners one by one
             effects = [_effect_nji(
                 self._get_learner(treat, control, silent=True),
-                data, self.outcome, self.treatment, treat, control)
+                data, self.outcome, self.treatment, treat, control, target_outcome)
                 for treat in treats]
         else:
             # estimate learners with joblib
             job_options = self._get_job_options(n_jobs)
             effects = Parallel(**job_options)(delayed(_effect_nji)(
                 self._get_learner(treat, control, silent=True),
-                data, self.outcome, self.treatment, treat, control
+                data, self.outcome, self.treatment, treat, control, target_outcome
             ) for treat in treats)
 
         effects = np.concatenate(effects, axis=2)
