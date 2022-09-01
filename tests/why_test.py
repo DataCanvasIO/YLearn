@@ -107,39 +107,26 @@ def test_whatif_continuous():
 
 
 @if_policy_tree_ready
-def test_policy_tree():
+def test_policy_interpreter():
     data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x1m_y1()
     # data[treatment] = data[treatment].astype('float32')
     # test_data[treatment] = test_data[treatment].astype('float32')
     why = Why()
     why.fit(data, outcome[0], treatment=treatment, adjustment=adjustment, covariate=covariate)
 
-    ptree = why.policy_tree(test_data)
-    assert ptree is not None
+    pi = why.policy_interpreter(test_data)
+    assert pi is not None
 
-    ptree = why.policy_tree(test_data, control=1)
-    assert ptree is not None
+    r = pi.decide(test_data)
+    assert isinstance(r, np.ndarray) and len(r) == len(test_data)
 
 
 @if_policy_tree_ready
-def test_policy_tree_dml():
+def test_policy_interpreter_dml():
     data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x1m_y1()
     # data[treatment] = data[treatment].astype('float32')
     # test_data[treatment] = test_data[treatment].astype('float32')
     why = Why(estimator='dml')
-    # why.fit(data, outcome[0], treatment=treatment, adjustment=adjustment, covariate=covariate)
-    why.fit(data, treatment[0], treatment=outcome, adjustment=adjustment, covariate=covariate)
-
-    ptree = why.policy_tree(test_data)
-    assert ptree is not None
-
-
-@if_policy_tree_ready
-def test_policy_interpreter():
-    data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x1m_y1()
-    # data[treatment] = data[treatment].astype('float32')
-    # test_data[treatment] = test_data[treatment].astype('float32')
-    why = Why()
     why.fit(data, outcome[0], treatment=treatment, adjustment=adjustment, covariate=covariate)
 
     pi = why.policy_interpreter(test_data)
@@ -158,6 +145,23 @@ def test_policy_interpreter_discrete_x2():
     why.fit(data, outcome[0], treatment=treatment, adjustment=adjustment, covariate=covariate)
 
     pi = why.policy_interpreter(test_data)
+    assert pi is not None
+
+
+@if_policy_tree_ready
+def test_policy_interpreter_discrete_x2_yb():
+    data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x2b_y1()
+    m = data[outcome].values.mean()
+    data[outcome] = (data[outcome] > m).astype('int')
+    test_data[outcome] = (test_data[outcome] > m).astype('int')
+    # why = Why()
+    why = Why(estimator='ml', estimator_options=dict(learner='t', model='lr'))
+    why.fit(data, outcome[0], treatment=treatment, adjustment=adjustment, covariate=covariate)
+
+    pi = why.policy_interpreter(test_data)
+    assert pi is not None
+
+    pi = why.policy_interpreter(test_data, target_outcome=0)
     assert pi is not None
 
 
@@ -193,9 +197,10 @@ def test_default_identifier():
 
 def test_uplift():
     data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x2b_y1()
-    data[outcome] = (data[outcome] > 0).astype('int')
-    test_data[outcome] = (test_data[outcome] > 0).astype('int')
-    why = Why(estimator='dml')
+    m = data[outcome].values.mean()
+    data[outcome] = (data[outcome] > m).astype('int')
+    test_data[outcome] = (test_data[outcome] > m).astype('int')
+    why = Why()
     why.fit(data, outcome[0], treatment=treatment, adjustment=adjustment, covariate=covariate)
 
     _validate_it(why, test_data)

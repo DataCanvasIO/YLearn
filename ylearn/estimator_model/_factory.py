@@ -108,11 +108,12 @@ class DRFactory(BaseEstimatorFactory):
 @register()
 @register(name='ml')
 class MetaLearnerFactory(BaseEstimatorFactory):
-    def __init__(self, learner='tlearner', model='gb'):
+    def __init__(self, learner='tlearner', model='gb', **kwargs):
         assert learner.strip().lower()[0] in {'s', 't', 'x'}
 
         self.learner = learner
         self.model = model
+        self.options = kwargs.copy()
 
     def __call__(self, data, outcome, treatment, y_task, x_task,
                  adjustment=None, covariate=None, instrument=None, random_state=None):
@@ -124,9 +125,74 @@ class MetaLearnerFactory(BaseEstimatorFactory):
         tag = self.learner.strip().lower()[0]
         learners = dict(s=PermutedSLearner, t=PermutedTLearner, x=PermutedXLearner)
         est_cls = learners[tag]
-        return est_cls(
+        options = dict(
             model=self._model(data, task=y_task, estimator=self.model, random_state=random_state),
             is_discrete_outcome=y_task if isinstance(y_task, bool) else y_task != const.TASK_REGRESSION,
+            is_discrete_treatment=x_task if isinstance(x_task, bool) else x_task != const.TASK_REGRESSION,
+            random_state=random_state,
+            # combined_treatment=False,
+        )
+        options.update(self.options)
+        return est_cls(**options)
+
+
+@register()
+class SLearnerFactory(BaseEstimatorFactory):
+    def __init__(self, model='gb'):
+        self.model = model
+
+    def __call__(self, data, outcome, treatment, y_task, x_task,
+                 adjustment=None, covariate=None, instrument=None, random_state=None):
+        from ylearn.estimator_model import PermutedSLearner
+
+        return PermutedSLearner(
+            model=self._model(data, task=y_task, estimator=self.model, random_state=random_state),
+            is_discrete_outcome=y_task if isinstance(y_task, bool) else y_task != const.TASK_REGRESSION,
+            is_discrete_treatment=x_task if isinstance(x_task, bool) else x_task != const.TASK_REGRESSION,
+            random_state=random_state,
+            # combined_treatment=False,
+        )
+
+
+@register()
+class TLearnerFactory(BaseEstimatorFactory):
+    def __init__(self, model='gb'):
+        self.model = model
+
+    def __call__(self, data, outcome, treatment, y_task, x_task,
+                 adjustment=None, covariate=None, instrument=None, random_state=None):
+        from ylearn.estimator_model import PermutedTLearner
+
+        return PermutedTLearner(
+            model=self._model(data, task=y_task, estimator=self.model, random_state=random_state),
+            is_discrete_outcome=y_task if isinstance(y_task, bool) else y_task != const.TASK_REGRESSION,
+            is_discrete_treatment=x_task if isinstance(x_task, bool) else x_task != const.TASK_REGRESSION,
+            random_state=random_state,
+            # combined_treatment=False,
+        )
+
+
+@register()
+class XLearnerFactory(BaseEstimatorFactory):
+    def __init__(self, model='gb', final_proba_model='lr'):
+        self.model = model
+        self.final_proba_model = final_proba_model
+
+    def __call__(self, data, outcome, treatment, y_task, x_task,
+                 adjustment=None, covariate=None, instrument=None, random_state=None):
+        from ylearn.estimator_model import PermutedXLearner
+
+        is_discrete_outcome = y_task if isinstance(y_task, bool) else y_task != const.TASK_REGRESSION
+        if is_discrete_outcome:
+            final_proba_model = self._model(
+                data, task=const.TASK_REGRESSION, estimator=self.final_proba_model, random_state=random_state)
+        else:
+            final_proba_model = None
+
+        return PermutedXLearner(
+            model=self._model(data, task=y_task, estimator=self.model, random_state=random_state),
+            final_proba_model=final_proba_model,
+            is_discrete_outcome=is_discrete_outcome,
             is_discrete_treatment=x_task if isinstance(x_task, bool) else x_task != const.TASK_REGRESSION,
             random_state=random_state,
             # combined_treatment=False,
