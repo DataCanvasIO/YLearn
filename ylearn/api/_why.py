@@ -334,7 +334,7 @@ class Why:
             estimator = 'iv'
         # elif x_task in {const.TASK_BINARY, const.TASK_MULTICLASS}:
         elif self.discrete_treatment or self.discrete_outcome:
-            estimator = 'ml'
+            estimator = 'tlearner'
         else:
             estimator = 'dml'
 
@@ -827,7 +827,7 @@ class Why:
             dfs.append(s)
         return pd.concat(dfs, axis=1)
 
-    def whatif(self, test_data, new_value, treatment=None, target_outcome=None):
+    def whatif(self, test_data, new_value, treatment=None):
         """
         Get counterfactual predictions when treatment is changed to new_value from its observational counterpart.
 
@@ -841,13 +841,12 @@ class Why:
             Treatment name.
             If str, it should be one of the fitted attribute **treatment_**.
             If None, the first element in the attribute **treatment_** is used.
-        target_outcome : outcome value, optional
-            Only effective when  the outcome is discrete. Default the last one in y_encoder_.classes_.
         Returns
         -------
         pd.Series
             The counterfactual prediction
         """
+        assert not self.discrete_outcome, 'whatif only support continuous outcome'
         assert test_data is not None and new_value is not None
         assert treatment is None or isinstance(treatment, str)
         if isinstance(treatment, str):
@@ -857,18 +856,16 @@ class Why:
 
         estimator = self.estimators_[treatment]
         if estimator.is_discrete_treatment:
-            return self._whatif_discrete(test_data, new_value, treatment, estimator, target_outcome)
+            return self._whatif_discrete(test_data, new_value, treatment, estimator)
         else:
-            return self._whatif_continuous(test_data, new_value, treatment, estimator, target_outcome)
+            return self._whatif_continuous(test_data, new_value, treatment, estimator)
 
-    def _whatif_discrete(self, test_data, new_value, treatment, estimator, target_outcome):
-        data = self._preprocess(test_data, encode_treatment=True)
+    def _whatif_discrete(self, test_data, new_value, treatment, estimator):
+        data = self._preprocess(test_data, encode_treatment=False)
 
         y_old = data[self.outcome_]
         old_value = data[treatment]
         xe = self.x_encoders_[treatment]
-
-        target_outcome = self._inverse_transform_outcome(target_outcome)
 
         df = pd.DataFrame(dict(c=old_value, t=new_value), index=old_value.index)
         df['tc'] = df[['t', 'c']].apply(tuple, axis=1)
@@ -881,11 +878,7 @@ class Why:
             else:
                 data_rows = data.loc[tc_rows.index]
                 t_encoded, c_encoded = xe.transform([t, c]).tolist()
-                if self.discrete_outcome:
-                    eff = estimator.estimate(data_rows, treat=t_encoded, control=c_encoded,
-                                             target_outcome=target_outcome)
-                else:
-                    eff = estimator.estimate(data_rows, treat=t_encoded, control=c_encoded)
+                eff = estimator.estimate(data_rows, treat=t_encoded, control=c_encoded)
             if self.fn_cost is not None:
                 eff = utils.cost_effect(self.fn_cost, test_data, eff, self.effect_name)
             effect.append(pd.DataFrame(dict(e=eff.ravel()), index=tc_rows.index))
@@ -896,7 +889,7 @@ class Why:
         y_new = y_old + df['e']
         return y_new
 
-    def _whatif_continuous(self, test_data, new_value, treatment, estimator, target_outcome=None):
+    def _whatif_continuous(self, test_data, new_value, treatment, estimator):
         data = self._preprocess(test_data)
 
         y_old = data[self.outcome_]
