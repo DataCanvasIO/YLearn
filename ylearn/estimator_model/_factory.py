@@ -138,7 +138,7 @@ class MetaLearnerFactory(BaseEstimatorFactory):
 
 @register()
 class SLearnerFactory(BaseEstimatorFactory):
-    def __init__(self, model='rf'):
+    def __init__(self, model='gb'):
         self.model = model
 
     def __call__(self, data, outcome, treatment, y_task, x_task,
@@ -156,7 +156,7 @@ class SLearnerFactory(BaseEstimatorFactory):
 
 @register()
 class TLearnerFactory(BaseEstimatorFactory):
-    def __init__(self, model='rf'):
+    def __init__(self, model='gb'):
         self.model = model
 
     def __call__(self, data, outcome, treatment, y_task, x_task,
@@ -174,7 +174,7 @@ class TLearnerFactory(BaseEstimatorFactory):
 
 @register()
 class XLearnerFactory(BaseEstimatorFactory):
-    def __init__(self, model='rf', final_proba_model='rf'):
+    def __init__(self, model='gb', final_proba_model='lr'):
         self.model = model
         self.final_proba_model = final_proba_model
 
