@@ -12,8 +12,7 @@ from sklearn.utils import check_random_state
 from ..utils import convert2array
 
 from ..base_models import BaseEstModel
-from ..causal_tree import CausalTree
-
+from sklearn.preprocessing import OrdinalEncoder
 
 # we ignore the warm start and inference parts in the current version
 class BaseForest:
@@ -77,6 +76,8 @@ class BaseForest:
         if append:
             self.estimators_.append(estimator)
 
+        return estimator
+
     def __len__(self):
         return len(self.estimators_)
 
@@ -93,6 +94,7 @@ class BaseCausalForest(BaseEstModel, BaseForest):
         base_estimator,
         n_estimators=100,
         *,
+        estimator_params=None,
         max_depth=None,
         min_samples_split=2,
         min_samples_leaf=1,
@@ -104,37 +106,43 @@ class BaseCausalForest(BaseEstModel, BaseForest):
         # oob_score=False,
         n_jobs=None,
         random_state=None,
-        # verbose=0,
+        verbose=0,
         warm_start=False,
-        ccp_alpha=0.0,
         max_samples=None,
         categories="auto",
+        is_discrete_treatment=True,
+        is_discrete_outocme=False,
     ):
-        estimator_params = (
-            "max_depth",
-            "min_samples_split",
-            "min_samples_leaf",
-            "min_weight_fraction_leaf",
-            "max_features",
-            "max_leaf_nodes",
-            "min_impurity_decrease",
-            "random_state",
-            "ccp_alpha",
-        )
-        super().__init__(
-            # random_state,
+        if estimator_params is None:
+            estimator_params = (
+                "max_depth",
+                "min_samples_split",
+                "min_samples_leaf",
+                "min_weight_fraction_leaf",
+                "max_features",
+                "max_leaf_nodes",
+                "min_impurity_decrease",
+                "random_state",
+            )
+        # TODO: modify the multiple inheritance
+        BaseForest.__init__(
+            self,
             base_estimator=base_estimator,
+            n_jobs=n_jobs,
             n_estimators=n_estimators,
             estimator_params=estimator_params,
-            is_discrete_treatment=True,
-            is_discrete_outcome=False,
-            _is_fitted=False,
-            categories=categories,
             random_state=random_state,
-            warm_start=warm_start,  # currently we do not implement this one
+            warm_start=warm_start,
             max_samples=max_samples,
-            n_jobs=n_jobs,
         )
+        BaseEstModel.__init__(
+            self,
+            is_discrete_outcome=is_discrete_outocme,
+            is_discrete_treatment=is_discrete_treatment,
+            categories=categories,
+        )
+
+        self.verbose = verbose
         self.max_depth = max_depth
         self.min_samples_split = min_samples_split
         self.min_samples_leaf = min_samples_leaf
@@ -142,8 +150,9 @@ class BaseCausalForest(BaseEstModel, BaseForest):
         self.max_features = max_features
         self.max_leaf_nodes = max_leaf_nodes
         self.min_impurity_decrease = min_impurity_decrease
-        self.ccp_alpha = ccp_alpha
 
+    # TODO: the current implementation is a simple version
+    # TODO: add shuffle sample
     def fit(
         self,
         data,
@@ -151,12 +160,25 @@ class BaseCausalForest(BaseEstModel, BaseForest):
         treatment,
         adjustment=None,
         covariate=None,
-        treat=None,
-        control=None,
     ):
-        y = convert2array(data, outcome)[0]
+        super().fit(
+            data, outcome, treatment, adjustment=adjustment, covariate=covariate
+        )
+
+        y, x, w, v = convert2array(data, outcome, treatment, adjustment, covariate)
         if y.ndim == 1:
             y = y.reshape(-1, 1)
+
+        # Determin treatment settings
+        if self.categories == "auto" or self.categories is None:
+            categories = "auto"
+        else:
+            categories = list(self.categories)
+
+        if self.is_discrete_treatment:
+            self.transformer = OrdinalEncoder(categories=categories)
+            self.transformer.fit(x)
+            x = self.transformer.transform(x)
 
         self.n_outputs_ = y.shape[1]
 
@@ -169,7 +191,7 @@ class BaseCausalForest(BaseEstModel, BaseForest):
             self.estimators_ = []
 
         n_more_estimators = self.n_estimators - len(self.estimators_)
-
+        y_ = y.squeeze()
         if n_more_estimators < 0:
             raise ValueError(
                 f"n_estimators={self.n_estimators} must be larger or equal to "
@@ -191,18 +213,7 @@ class BaseCausalForest(BaseEstModel, BaseForest):
                 n_jobs=self.n_jobs,
                 verbose=self.verbose,
                 prefer="threads",
-            )(
-                delayed(t.fit)(
-                    data,
-                    outcome,
-                    treatment,
-                    adjustment=None,
-                    covariate=None,
-                    treat=None,
-                    control=None,
-                )
-                for t in trees
-            )  # need to be imporved (the current implementation will call the same transformers many times)
+            )(delayed(t._fit_with_array)(x, y_, w, v, i) for i, t in enumerate(trees))
 
             # Collect newly grown trees
             self.estimators_.extend(trees)

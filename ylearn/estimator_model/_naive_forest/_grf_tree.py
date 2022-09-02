@@ -1,4 +1,7 @@
+import inspect
 import numpy as np
+
+from collections import defaultdict
 
 from numpy.linalg import lstsq
 from sklearn.utils import check_random_state
@@ -22,13 +25,10 @@ class Node:
         return True if (self.left is None and self.right is None) else False
 
 
+# TODO: add control of random state
 class _GrfTree:
     def __init__(
-        self,
-        *,
-        max_depth=None,
-        random_state=2022,
-        min_split_tolerance=1e-10,
+        self, *, max_depth=None, random_state=2022, min_split_tolerance=1e-10, verbose=1
     ):
         """
         Parameters
@@ -47,6 +47,7 @@ class _GrfTree:
         random_state : int
         """
         self.random_state = random_state
+        self.verbose = verbose
 
         self.depth = 0
         self.root = None
@@ -110,7 +111,7 @@ class _GrfTree:
         w, v = self.check_data(data, self.covariate)
         return self._predict_with_array(w, v)
 
-    def _fit_with_array(self, x, y, w, v):
+    def _fit_with_array(self, x, y, w, v, i):
         """
         Parameters
         ----------
@@ -123,6 +124,12 @@ class _GrfTree:
         v : :py:class:`ndarray` of shape `(n, p)`
             The covariate vector of the training data specifying hetergeneity
         """
+        if self.verbose >= 1:
+            print(f"building {i+1}-th tree")
+
+        if self.max_depth is None:
+            self.max_depth = INF
+
         self.root = self._build_tree(x, y, w, v)
         self._is_fitted = True
 
@@ -223,3 +230,74 @@ class _GrfTree:
         if X[node.feature] <= node.threshold:
             return self._traverse(X, node.left)
         return self._traverse(X, node.right)
+
+    @classmethod
+    def _get_param_names(cls):
+        """Get parameter names for the estimator"""
+        # fetch the constructor or the original constructor before
+        # deprecation wrapping if any
+        init = getattr(cls.__init__, "deprecated_original", cls.__init__)
+        if init is object.__init__:
+            # No explicit constructor to introspect
+            return []
+
+        # introspect the constructor arguments to find the model parameters
+        # to represent
+        init_signature = inspect.signature(init)
+        # Consider the constructor parameters excluding 'self'
+        parameters = [p for p in init_signature.parameters.values() if p.name != "self"]
+        # Extract and sort argument names excluding 'self'
+        return sorted([p.name for p in parameters])
+
+    def get_params(self, deep=True):
+
+        out = dict()
+        for key in self._get_param_names():
+            value = getattr(self, key)
+            if deep and hasattr(value, "get_params") and not isinstance(value, type):
+                deep_items = value.get_params().items()
+                out.update((key + "__" + k, val) for k, val in deep_items)
+            out[key] = value
+        return out
+
+    def set_params(self, **params):
+        """Set parameters.
+
+        Returns
+        -------
+        params : dict
+            parameters
+
+        Raises
+        ------
+        self
+            An instance of estimator
+
+        ValueError
+            raise error if wrong parameters are given
+        """
+        if not params:
+            return self
+
+        valid_params = self.get_params(deep=True)
+
+        nested_params = defaultdict(dict)  # grouped by prefix
+        for key, value in params.items():
+            key, delim, sub_key = key.partition("__")
+            if key not in valid_params:
+                local_valid_params = self._get_param_names()
+                raise ValueError(
+                    f"Invalid parameter {key!r} for estimator {self}. "
+                    f"Valid parameters are: {local_valid_params!r}."
+                )
+
+            if delim:
+                nested_params[key][sub_key] = value
+            else:
+                setattr(self, key, value)
+                valid_params[key] = value
+
+        for key, sub_params in nested_params.items():
+            valid_params[key].set_params(**sub_params)
+
+        return self
