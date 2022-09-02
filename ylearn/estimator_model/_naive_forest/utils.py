@@ -11,5 +11,6 @@ def grad_coef(x_dif, y_dif, ls_coef):
     return x_dif * (y_dif - np.einsum("nj,j->n", x_dif, ls_coef)).reshape(-1, 1)
 
 
-def inverse_grad(self, grad):
+def inverse_grad(grad, eps=1e-5):
+    grad += np.eye(grad.shape[0]) * eps
     return inv(grad)

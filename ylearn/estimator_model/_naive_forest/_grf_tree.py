@@ -1,4 +1,3 @@
-from weakref import proxy
 import numpy as np
 
 from numpy.linalg import lstsq
@@ -11,7 +10,7 @@ MINF = -INF
 
 
 class Node:
-    def __init__(self, value=None, left=None, right=None, split=None):
+    def __init__(self, value=None, left=None, right=None, split=(None, None)):
         self.value = value
         self.left = left
         self.right = right
@@ -20,16 +19,7 @@ class Node:
 
     @property
     def _is_leaf(self):
-        return True if (self.left is not None and self.right is not None) else False
-
-
-class Leaf:
-    def __init__(self, value):
-        """
-        `value` is an array of class probabilities if classifier is True, else
-        the mean of the region
-        """
-        self.value = value
+        return True if (self.left is None and self.right is None) else False
 
 
 class _GrfTree:
@@ -142,7 +132,7 @@ class _GrfTree:
     def _build_tree(self, x, y, w, v, cur_depth=0):
         # return a leaf if has only one sample
         if len(y) == 1:
-            return Node(value=y)
+            return Node(value=y[0])
 
         # return a leaf if have reached max_depth
         if cur_depth >= self.max_depth:
@@ -152,13 +142,13 @@ class _GrfTree:
         n, v_d = v.shape
 
         # find the coef of the least square regression of y on x
-        ls_coef = lstsq(x, y.squeeze())[0]
+        ls_coef = lstsq(x, y.squeeze(), rcond=None)[0]
 
         # return a leaf if further splitting is meaningless
         x_dif = x - x.mean(axis=0)
         y_dif = y - y.mean()
         rho_ = grad_coef(x_dif, y_dif, ls_coef)
-        if np.abs(rho_ - rho_[0]).max() >= self.min_split_tolerance:
+        if np.abs(rho_ - rho_[0]).max() <= self.min_split_tolerance:
             return Node(value=y[0])
 
         cur_depth += 1
@@ -170,16 +160,12 @@ class _GrfTree:
         # Now we run the CART regression on rho
         # find the greedy split rule
         split_idx, thresh = self._split(v, rho)
-        l = np.argwhere(v[:, split_idx] <= thresh).squeeze()
-        r = np.argwhere(v[:, split_idx] > thresh).squeeze()
+        l = v[:, split_idx] <= thresh
+        r = v[:, split_idx] > thresh
 
         # grow the children based on the split
-        left_child = self._build_tree(
-            x[l, :], y[l, :], w[l, :], v[l, :], cur_depth=cur_depth
-        )
-        right_child = self._build_tree(
-            x[r, :], y[r, :], w[r, :], v[r, :], cur_depth=cur_depth
-        )
+        left_child = self._build_tree(x[l], y[l], w[l], v[l], cur_depth=cur_depth)
+        right_child = self._build_tree(x[r], y[r], w[r], v[r], cur_depth=cur_depth)
         return Node(left=left_child, right=right_child, split=(split_idx, thresh))
 
     def _label_node(self, x_dif, n, rho_):
@@ -223,7 +209,8 @@ class _GrfTree:
         return split_idx, split_thre
 
     def _proxy_impurity_improvement(self, sum_total, rho, threshold, split_feature):
-        left_child = rho[np.argwhere(split_feature <= threshold).squeeze()]
+        # TODO: this acutally multiple times and needs to be improved, the situation is similar for the next sum
+        left_child = rho[split_feature <= threshold]
         sum_left = left_child.sum()
         sum_right = sum_total - sum_left
         n_left = len(left_child)
