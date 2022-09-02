@@ -41,7 +41,7 @@ API: Interacting with YLearn
       - Instrumental variables with deep neural networks. Must provide the names of instrumental variables.
     * - :py:class:`NP2SLS`
       - Nonparametric instrumental variables. Must provide the names of instrumental variables.
-    * - :py:class:`DML4CATE`
+    * - :py:class:`DoubleML`
       - Double machine learning model for the estimation of CATE. The unconfoundedness condition is required.
     * - :py:class:`DoublyRobust` and :py:class:`PermutedDoublyRobust`
       - Doubly robust method for the estimation of CATE. The permuted version considers all possible treatment-control pairs. The unconfoundedness condition is required and the treatment must be discrete.

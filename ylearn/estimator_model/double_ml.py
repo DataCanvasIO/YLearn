@@ -85,7 +85,7 @@ logger = logging.get_logger(__name__)
 #         raise NotImplementedError
 
 
-class DML4CATE(BaseEstModel):
+class DoubleML(BaseEstModel):
     r"""Double machine learning for estimating CATE.
     # TODO: convert the einstein notations in this section to the usual ones.
     # TODO: expand fij to higher orders of v.
@@ -199,7 +199,7 @@ class DML4CATE(BaseEstModel):
     Methods
     ----------
     fit(data, outcome, treatment, adjustment, covariate)
-        Fit the DML4CATE estimator model.
+        Fit the DoubleML estimator model.
 
     estimate(data, treat, control, quantity)
         Estimate the causal effect.
@@ -300,7 +300,7 @@ class DML4CATE(BaseEstModel):
         covariate=None,
         **kwargs,
     ):
-        """Fit the DML4CATE estimator model.
+        """Fit the DoubleML estimator model.
 
         Parameters
         ----------
@@ -321,7 +321,7 @@ class DML4CATE(BaseEstModel):
 
         Returns
         -------
-        instance of DML4CATE
+        instance of DoubleML
             The fitted estimator model
         """
         # must have adjustment to evaluate ATE,

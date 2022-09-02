@@ -67,11 +67,11 @@ class DMLFactory(BaseEstimatorFactory):
 
     def __call__(self, data, outcome, treatment, y_task, x_task,
                  adjustment=None, covariate=None, instrument=None, random_state=None):
-        from ylearn.estimator_model.double_ml import DML4CATE
+        from ylearn.estimator_model.double_ml import DoubleML
         # assert adjustment is not None
         assert covariate is not None
 
-        return DML4CATE(
+        return DoubleML(
             y_model=self._model(data, task=y_task, estimator=self.y_model, random_state=random_state),
             x_model=self._model(data, task=x_task, estimator=self.x_model, random_state=random_state),
             yx_model=self._model(data, task=const.TASK_REGRESSION, estimator=self.yx_model, random_state=random_state),

@@ -6,7 +6,7 @@ from copy import deepcopy
 
 from sklearn.utils import check_random_state
 
-from . import CausalTree, DML4CATE, BaseEstModel
+from . import CausalTree, DoubleML, BaseEstModel
 from ._base_forest import BaseCausalForest
 
 

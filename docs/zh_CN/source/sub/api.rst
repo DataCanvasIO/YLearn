@@ -41,7 +41,7 @@ API: 与YLearn交互
       - 具有深度神经网络的工具变量。必须提供工具变量的名字。
     * - :py:class:`NP2SLS`
       - 无参数的工具变量。必须提供工具变量的名字。
-    * - :py:class:`DML4CATE`
+    * - :py:class:`DoubleML`
       - 双机器学习模型用于估计CATE。需要无混杂条件。
     * - :py:class:`DoublyRobust` and :py:class:`PermutedDoublyRobust`
       - 双鲁棒方法用于估计CATE。置换的版本考虑了所有可能的治疗控制对。需要无混杂条件且治疗必须是离散的。

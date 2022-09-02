@@ -6,7 +6,7 @@ from ._permuted import PermutedDoublyRobust
 from ._permuted import PermutedSLearner, PermutedTLearner, PermutedXLearner
 from .approximation_bound import ApproxBound
 from .base_models import BaseEstModel
-from .double_ml import DML4CATE
+from .double_ml import DoubleML
 from .doubly_robust import DoublyRobust
 from .effect_score import RLoss, PredLoss
 from .ensemble import EnsembleEstModels

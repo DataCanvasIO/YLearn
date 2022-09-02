@@ -9,7 +9,7 @@ from sklearn.ensemble import RandomForestRegressor,RandomForestClassifier
 from sklearn.preprocessing import PolynomialFeatures
 
 from ylearn.exp_dataset.exp_data import single_continuous_treatment, single_binary_treatment
-from ylearn.estimator_model.double_ml import DML4CATE
+from ylearn.estimator_model.double_ml import DoubleML
 from ylearn.effect_interpreter.ce_interpreter import CEInterpreter
 
 import pytest
@@ -55,7 +55,7 @@ class TestPolicyModel:
 
     @pytest.mark.parametrize('covariate_transformer', [None, PolynomialFeatures(degree=3, include_bias=False)])
     def test_binary(self, covariate_transformer):
-        dml = DML4CATE(
+        dml = DoubleML(
             x_model=RandomForestClassifier(),
             y_model=RandomForestRegressor(),
             cf_fold=2,
@@ -65,7 +65,7 @@ class TestPolicyModel:
 
     @pytest.mark.parametrize('covariate_transformer', [None, PolynomialFeatures(degree=3, include_bias=False)])
     def test_continuous(self, covariate_transformer):
-        dml = DML4CATE(
+        dml = DoubleML(
             x_model=RandomForestRegressor(),
             y_model=RandomForestRegressor(),
             cf_fold=3,

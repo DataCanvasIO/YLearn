@@ -95,7 +95,7 @@ DML模型解决如下的因果效应估计（CATE估计）：
         from sklearn.ensemble import RandomForestRegressor
 
         from ylearn.exp_dataset.exp_data import single_continuous_treatment
-        from ylearn.estimator_model.double_ml import DML4CATE
+        from ylearn.estimator_model.double_ml import DoubleML
 
         # build the dataset
         train, val, treatment_effect = single_continuous_treatment()
@@ -104,17 +104,17 @@ DML模型解决如下的因果效应估计（CATE估计）：
         outcome = 'outcome'
         treatment = 'treatment'
 
-        dml = DML4CATE(x_model=RandomForestRegressor(), y_model=RandomForestRegressor(), cf_fold=3,)
+        dml = DoubleML(x_model=RandomForestRegressor(), y_model=RandomForestRegressor(), cf_fold=3,)
         dml.fit(train, outcome, treatment, adjustment, covariate,)
 
     >>> 06-23 14:02:36 I ylearn.e.double_ml.py 684 - _fit_1st_stage: fitting x_model RandomForestRegressor
     >>> 06-23 14:02:39 I ylearn.e.double_ml.py 690 - _fit_1st_stage: fitting y_model RandomForestRegressor
-    >>> DML4CATE(x_model=RandomForestRegressor(), y_model=RandomForestRegressor(), yx_model=LinearRegression(), cf_fold=3)      
+    >>> DoubleML(x_model=RandomForestRegressor(), y_model=RandomForestRegressor(), yx_model=LinearRegression(), cf_fold=3)      
 
 类结构
 ================
 
-.. py:class:: ylearn.estimator_model.double_ml.DML4CATE(x_model, y_model, yx_model=None, cf_fold=1, adjustment_transformer=None, covariate_transformer=None, random_state=2022, is_discrete_treatment=False, categories='auto')
+.. py:class:: ylearn.estimator_model.double_ml.DoubleML(x_model, y_model, yx_model=None, cf_fold=1, adjustment_transformer=None, covariate_transformer=None, random_state=2022, is_discrete_treatment=False, categories='auto')
 
     :param estimator, optional x_model: 拟合x的机器学习模型。任何这样的模型应该实现 :py:func:`fit` 和 :py:func:`predict`` （也 :py:func:`predict_proba` 如果x是离散的）方法。
     :param estimator, optional y_model: 为了建模结果训练的机器学习模型。任何合理的y_model应该实现 :py:func:`fit()` 和 :py:func:`predict()` 方法。
@@ -129,7 +129,7 @@ DML模型解决如下的因果效应估计（CATE估计）：
     
     .. py:method:: fit(data, outcome, treatment, adjustment=None, covariate=None, **kwargs)
         
-        拟合DML4CATE估计器模型。注意训练一个DML有两个阶段，其中我们在 :py:func:`_fit_1st_stage` 和 :py:func:`_fit_2nd_stage` 中实现它们。
+        拟合DoubleML估计器模型。注意训练一个DML有两个阶段，其中我们在 :py:func:`_fit_1st_stage` 和 :py:func:`_fit_2nd_stage` 中实现它们。
 
         :param pandas.DataFrame data: 训练估计器的训练数据集。
         :param list of str, optional outcome: 结果的名字。
@@ -138,7 +138,7 @@ DML模型解决如下的因果效应估计（CATE估计）：
         :param list of str, optional, default=None covariate: 协变量的名字。
 
         :returns: 拟合的model
-        :rtype: 一个DML4CATE的实例
+        :rtype: 一个DoubleML的实例
 
     .. py:method:: estimate(data=None, treat=None, control=None, quantity=None)
         
