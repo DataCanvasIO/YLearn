@@ -397,7 +397,13 @@ class DoubleML(BaseEstModel):
             self.x_model, self.y_model, y, x, wv, folds=folds
         )
         x_hat = self.x_hat_dict["paras"][0].reshape((x.shape))
-        y_hat = self.y_hat_dict["paras"][0].reshape((y.shape))
+        if self.proba_output:
+            assert y.shape[1] == 1, "Currently only support one discrete outcome."
+            self._outcome_oh = OneHotEncoder(
+                categories=[self.y_hat_dict["models"][0].classes_]
+            )  # TODO: note that when the cfold is too large, the classes_ may not include all valid classes
+            y = self._outcome_oh.fit_transform(y)
+        y_hat = self.y_hat_dict["paras"][0].reshape(y.shape)
 
         # step 3: calculate the differences
         x_diff = x - x_hat
@@ -499,7 +505,10 @@ class DoubleML(BaseEstModel):
                 self.proba_output
             ), f"target_outcome can only be specificed when proba_output is True."
             target_outcome = check_classes(target_outcome, self.outcome_classes_)
-            effect = effect[:, target_outcome, :].reshape(effect.shape[0], 1, -1)
+            if effect.ndim == 3:
+                effect = effect[:, target_outcome, :].reshape(effect.shape[0], 1, -1)
+            else:
+                effect = effect[:, target_outcome]
 
         if quantity == "CATE":
             assert self.covariate is not None
@@ -661,12 +670,7 @@ class DoubleML(BaseEstModel):
 
             p_hat = model.__getattribute__(pred_func)(wv)
 
-            # if not is_ymodel and self.is_discrete_treatment:
-            #     p_hat = model.predict_proba(wv)
-            # else:
-            #     p_hat = model.predict(wv)
-
-            fitted_result["models"].append(clone(model))
+            fitted_result["models"].append(model)
             fitted_result["paras"].append(p_hat)
             idx = np.arange(start=0, stop=wv.shape[0])
             fitted_result["train_test_id"].append((idx, idx))
@@ -680,14 +684,6 @@ class DoubleML(BaseEstModel):
                 target_train = target_converted[train_id]
                 model_.fit(temp_wv, target_train, **kwargs)
                 target_predict = model_.__getattribute__(pred_func)(temp_wv_test)
-
-                # if not is_ymodel and self.is_discrete_treatment:
-                #     target_predict = model_.predict_proba(temp_wv_test)
-                # else:
-                #     target_predict = model_.predict(temp_wv_test)
-                # test_shape = kwargs['target'][test_id].shape
-                # if target_predict.shape != test_shape:
-                #     target_predict.reshape(test_shape)
 
                 fitted_result["models"].append(model_)
                 fitted_result["paras"][0][test_id] = target_predict
