@@ -1,3 +1,4 @@
+import inspect
 import math
 from copy import deepcopy
 from functools import partial
@@ -1006,7 +1007,6 @@ class Why:
             raise ValueError(f'2 treatment are supported at most.')
 
         control = self._safe_treat_control(treatment, control, 'control')
-        target_outcome = self._inverse_transform_outcome(target_outcome)
 
         if self.discrete_treatment:
             estimator = self._get_estimator(treatment)
@@ -1014,9 +1014,24 @@ class Why:
                 control = [self.x_encoders_[x].transform([control[i]]).tolist()[0] for i, x in enumerate(treatment)]
                 if len(treatment) == 1:
                     control = control[0]
-            options = drop_none(control=control, target_outcome=target_outcome)
+            options = drop_none(control=control, )
+            if target_outcome is not None \
+                    and 'target_outcome' in inspect.signature(estimator.effect_nji).parameters.keys():
+                options['target_outcome'] = self._inverse_transform_outcome(target_outcome)
             effect = estimator.effect_nji(preprocessed_data, **options)
             assert isinstance(effect, np.ndarray)
+            assert effect.ndim == 3
+
+            if self.discrete_outcome and effect.shape[1] > 1:
+                assert effect.shape[1] == len(self.y_encoder_.classes_)
+                if target_outcome is not None:
+                    nz = np.nonzero(self.y_encoder_.classes_ == target_outcome)[0]
+                    if len(nz) == 0:
+                        assert ValueError(f'Invalid target_outcome: "{target_outcome}"')
+                    effect = effect[:, nz[0]:nz[0] + 1, :]
+                else:
+                    effect = effect[:, -1:, :]
+
             assert effect.ndim == 3 and effect.shape[1] == 1
             effect_array = effect.squeeze(axis=1)
             classes = [self.x_encoders_[x].classes_.tolist() for x in treatment]
@@ -1255,6 +1270,8 @@ class Why:
         pd.Series
             The counterfactual prediction
         """
+        assert self.discrete_treatment, 'Uplift_model support discrete treatment only.'
+
         treatment = utils.to_list(treatment, 'treatment') if treatment is not None else self.treatment_
         self._check_test_data('uplift_model', test_data,
                               treatment=treatment,

@@ -71,11 +71,16 @@ class DMLFactory(BaseEstimatorFactory):
         # assert adjustment is not None
         assert covariate is not None
 
+        is_discrete_treatment = x_task if isinstance(x_task, bool) else x_task != const.TASK_REGRESSION
+        is_discrete_outcome = y_task if isinstance(y_task, bool) else y_task != const.TASK_REGRESSION
+
         return DoubleML(
             y_model=self._model(data, task=y_task, estimator=self.y_model, random_state=random_state),
             x_model=self._model(data, task=x_task, estimator=self.x_model, random_state=random_state),
             yx_model=self._model(data, task=const.TASK_REGRESSION, estimator=self.yx_model, random_state=random_state),
-            is_discrete_treatment=x_task if isinstance(x_task, bool) else x_task != const.TASK_REGRESSION,
+            is_discrete_outcome=is_discrete_outcome,
+            is_discrete_treatment=is_discrete_treatment,
+            proba_output=is_discrete_outcome if is_discrete_outcome else None,
             cf_fold=self._cf_fold(data),
             random_state=random_state,
         )
@@ -119,16 +124,20 @@ class MetaLearnerFactory(BaseEstimatorFactory):
                  adjustment=None, covariate=None, instrument=None, random_state=None):
         from ylearn.estimator_model import PermutedSLearner, PermutedTLearner, PermutedXLearner
 
+        is_discrete_treatment = x_task if isinstance(x_task, bool) else x_task != const.TASK_REGRESSION
+        is_discrete_outcome = y_task if isinstance(y_task, bool) else y_task != const.TASK_REGRESSION
+
         # assert adjustment is not None
-        assert x_task != const.TASK_REGRESSION, 'MetaLearner support discrete treatment only.'
+        assert is_discrete_treatment, 'MetaLearner support discrete treatment only.'
 
         tag = self.learner.strip().lower()[0]
         learners = dict(s=PermutedSLearner, t=PermutedTLearner, x=PermutedXLearner)
         est_cls = learners[tag]
         options = dict(
             model=self._model(data, task=y_task, estimator=self.model, random_state=random_state),
-            is_discrete_outcome=y_task if isinstance(y_task, bool) else y_task != const.TASK_REGRESSION,
-            is_discrete_treatment=x_task if isinstance(x_task, bool) else x_task != const.TASK_REGRESSION,
+            is_discrete_outcome=is_discrete_outcome,
+            is_discrete_treatment=is_discrete_treatment,
+            proba_output=is_discrete_outcome if is_discrete_outcome else None,
             random_state=random_state,
             # combined_treatment=False,
         )
@@ -145,10 +154,14 @@ class SLearnerFactory(BaseEstimatorFactory):
                  adjustment=None, covariate=None, instrument=None, random_state=None):
         from ylearn.estimator_model import PermutedSLearner
 
+        is_discrete_treatment = x_task if isinstance(x_task, bool) else x_task != const.TASK_REGRESSION
+        is_discrete_outcome = y_task if isinstance(y_task, bool) else y_task != const.TASK_REGRESSION
+
         return PermutedSLearner(
             model=self._model(data, task=y_task, estimator=self.model, random_state=random_state),
-            is_discrete_outcome=y_task if isinstance(y_task, bool) else y_task != const.TASK_REGRESSION,
-            is_discrete_treatment=x_task if isinstance(x_task, bool) else x_task != const.TASK_REGRESSION,
+            is_discrete_outcome=is_discrete_outcome,
+            is_discrete_treatment=is_discrete_treatment,
+            proba_output=is_discrete_outcome if is_discrete_outcome else None,
             random_state=random_state,
             # combined_treatment=False,
         )
@@ -163,10 +176,14 @@ class TLearnerFactory(BaseEstimatorFactory):
                  adjustment=None, covariate=None, instrument=None, random_state=None):
         from ylearn.estimator_model import PermutedTLearner
 
+        is_discrete_treatment = x_task if isinstance(x_task, bool) else x_task != const.TASK_REGRESSION
+        is_discrete_outcome = y_task if isinstance(y_task, bool) else y_task != const.TASK_REGRESSION
+
         return PermutedTLearner(
             model=self._model(data, task=y_task, estimator=self.model, random_state=random_state),
-            is_discrete_outcome=y_task if isinstance(y_task, bool) else y_task != const.TASK_REGRESSION,
-            is_discrete_treatment=x_task if isinstance(x_task, bool) else x_task != const.TASK_REGRESSION,
+            is_discrete_outcome=is_discrete_outcome,
+            is_discrete_treatment=is_discrete_treatment,
+            proba_output=is_discrete_outcome if is_discrete_outcome else None,
             random_state=random_state,
             # combined_treatment=False,
         )
@@ -182,7 +199,9 @@ class XLearnerFactory(BaseEstimatorFactory):
                  adjustment=None, covariate=None, instrument=None, random_state=None):
         from ylearn.estimator_model import PermutedXLearner
 
+        is_discrete_treatment = x_task if isinstance(x_task, bool) else x_task != const.TASK_REGRESSION
         is_discrete_outcome = y_task if isinstance(y_task, bool) else y_task != const.TASK_REGRESSION
+
         if is_discrete_outcome:
             final_proba_model = self._model(
                 data, task=const.TASK_REGRESSION, estimator=self.final_proba_model, random_state=random_state)
@@ -193,7 +212,8 @@ class XLearnerFactory(BaseEstimatorFactory):
             model=self._model(data, task=y_task, estimator=self.model, random_state=random_state),
             final_proba_model=final_proba_model,
             is_discrete_outcome=is_discrete_outcome,
-            is_discrete_treatment=x_task if isinstance(x_task, bool) else x_task != const.TASK_REGRESSION,
+            is_discrete_treatment=is_discrete_treatment,
+            proba_output=is_discrete_outcome if is_discrete_outcome else None,
             random_state=random_state,
             # combined_treatment=False,
         )
