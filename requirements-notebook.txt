@@ -1,0 +1,6 @@
+jupyterlab
+ipywidgets
+jupyterlab_widgets
+matplotlib
+tqdm
+shap

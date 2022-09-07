@@ -20,7 +20,43 @@ The simplest way of installing YLearn is using `pip`:
 pip install ylearn
 ```
 
-Note that YLearn will depend on c++ compiler and graphviz. Please make sure they are installed properly.
+Note that `Graphviz`  is required to plot causal graph in notebook, so install it before running YLearn. See https://graphviz.org/download/ for more details about `Graphviz` installation.
+
+
+### Conda
+
+YLearn can also be installed with `conda`. Install it from the channel *conda-forge*:
+
+```bash
+conda install -c conda-forge ylearn
+```
+
+This will install YLearn and  all requirements including `Graphviz`.
+
+
+### Docker
+
+We also publish an image in Docker Hub which can be downloaded directly and includes the components:
+
+* Python 3.8
+* YLearn and its dependent packages
+* JupyterLab
+
+
+Download the docker image:
+
+```bash
+docker pull datacanvas/ylearn
+```
+
+Run a docker container:
+
+```bash
+docker run -ti -e NotebookToken="your-token" -p 8888:8888 datacanvas/ylearn
+```
+
+Then one can visit http://&lt;ip-addr&gt;:8888 in the browser and type in the token to start.
+
 
 ## Overview of YLearn
 
@@ -172,7 +208,7 @@ We present several necessary example usages of YLearn in this section, which cov
 
 5. **Using the all-in-one API: Why**
 
-    For the purpose of *applying YLearn in a unified and eaiser manner*, YLearn provides the API `Why`. `Why` is an API which encapsulates almost everything in YLearn, such as identifying causal effects and scoring a trained estimator model. To use `Why`, one should first create an instance of `Why` which needs to be trained by calling its method `fit()`, after which other utilities, such as `causal_effect()`, `score()`, and `whatif()`, can be used. This procedure is illustrated in the following code example:
+    For the purpose of *applying YLearn in a unified and easier manner*, YLearn provides the API `Why`. `Why` is an API which encapsulates almost everything in YLearn, such as identifying causal effects and scoring a trained estimator model. To use `Why`, one should first create an instance of `Why` which needs to be trained by calling its method `fit()`, after which other utilities, such as `causal_effect()`, `score()`, and `whatif()`, can be used. This procedure is illustrated in the following code example:
 
     ```python
         from sklearn.datasets import fetch_california_housing
@@ -197,6 +233,19 @@ In the notebook [CaseStudy](https://github.com/DataCanvasIO/YLearn/blob/main/exa
 ## Contributing
 
 We welcome community contributors to the project. Before you start, please firstly read our [code of conduct](CODE_OF_CONDUCT.md) and [contributing guidelines](CONTRIBUTING.md).
+
+## Communication
+
+We provide several communcication channels for developers.
+- GitHub [Issues](https://github.com/DataCanvasIO/YLearn/issues) and [Discussions](https://github.com/DataCanvasIO/YLearn/discussions)
+- Email: ylearn@zetyun.com
+- Slack [Workspace](https://join.slack.com/t/ylearnworkspace/shared_invite/zt-1dvi5e8cz-yHwN2OTIDX0gWsfPRgB9ZQ)
+- WeChat group: join by scanning the below QRcode.
+
+   <img src="./fig/wechat_QRcode.png" width="200">
+
+## License
+See the [LICENSE](LICENSE) file for license rights and limitations (Apache-2.0).
 
 ## References
 

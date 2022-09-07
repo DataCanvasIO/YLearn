@@ -12,6 +12,9 @@ __pycache__/
 *.so
 *.c
 
+# CPP extensions
+*.cpp
+
 # Distribution / packaging
 .Python
 build/

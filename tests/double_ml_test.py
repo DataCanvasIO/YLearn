@@ -7,7 +7,7 @@ from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.metrics import r2_score
 from sklearn.preprocessing import PolynomialFeatures
 
-from ylearn.estimator_model.double_ml import DML4CATE
+from ylearn.estimator_model.double_ml import DoubleML
 from ylearn.exp_dataset.exp_data import single_continuous_treatment, single_binary_treatment
 from . import _dgp
 from ._common import validate_leaner
@@ -48,7 +48,7 @@ _test_settings = {
 @pytest.mark.parametrize('dg', _test_settings.keys())
 def test_double_ml(dg):
     x_model, y_model = _test_settings[dg]
-    estimator = DML4CATE(x_model=x_model, y_model=y_model, cf_fold=1, random_state=2022, is_discrete_treatment=True)
+    estimator = DoubleML(x_model=x_model, y_model=y_model, cf_fold=1, random_state=2022, is_discrete_treatment=True)
     validate_leaner(dg, estimator, check_effect_nji=True)
 
 
@@ -57,7 +57,7 @@ def test_double_ml(dg):
 # # @pytest.mark.xfail(reason='to be fixed')
 # def test_double_ml_to_be_fixed(dg):
 #     x_model, y_model = _test_settings_to_be_fixed[dg]
-#     estimator = DML4CATE(x_model=x_model, y_model=y_model, cf_fold=1, random_state=2022, is_discrete_treatment=True)
+#     estimator = DoubleML(x_model=x_model, y_model=y_model, cf_fold=1, random_state=2022, is_discrete_treatment=True)
 #     validate_leaner(dg, estimator, check_fitted=False)
 #
 
@@ -74,7 +74,7 @@ def test_dml_single_continuous_treatment():
     outcome = 'outcome'
     treatment = 'treatment'
 
-    dml = DML4CATE(
+    dml = DoubleML(
         x_model=RandomForestRegressor(),
         y_model=RandomForestRegressor(),
         cf_fold=3,
@@ -101,7 +101,7 @@ def test_dml_with_single_continuous_treatment_with_covariate_transformer():
     outcome = 'outcome'
     treatment = 'treatment'
 
-    dml = DML4CATE(
+    dml = DoubleML(
         x_model=RandomForestRegressor(),
         y_model=RandomForestRegressor(),
         cf_fold=3,
@@ -145,7 +145,7 @@ def test_dml_single_binary_treatment():
     # t_effect1 = train1['t_effect']
     treatment = 'treatment'
     outcome = 'outcome'
-    dml1 = DML4CATE(
+    dml1 = DoubleML(
         x_model=RandomForestClassifier(),
         y_model=RandomForestRegressor(),
         cf_fold=1,

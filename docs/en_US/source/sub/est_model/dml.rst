@@ -102,7 +102,7 @@ now becomes
         from sklearn.ensemble import RandomForestRegressor
 
         from ylearn.exp_dataset.exp_data import single_continuous_treatment
-        from ylearn.estimator_model.double_ml import DML4CATE
+        from ylearn.estimator_model.double_ml import DoubleML
 
         # build the dataset
         train, val, treatment_effect = single_continuous_treatment()
@@ -111,17 +111,17 @@ now becomes
         outcome = 'outcome'
         treatment = 'treatment'
 
-        dml = DML4CATE(x_model=RandomForestRegressor(), y_model=RandomForestRegressor(), cf_fold=3,)
+        dml = DoubleML(x_model=RandomForestRegressor(), y_model=RandomForestRegressor(), cf_fold=3,)
         dml.fit(train, outcome, treatment, adjustment, covariate,)
 
     >>> 06-23 14:02:36 I ylearn.e.double_ml.py 684 - _fit_1st_stage: fitting x_model RandomForestRegressor
     >>> 06-23 14:02:39 I ylearn.e.double_ml.py 690 - _fit_1st_stage: fitting y_model RandomForestRegressor
-    >>> DML4CATE(x_model=RandomForestRegressor(), y_model=RandomForestRegressor(), yx_model=LinearRegression(), cf_fold=3)      
+    >>> DoubleML(x_model=RandomForestRegressor(), y_model=RandomForestRegressor(), yx_model=LinearRegression(), cf_fold=3)      
 
 Class Structures
 ================
 
-.. py:class:: ylearn.estimator_model.double_ml.DML4CATE(x_model, y_model, yx_model=None, cf_fold=1, adjustment_transformer=None, covariate_transformer=None, random_state=2022, is_discrete_treatment=False, categories='auto')
+.. py:class:: ylearn.estimator_model.double_ml.DoubleML(x_model, y_model, yx_model=None, cf_fold=1, adjustment_transformer=None, covariate_transformer=None, random_state=2022, is_discrete_treatment=False, categories='auto')
 
     :param estimator, optional x_model: Machine learning models for fitting x. Any such models should implement
             the :py:func:`fit` and :py:func:`predict`` (also :py:func:`predict_proba` if x is discrete) methods.
@@ -137,7 +137,7 @@ Class Structures
     
     .. py:method:: fit(data, outcome, treatment, adjustment=None, covariate=None, **kwargs)
         
-        Fit the DML4CATE estimator model. Note that the training of a DML has two stages, where we implement them in
+        Fit the DoubleML estimator model. Note that the training of a DML has two stages, where we implement them in
         :py:func:`_fit_1st_stage` and :py:func:`_fit_2nd_stage`.
 
         :param pandas.DataFrame data: Training dataset for training the estimator.
@@ -147,7 +147,7 @@ Class Structures
         :param list of str, optional, default=None covariate: Names of the covariate.
 
         :returns: The fitted model
-        :rtype: an instance of DML4CATE
+        :rtype: an instance of DoubleML
 
     .. py:method:: estimate(data=None, treat=None, control=None, quantity=None)
         

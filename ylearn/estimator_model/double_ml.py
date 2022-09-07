@@ -10,6 +10,7 @@ from sklearn.model_selection import KFold
 
 from .base_models import BaseEstModel
 from .utils import (
+    check_classes,
     convert2array,
     convert4onehot,
     nd_kron,
@@ -85,11 +86,10 @@ logger = logging.get_logger(__name__)
 #         raise NotImplementedError
 
 
-class DML4CATE(BaseEstModel):
+class DoubleML(BaseEstModel):
     r"""Double machine learning for estimating CATE.
     # TODO: convert the einstein notations in this section to the usual ones.
     # TODO: expand fij to higher orders of v.
-    # TODO: add intercept to the final linear regression model
 
     (- Skip this if you are only interested in the implementation.)
     A typical double machine learning for CATE solves the following treatment
@@ -199,7 +199,7 @@ class DML4CATE(BaseEstModel):
     Methods
     ----------
     fit(data, outcome, treatment, adjustment, covariate)
-        Fit the DML4CATE estimator model.
+        Fit the DoubleML estimator model.
 
     estimate(data, treat, control, quantity)
         Estimate the causal effect.
@@ -235,6 +235,8 @@ class DML4CATE(BaseEstModel):
         random_state=2022,
         is_discrete_treatment=False,
         categories="auto",
+        is_discrete_outcome=False,
+        proba_output=False,
     ):
         """
         Parameters
@@ -266,6 +268,24 @@ class DML4CATE(BaseEstModel):
 
         categories : str, optional
         """
+        if proba_output:
+            assert (
+                is_discrete_outcome
+            ), f"proba_output requires is_discrete_outcome to be True but was given {is_discrete_outcome}"
+            assert hasattr(
+                y_model, "predict_proba"
+            ), f"The predict_proba method of {y_model} is required to use proba_output. But None was given."
+        self.proba_output = proba_output
+        self.y_pred_func = "predict_proba" if proba_output else "predict"
+
+        if is_discrete_treatment:
+            assert hasattr(
+                x_model, "predict_proba"
+            ), f"The predict_proba method of {x_model} is required when is_discrete_treatment is True."
+            self.x_pred_func = "predict_proba"
+        else:
+            self.x_pred_func = "predict"
+
         self.cf_fold = cf_fold
         self.x_model = clone(x_model)
         self.y_model = clone(y_model)
@@ -287,6 +307,7 @@ class DML4CATE(BaseEstModel):
         super().__init__(
             random_state=random_state,
             is_discrete_treatment=is_discrete_treatment,
+            is_discrete_outcome=is_discrete_outcome,
             categories=categories,
         )
 
@@ -300,7 +321,7 @@ class DML4CATE(BaseEstModel):
         covariate=None,
         **kwargs,
     ):
-        """Fit the DML4CATE estimator model.
+        """Fit the DoubleML estimator model.
 
         Parameters
         ----------
@@ -321,7 +342,7 @@ class DML4CATE(BaseEstModel):
 
         Returns
         -------
-        instance of DML4CATE
+        instance of DoubleML
             The fitted estimator model
         """
         # must have adjustment to evaluate ATE,
@@ -376,7 +397,13 @@ class DML4CATE(BaseEstModel):
             self.x_model, self.y_model, y, x, wv, folds=folds
         )
         x_hat = self.x_hat_dict["paras"][0].reshape((x.shape))
-        y_hat = self.y_hat_dict["paras"][0].reshape((y.shape))
+        if self.proba_output:
+            assert y.shape[1] == 1, "Currently only support one discrete outcome."
+            self._outcome_oh = OneHotEncoder(
+                categories=[self.y_hat_dict["models"][0].classes_]
+            )  # TODO: note that when the cfold is too large, the classes_ may not include all valid classes
+            y = self._outcome_oh.fit_transform(y)
+        y_hat = self.y_hat_dict["paras"][0].reshape(y.shape)
 
         # step 3: calculate the differences
         x_diff = x - x_hat
@@ -397,6 +424,7 @@ class DML4CATE(BaseEstModel):
         treat=None,
         control=None,
         quantity=None,
+        target_outcome=None,
     ):
         """Estimate the causal effect.
 
@@ -435,7 +463,6 @@ class DML4CATE(BaseEstModel):
             The estimated causal effect with the type of the quantity.
         """
         fij = self._prepare4est(data=data)
-
         if hasattr(self, "treat") and treat is None:
             treat = self.treat
         if hasattr(self, "control") and control is None:
@@ -452,7 +479,7 @@ class DML4CATE(BaseEstModel):
                 discrete_treat=dis_tr,
             )
 
-        if not isinstance(treat, np.ndarray) or dis_tr:
+        if not isinstance(control, np.ndarray) or dis_tr:
             control = get_tr_ctrl(
                 control,
                 self.comp_transormer,
@@ -472,6 +499,16 @@ class DML4CATE(BaseEstModel):
                 effect = np.einsum("nji, ni->nji", fij, treat - control)
             else:
                 effect = fij * (treat - control)
+
+        if target_outcome is not None:
+            assert (
+                self.proba_output
+            ), f"target_outcome can only be specificed when proba_output is True."
+            target_outcome = check_classes(target_outcome, self.outcome_classes_)
+            if effect.ndim == 3:
+                effect = effect[:, target_outcome, :].reshape(effect.shape[0], 1, -1)
+            else:
+                effect = effect[:, target_outcome]
 
         if quantity == "CATE":
             assert self.covariate is not None
@@ -522,12 +559,21 @@ class DML4CATE(BaseEstModel):
 
         return x
 
-    def effect_nji(self, data=None, control=0):
+    def effect_nji(self, data=None, control=None):
         y_nji = self._prepare4est(data=data)
         n, x_d = y_nji.shape[0], y_nji.shape[2]
 
         if self.is_discrete_treatment:
-            temp_y = y_nji[:, :, 0].reshape(n, -1, 1)
+            if hasattr(self, "control") and control is None:
+                control = self.control
+            control = get_tr_ctrl(
+                control,
+                self.comp_transormer,
+                treat=False,
+                one_hot=False,
+                discrete_treat=self.is_discrete_treatment,
+            )
+            temp_y = y_nji[:, :, control].reshape(n, -1, 1)
             temp_y = np.repeat(temp_y, x_d, axis=2)
             y_nji = y_nji - temp_y
 
@@ -549,14 +595,18 @@ class DML4CATE(BaseEstModel):
             The element in the slot of (i, j, k) indicating the causal effect of
             treatment k on the j-th dimension of the outcome for the i-th example
         """
-        assert (
-            self.x_hat_dict["is_fitted"][0]
-            and self.y_hat_dict["is_fitted"][0]
-            and self._is_fitted
-        ), "x_model and y_model should be"
-        "trained before estimation."
-
-        x_d, y_d = self._x_d, self._y_d
+        assert all(
+            (
+                self.x_hat_dict["is_fitted"][0],
+                self.y_hat_dict["is_fitted"][0],
+                self._is_fitted,
+            )
+        ), "x_model and y_model should be trained before estimation."
+        x_d = self._x_d
+        if self.proba_output:
+            y_d = self.outcome_classes_.__len__()
+        else:
+            y_d = self._y_d
         v = self._v if data is None else convert2array(data, self.covariate)[0]
 
         if self.covariate_transformer is not None and v is not None:
@@ -591,6 +641,14 @@ class DML4CATE(BaseEstModel):
 
         return fij
 
+    @property
+    def outcome_classes_(self):
+        if self.is_discrete_outcome:
+            assert self._is_fitted, "The model has not been fitted yet."
+            return self.y_model.classes_
+        else:
+            return None
+
     def _cross_fit(self, model, *args, **kwargs):
         folds = kwargs.pop("folds")
         is_ymodel = kwargs.pop("is_ymodel")
@@ -601,19 +659,18 @@ class DML4CATE(BaseEstModel):
             # convert back to a vector with each dimension being a value
             # indicating the corresponding discrete value
             target_converted = convert4onehot(target)
+            pred_func = self.x_pred_func
         else:
             target_converted = target
+            pred_func = self.y_pred_func
 
         if folds is None:
             wv = args[0]
             model.fit(wv, target_converted, **kwargs)
 
-            if not is_ymodel and self.is_discrete_treatment:
-                p_hat = model.predict_proba(wv)
-            else:
-                p_hat = model.predict(wv)
+            p_hat = model.__getattribute__(pred_func)(wv)
 
-            fitted_result["models"].append(clone(model))
+            fitted_result["models"].append(model)
             fitted_result["paras"].append(p_hat)
             idx = np.arange(start=0, stop=wv.shape[0])
             fitted_result["train_test_id"].append((idx, idx))
@@ -626,14 +683,7 @@ class DML4CATE(BaseEstModel):
                 temp_wv_test = args[0][test_id]
                 target_train = target_converted[train_id]
                 model_.fit(temp_wv, target_train, **kwargs)
-
-                if not is_ymodel and self.is_discrete_treatment:
-                    target_predict = model_.predict_proba(temp_wv_test)
-                else:
-                    target_predict = model_.predict(temp_wv_test)
-                    # test_shape = kwargs['target'][test_id].shape
-                    # if target_predict.shape != test_shape:
-                    #     target_predict.reshape(test_shape)
+                target_predict = model_.__getattribute__(pred_func)(temp_wv_test)
 
                 fitted_result["models"].append(model_)
                 fitted_result["paras"][0][test_id] = target_predict

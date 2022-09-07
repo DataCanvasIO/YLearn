@@ -3,6 +3,15 @@ import pandas as pd
 from sklearn.preprocessing import OneHotEncoder
 
 
+def check_classes(target, classes_):
+    if target is None:
+        return None
+    else:
+        assert classes_ is not None
+        assert target in classes_
+        return np.where(target == classes_)[0]
+
+
 def cartesian(arrays):
     n = len(arrays)
     cart_prod = np.array(np.meshgrid(*arrays)).T.reshape(-1, n)
@@ -48,6 +57,10 @@ def get_treat_control(treat_ctrl, trans, treat=False):
     if treat_ctrl is not None:
         if not isinstance(treat_ctrl, int):
             assert len(treat_ctrl) == n_treat
+        else:
+            treat_ctrl = [
+                treat_ctrl,
+            ]
 
         treat_ctrl = np.array(list(treat_ctrl))
         treat_ctrl = trans.transform(treat_ctrl.reshape(1, -1))
@@ -76,7 +89,7 @@ def shapes(*tensors, all_dim=False):
 
 def nd_kron(x, y):
     assert x.shape[0] == y.shape[0]
-    fn = np.vectorize(np.kron, signature='(n),(m)->(k)')
+    fn = np.vectorize(np.kron, signature="(n),(m)->(k)")
     kron_prod = fn(x, y)
 
     return kron_prod
@@ -85,6 +98,7 @@ def nd_kron(x, y):
 def tensor_or_none(x):
     if x is not None:
         import torch
+
         return torch.tensor(x)
     else:
         return None
@@ -106,10 +120,10 @@ def convert4onehot(x):
 
 def get_groups(target, a, one_hot, *arrays):
     arrays = list(arrays)
-    
+
     if one_hot:
         a = convert4onehot(a)
-        label = (a == target)
+        label = a == target
     # label = np.all(a == target, axis=1)
     else:
         label = np.all(a == target, axis=1)
@@ -161,6 +175,7 @@ def one_hot_transformer(*S):
         transformer_list.append(temp_transormer)
 
     return transformer_list
+
 
 #
 # class DiscreteIOBatchData(Dataset):

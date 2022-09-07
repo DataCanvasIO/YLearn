@@ -40,8 +40,11 @@ class BaseEstimatorFactory:
 
         return skex.general_estimator(data, task=task, estimator=estimator, random_state=random_state, **kwargs)
 
-    @staticmethod
-    def _cf_fold(data):
+    def _cf_fold(self, data):
+        cf_fold = getattr(self, 'cf_fold', None)
+        if cf_fold is not None:
+            return cf_fold
+
         size = data.shape[0]
         if size < 3000:
             return 1
@@ -56,22 +59,28 @@ class BaseEstimatorFactory:
 
 @register()
 class DMLFactory(BaseEstimatorFactory):
-    def __init__(self, y_model='rf', x_model='rf', yx_model='lr'):
+    def __init__(self, y_model='rf', x_model='rf', yx_model='lr', cf_fold=None):
         self.y_model = y_model
         self.x_model = x_model
         self.yx_model = yx_model
+        self.cf_fold = cf_fold
 
     def __call__(self, data, outcome, treatment, y_task, x_task,
                  adjustment=None, covariate=None, instrument=None, random_state=None):
-        from ylearn.estimator_model.double_ml import DML4CATE
+        from ylearn.estimator_model.double_ml import DoubleML
         # assert adjustment is not None
         assert covariate is not None
 
-        return DML4CATE(
+        is_discrete_treatment = x_task if isinstance(x_task, bool) else x_task != const.TASK_REGRESSION
+        is_discrete_outcome = y_task if isinstance(y_task, bool) else y_task != const.TASK_REGRESSION
+
+        return DoubleML(
             y_model=self._model(data, task=y_task, estimator=self.y_model, random_state=random_state),
             x_model=self._model(data, task=x_task, estimator=self.x_model, random_state=random_state),
             yx_model=self._model(data, task=const.TASK_REGRESSION, estimator=self.yx_model, random_state=random_state),
-            is_discrete_treatment=x_task if isinstance(x_task, bool) else x_task != const.TASK_REGRESSION,
+            is_discrete_outcome=is_discrete_outcome,
+            is_discrete_treatment=is_discrete_treatment,
+            proba_output=is_discrete_outcome if is_discrete_outcome else None,
             cf_fold=self._cf_fold(data),
             random_state=random_state,
         )
@@ -79,10 +88,11 @@ class DMLFactory(BaseEstimatorFactory):
 
 @register()
 class DRFactory(BaseEstimatorFactory):
-    def __init__(self, y_model='gb', x_model='rf', yx_model='gb'):
+    def __init__(self, y_model='gb', x_model='rf', yx_model='gb', cf_fold=None):
         self.y_model = y_model
         self.x_model = x_model
         self.yx_model = yx_model
+        self.cf_fold = cf_fold
 
     def __call__(self, data, outcome, treatment, y_task, x_task,
                  adjustment=None, covariate=None, instrument=None, random_state=None):
@@ -102,27 +112,108 @@ class DRFactory(BaseEstimatorFactory):
 
 @register()
 @register(name='ml')
-class MetaLeanerFactory(BaseEstimatorFactory):
-    def __init__(self, leaner='tleaner', model='gb'):
-        assert leaner.strip().lower()[0] in {'s', 't', 'x'}
+class MetaLearnerFactory(BaseEstimatorFactory):
+    def __init__(self, learner='tlearner', model='gb', **kwargs):
+        assert learner.strip().lower()[0] in {'s', 't', 'x'}
 
-        self.leaner = leaner
+        self.learner = learner
         self.model = model
+        self.options = kwargs.copy()
 
     def __call__(self, data, outcome, treatment, y_task, x_task,
                  adjustment=None, covariate=None, instrument=None, random_state=None):
         from ylearn.estimator_model import PermutedSLearner, PermutedTLearner, PermutedXLearner
 
-        # assert adjustment is not None
-        assert x_task != const.TASK_REGRESSION, 'MetaLearner support discrete treatment only.'
+        is_discrete_treatment = x_task if isinstance(x_task, bool) else x_task != const.TASK_REGRESSION
+        is_discrete_outcome = y_task if isinstance(y_task, bool) else y_task != const.TASK_REGRESSION
 
-        tag = self.leaner.strip().lower()[0]
+        # assert adjustment is not None
+        assert is_discrete_treatment, 'MetaLearner support discrete treatment only.'
+
+        tag = self.learner.strip().lower()[0]
         learners = dict(s=PermutedSLearner, t=PermutedTLearner, x=PermutedXLearner)
         est_cls = learners[tag]
-        return est_cls(
+        options = dict(
             model=self._model(data, task=y_task, estimator=self.model, random_state=random_state),
-            is_discrete_outcome=y_task if isinstance(y_task, bool) else y_task != const.TASK_REGRESSION,
-            is_discrete_treatment=x_task if isinstance(x_task, bool) else x_task != const.TASK_REGRESSION,
+            is_discrete_outcome=is_discrete_outcome,
+            is_discrete_treatment=is_discrete_treatment,
+            proba_output=is_discrete_outcome if is_discrete_outcome else None,
+            random_state=random_state,
+            # combined_treatment=False,
+        )
+        options.update(self.options)
+        return est_cls(**options)
+
+
+@register()
+class SLearnerFactory(BaseEstimatorFactory):
+    def __init__(self, model='gb'):
+        self.model = model
+
+    def __call__(self, data, outcome, treatment, y_task, x_task,
+                 adjustment=None, covariate=None, instrument=None, random_state=None):
+        from ylearn.estimator_model import PermutedSLearner
+
+        is_discrete_treatment = x_task if isinstance(x_task, bool) else x_task != const.TASK_REGRESSION
+        is_discrete_outcome = y_task if isinstance(y_task, bool) else y_task != const.TASK_REGRESSION
+
+        return PermutedSLearner(
+            model=self._model(data, task=y_task, estimator=self.model, random_state=random_state),
+            is_discrete_outcome=is_discrete_outcome,
+            is_discrete_treatment=is_discrete_treatment,
+            proba_output=is_discrete_outcome if is_discrete_outcome else None,
+            random_state=random_state,
+            # combined_treatment=False,
+        )
+
+
+@register()
+class TLearnerFactory(BaseEstimatorFactory):
+    def __init__(self, model='gb'):
+        self.model = model
+
+    def __call__(self, data, outcome, treatment, y_task, x_task,
+                 adjustment=None, covariate=None, instrument=None, random_state=None):
+        from ylearn.estimator_model import PermutedTLearner
+
+        is_discrete_treatment = x_task if isinstance(x_task, bool) else x_task != const.TASK_REGRESSION
+        is_discrete_outcome = y_task if isinstance(y_task, bool) else y_task != const.TASK_REGRESSION
+
+        return PermutedTLearner(
+            model=self._model(data, task=y_task, estimator=self.model, random_state=random_state),
+            is_discrete_outcome=is_discrete_outcome,
+            is_discrete_treatment=is_discrete_treatment,
+            proba_output=is_discrete_outcome if is_discrete_outcome else None,
+            random_state=random_state,
+            # combined_treatment=False,
+        )
+
+
+@register()
+class XLearnerFactory(BaseEstimatorFactory):
+    def __init__(self, model='gb', final_proba_model='lr'):
+        self.model = model
+        self.final_proba_model = final_proba_model
+
+    def __call__(self, data, outcome, treatment, y_task, x_task,
+                 adjustment=None, covariate=None, instrument=None, random_state=None):
+        from ylearn.estimator_model import PermutedXLearner
+
+        is_discrete_treatment = x_task if isinstance(x_task, bool) else x_task != const.TASK_REGRESSION
+        is_discrete_outcome = y_task if isinstance(y_task, bool) else y_task != const.TASK_REGRESSION
+
+        if is_discrete_outcome:
+            final_proba_model = self._model(
+                data, task=const.TASK_REGRESSION, estimator=self.final_proba_model, random_state=random_state)
+        else:
+            final_proba_model = None
+
+        return PermutedXLearner(
+            model=self._model(data, task=y_task, estimator=self.model, random_state=random_state),
+            final_proba_model=final_proba_model,
+            is_discrete_outcome=is_discrete_outcome,
+            is_discrete_treatment=is_discrete_treatment,
+            proba_output=is_discrete_outcome if is_discrete_outcome else None,
             random_state=random_state,
             # combined_treatment=False,
         )
@@ -131,15 +222,17 @@ class MetaLeanerFactory(BaseEstimatorFactory):
 @register()
 @register(name='tree')
 class CausalTreeFactory(BaseEstimatorFactory):
-    # def __init__(self):
-    #     pass
+    def __init__(self, **kwargs):
+        self.options = kwargs.copy()
+
     def __call__(self, data, outcome, treatment, y_task, x_task,
                  adjustment=None, covariate=None, instrument=None, random_state=None):
-        from ylearn.estimator_model.causal_tree import CausalTree
+        from ylearn.estimator_model._permuted import PermutedCausalTree
 
-        assert adjustment is not None
-
-        return CausalTree(random_state=random_state)  # FIXME
+        options = self.options.copy()
+        if random_state is not None:
+            options['random_state'] = random_state
+        return PermutedCausalTree(**options)
 
 
 @register()
@@ -250,9 +343,10 @@ class DeepIVFactory(BaseEstimatorFactory):
 
 @register()
 class RLossFactory(BaseEstimatorFactory):
-    def __init__(self, y_model='rf', x_model='rf'):
+    def __init__(self, y_model='rf', x_model='rf', cf_fold=None):
         self.y_model = y_model
         self.x_model = x_model
+        self.cf_fold = cf_fold
 
     def __call__(self, data, outcome, treatment, y_task, x_task,
                  adjustment=None, covariate=None, instrument=None, random_state=None):

@@ -22,10 +22,11 @@ from ylearn.sklearn_ex.cloned.tree._tree import Tree
 from sklearn.tree import plot_tree
 
 from ..utils import logging
-from .utils import (convert2array, get_wv, get_treat_control)
+from .utils import convert2array, get_wv, get_treat_control
 from .base_models import BaseEstModel
 
 from ylearn.estimator_model._tree.tree_criterion import CMSE, MSE, HonestCMSE
+
 # import pyximport
 # pyximport.install(setup_args={"script_args": ["--verbose"]})
 
@@ -39,28 +40,28 @@ EPS = 1e-5
 class CausalTree(BaseEstModel):
     # TODO: add support for multi-output causal tree
     """A class for estimating causal effect with decision tree.
-    
+
     Parameters
     ----------
-    splitter : {"best", "random"}, default="best" 
-    
-        The strategy used to choose the split at each node. Supported 
-        strategies are "best" to choose the best split and "random" to choose 
+    splitter : {"best", "random"}, default="best"
+
+        The strategy used to choose the split at each node. Supported
+        strategies are "best" to choose the best split and "random" to choose
         the best random split.
 
-    max_depth : int, default=None 
-        The maximum depth of the tree. If None, then nodes are expanded until 
-        all leaves are pure or until all leaves contain less than 
-        min_samples_split samples. 
+    max_depth : int, default=None
+        The maximum depth of the tree. If None, then nodes are expanded until
+        all leaves are pure or until all leaves contain less than
+        min_samples_split samples.
 
-    min_samples_split : int or float, default=2 
+    min_samples_split : int or float, default=2
         The minimum number of samples required to split an internal node:
         - If int, then consider `min_samples_split` as the minimum number.
         - If float, then `min_samples_split` is a fraction and
         `ceil(min_samples_split * n_samples)` are the minimum
         number of samples for each split.
 
-    min_samples_leaf : int or float, default=1 
+    min_samples_leaf : int or float, default=1
         The minimum number of samples required to be at a leaf node.
         A split point at any depth will only be considered if it leaves at
         least ``min_samples_leaf`` training samples in each of the left and
@@ -71,24 +72,24 @@ class CausalTree(BaseEstModel):
         `ceil(min_samples_leaf * n_samples)` are the minimum
         number of samples for each node.
 
-    max_features : int, float or {"sqrt", "log2"}, default=None 
+    max_features : int, float or {"sqrt", "log2"}, default=None
         The number of features to consider when looking for the best split:
-            
+
             1. If int, then consider `max_features` features at each split.
             2. If float, then `max_features` is a fraction and `int(max_features * n_features)` features are considered at each split.
             3. If "sqrt", then `max_features=sqrt(n_features)`.
             4. If "log2", then `max_features=log2(n_features)`.
             5. If None, then `max_features=n_features`.
 
-    random_state : int 
+    random_state : int
         Controls the randomness of the estimator.
 
-    max_leaf_nodes : int, default to None 
+    max_leaf_nodes : int, default to None
         Grow a tree with ``max_leaf_nodes`` in best-first fashion.
         Best nodes are defined as relative reduction in impurity.
         If None then unlimited number of leaf nodes.
 
-    min_impurity_decrease : float, default=0.0 
+    min_impurity_decrease : float, default=0.0
         A node will be split if this split induces a decrease of the impurity
         greater than or equal to this value.
         The weighted impurity decrease equation is the following::
@@ -100,10 +101,10 @@ class CausalTree(BaseEstModel):
         ``N``, ``N_t``, ``N_t_R`` and ``N_t_L`` all refer to the weighted sum,
         if ``sample_weight`` is passed.
 
-    ccp_alpha : non-negative float, default to 0.0 
+    ccp_alpha : non-negative float, default to 0.0
         Value for pruning the tree. *Not implemented yet*.
-    
-    categories : str, optional. Defaults to 'auto'. 
+
+    categories : str, optional. Defaults to 'auto'.
 
     See Also
     --------
@@ -113,33 +114,33 @@ class CausalTree(BaseEstModel):
     ----------
     fit(data, outcome, treatment, adjustment=None, covariate=None, treat=None, control=None)
         Fit the model on data.
-        
+
         Parameters
         ----------
         data : pandas.DataFrame
-        
+
         outcome : str or list of str
             Names of the outcomes.
-        
+
         treatment : str or list of str
             Names of the treatment vectors.
-        
+
         covariate : str of list of str
             Names of the covariate vectors.
-        
+
         adjustment : str of list of str
             Names of the covariate vectors. Note that we may only need the covariate
             set, which usually is a subset of the adjustment set.
-        
+
         treat : int or list, optional
             If there is only one discrete treament, then treat indicates the
             treatment group. If there are multiple treatment groups, then treat
-            should be a list of str with length equal to the number of treatments. 
+            should be a list of str with length equal to the number of treatments.
             For example, when there are multiple discrete treatments,
                 array(['run', 'read'])
             means the treat value of the first treatment is taken as 'run' and
             that of the second treatment is taken as 'read'.
-        
+
         control : int or list, optional
             See treat for more information
 
@@ -150,41 +151,41 @@ class CausalTree(BaseEstModel):
 
     estimate(data=None, quantity=None)
         Estimate the causal effect of the treatment on the outcome in data.
-        
+
         Parameters
         ----------
         data : pandas.DataFrame, optional, by default None
             If None, data will be set as the training data.
-        
+
         quantity : str, optional, by default None
             The type of the causal effect. Avaliable options are:
-                
+
                 1. 'CATE' : the estimator will evaluate the CATE;
                 2. 'ATE' : the estimator will evaluate the ATE;
-                3. None : the estimator will evaluate the CITE.          
+                3. None : the estimator will evaluate the CITE.
 
         Returns
         -------
         ndarray or float, optional
             The estimated causal effect with the type of the quantity.
-    
+
     get_depth()
         Return the depth of the causal tree. The depth of a tree is the maximum distance between the root
         and any leaf.
-        
+
         Returns
         -------
         self.tree_.max_depth : int
             The maximum depth of the tree.
-    
+
     get_n_leaves()
         Return the number of leaves of the causal tree.
-        
+
         Returns
         -------
         self.tree_.n_leaves : int
             Number of leaves.
-    
+
     apply(*, data=None, wv=None)
         Return the index of the leaf that each sample is predicted as.
 
@@ -193,7 +194,7 @@ class CausalTree(BaseEstModel):
         wv : ndarray
             The input samples as an ndarray. If None, then the DataFrame data
             will be used as the input samples.
-        
+
         data : DataFrame, optional
             The input samples. The data must contains columns of the covariates
             used for training the model. If None, the training data will be
@@ -209,18 +210,18 @@ class CausalTree(BaseEstModel):
 
     decision_path(*, data=None, wv=None)
         Return the decision path.
-        
+
         Parameters
         ----------
         wv : ndarray
             The input samples as an ndarray. If None, then the DataFrame data
             will be used as the input samples.
-        
+
         data : DataFrame, optional
             The input samples. The data must contains columns of the covariates
             used for training the model. If None, the training data will be
             passed as input samples , by default None
-        
+
         Returns
         -------
         indicator : sparse matrix of shape (n_samples, n_nodes)
@@ -241,16 +242,16 @@ class CausalTree(BaseEstModel):
         the size of the rendering.
 
         Parameters
-        ----------        
+        ----------
         max_depth : int, default=None
             The maximum depth of the representation. If None, the tree is fully
             generated.
-        
+
         label : {'all', 'root', 'none'}, default='all'
             Whether to show informative labels for impurity, etc.
             Options include 'all' to show at every node, 'root' to show only at
             the top root node, or 'none' to not show at any node.
-        
+
         filled : bool, default=False
             When set to ``True``, paint nodes to indicate majority class for
             classification, extremity of values for regression, or purity of node
@@ -259,29 +260,29 @@ class CausalTree(BaseEstModel):
         feature_names : list, default=None
             Names of features. If None, then the names of the adjustment or covariate
             will be used.
-        
+
         node_ids : bool, default=False
             When set to ``True``, show the ID number on each node.
-        
+
         proportion : bool, default=False
             When set to ``True``, change the display of 'values' and/or 'samples'
             to be proportions and percentages respectively.
-        
+
         rounded : bool, default=False
             When set to ``True``, draw node boxes with rounded corners and use
             Helvetica fonts instead of Times-Roman.
-        
+
         precision : int, default=3
             Number of digits of precision for floating point in the values of
             impurity, threshold and value attributes of each node.
-        
+
         ax : matplotlib axis, default=None
             Axes to plot to. If None, use current axis. Any previous content
             is cleared.
-        
+
         fontsize : int, default=None
             Size of text font. If None, determined automatically to fit figure.
-        
+
         Returns
         -------
         annotations : list of artists
@@ -293,7 +294,7 @@ class CausalTree(BaseEstModel):
     def __init__(
         self,
         *,
-        splitter='best',
+        splitter="best",
         max_depth=None,
         min_samples_split=2,
         min_samples_leaf=1,
@@ -303,7 +304,7 @@ class CausalTree(BaseEstModel):
         min_impurity_decrease=0.0,
         min_weight_fraction_leaf=0.0,
         ccp_alpha=0.0,
-        categories='auto'
+        categories="auto",
     ):
         self.splitter = splitter
         self.max_depth = max_depth
@@ -319,6 +320,7 @@ class CausalTree(BaseEstModel):
         super().__init__(
             random_state=random_state,
             categories=categories,
+            is_discrete_treatment=True,
         )
 
     def fit(
@@ -330,6 +332,7 @@ class CausalTree(BaseEstModel):
         covariate=None,
         treat=None,
         control=None,
+        # array_input=False,
     ):
         # TODO: consider possibility for generalizing continuous treatment
         """Fit the model on data.
@@ -337,29 +340,29 @@ class CausalTree(BaseEstModel):
         Parameters
         ----------
         data : pandas.DataFrame
-        
+
         outcome : str or list of str
             Names of the outcomes.
-        
+
         treatment : str or list of str
             Names of the treatment vectors.
-        
+
         covariate : str of list of str
             Names of the covariate vectors.
-        
+
         adjustment : str of list of str
             Names of the covariate vectors. Note that we may only need the covariate
             set, which usually is a subset of the adjustment set.
-        
+
         treat : int or list, optional
             If there is only one discrete treament, then treat indicates the
             treatment group. If there are multiple treatment groups, then treat
-            should be a list of str with length equal to the number of treatments. 
+            should be a list of str with length equal to the number of treatments.
             For example, when there are multiple discrete treatments,
                 array(['run', 'read'])
             means the treat value of the first treatment is taken as 'run' and
             that of the second treatment is taken as 'read'.
-        
+
         control : int or list, optional
             See treat for more information
 
@@ -368,26 +371,27 @@ class CausalTree(BaseEstModel):
         instance of CausalTree
             The fitted causal tree.
         """
-        assert adjustment is not None or covariate is not None, \
-            'Need adjustment or covariate to perform estimation.'
-        
+        assert (
+            adjustment is not None or covariate is not None
+        ), "Need adjustment or covariate to perform estimation."
+
         # check random state
         random_state = check_random_state(self.random_state)
 
         super().fit(
-            data, outcome, treatment,
+            data,
+            outcome,
+            treatment,
             adjustment=adjustment,
             covariate=covariate,
         )
-        
-        y, x, w, v = convert2array(
-            data, outcome, treatment, adjustment, covariate
-        )
+
+        y, x, w, v = convert2array(data, outcome, treatment, adjustment, covariate)
         wv = get_wv(w, v)
 
         # Determin treatment settings
-        if self.categories == 'auto' or self.categories is None:
-            categories = 'auto'
+        if self.categories == "auto" or self.categories is None:
+            categories = "auto"
         else:
             categories = list(self.categories)
 
@@ -413,11 +417,11 @@ class CausalTree(BaseEstModel):
 
         check_scalar(
             self.ccp_alpha,
-            name='ccp_alpha',
+            name="ccp_alpha",
             target_type=numbers.Real,
             min_val=0.0,
-        )        
-        
+        )
+
         # Determine output settings
         n_samples, self.n_features_in_ = wv.shape  # dimension of the input
         self._wv = wv
@@ -431,18 +435,17 @@ class CausalTree(BaseEstModel):
         if self.max_depth is not None:
             check_scalar(
                 self.max_depth,
-                name='max_depth',
+                name="max_depth",
                 target_type=numbers.Integral,
                 min_val=1,
             )
-        max_depth = np.iinfo(np.int32).max if self.max_depth is None \
-            else self.max_depth
+        max_depth = np.iinfo(np.int32).max if self.max_depth is None else self.max_depth
 
         # check self.min_samples_leaf
         if isinstance(self.min_samples_leaf, numbers.Integral):
             check_scalar(
                 self.min_samples_leaf,
-                name='min_samples_leaf',
+                name="min_samples_leaf",
                 target_type=numbers.Integral,
                 min_val=1,
             )
@@ -450,10 +453,10 @@ class CausalTree(BaseEstModel):
         else:
             check_scalar(
                 self.min_samples_leaf,
-                name='min_samples_leaf',
+                name="min_samples_leaf",
                 target_type=numbers.Real,
                 min_val=0.0,
-                include_boundaries='neither',
+                include_boundaries="neither",
             )
             min_samples_leaf = int(ceil(self.min_samples_leaf * n_samples))
 
@@ -461,7 +464,7 @@ class CausalTree(BaseEstModel):
         if isinstance(self.min_samples_split, numbers.Integral):
             check_scalar(
                 self.min_samples_split,
-                name='min_samples_split',
+                name="min_samples_split",
                 target_type=numbers.Integral,
                 min_val=2,
             )
@@ -469,11 +472,11 @@ class CausalTree(BaseEstModel):
         else:
             check_scalar(
                 self.min_samples_split,
-                name='min_samples_split',
+                name="min_samples_split",
                 target_type=numbers.Real,
                 min_val=0.0,
                 max_val=1.0,
-                include_boundaries='right',
+                include_boundaries="right",
             )
             min_samples_split = int(ceil(self.min_samples_split * n_samples))
             min_samples_split = max(2, min_samples_split)
@@ -484,7 +487,7 @@ class CausalTree(BaseEstModel):
         if self.max_leaf_nodes is not None:
             check_scalar(
                 self.max_leaf_nodes,
-                name='max_leaf_nodes',
+                name="max_leaf_nodes",
                 target_type=numbers.Integral,
                 min_val=2,
             )
@@ -494,7 +497,7 @@ class CausalTree(BaseEstModel):
         # check min_weight_fraction_leaf
         check_scalar(
             self.min_weight_fraction_leaf,
-            name='min_weight_fraction_leaf',
+            name="min_weight_fraction_leaf",
             target_type=numbers.Real,
             min_val=0.0,
             max_val=0.5,
@@ -502,13 +505,13 @@ class CausalTree(BaseEstModel):
 
         # check max_features
         if isinstance(self.max_features, str):
-            if self.max_features == 'sqrt':
+            if self.max_features == "sqrt":
                 max_features = max(1, int(np.sqrt(self.n_features_in_)))
-            elif self.max_features == 'log2':
+            elif self.max_features == "log2":
                 max_features = max(1, int(np.log2(self.n_features_in_)))
             else:
                 raise ValueError(
-                    'Invalid value for max_features. Allowed string values'
+                    "Invalid value for max_features. Allowed string values"
                     f'Allowed string values are "sqrt" or "log2", but was given {self.max_features}.'
                 )
         elif self.max_features is None:
@@ -516,25 +519,23 @@ class CausalTree(BaseEstModel):
         elif isinstance(self.max_features, numbers.Integral):
             check_scalar(
                 self.max_features,
-                name='max_features',
+                name="max_features",
                 target_type=numbers.Integral,
                 min_val=1,
-                include_boundaries='left',
+                include_boundaries="left",
             )
             max_features = self.max_features
         else:
             check_scalar(
                 self.max_features,
-                name='max_features',
+                name="max_features",
                 target_type=numbers.Real,
                 min_val=0.0,
                 max_val=1.0,
-                include_boundaries='right',
+                include_boundaries="right",
             )
             if self.max_features > 0.0:
-                max_features = max(
-                    1, int(self.max_features * self.n_features_in_)
-                )
+                max_features = max(1, int(self.max_features * self.n_features_in_))
             else:
                 max_features = 0
 
@@ -542,15 +543,14 @@ class CausalTree(BaseEstModel):
 
         if len(y) != n_samples:
             raise ValueError(
-                f'Number of labels {len(y)} does not match number of samples'
+                f"Number of labels {len(y)} does not match number of samples"
             )
 
         # set min_weight_leaf
         if sample_weight is None:
             min_weight_leaf = self.min_weight_fraction_leaf * n_samples
         else:
-            min_weight_leaf = self.min_weight_fraction_leaf * \
-                np.sum(sample_weight)
+            min_weight_leaf = self.min_weight_fraction_leaf * np.sum(sample_weight)
 
         # Build tree step 1. Set up criterion
         # criterion = deepcopy(MSE(self.n_outputs_, n_samples))
@@ -558,12 +558,12 @@ class CausalTree(BaseEstModel):
         criterion = deepcopy(HonestCMSE(self.n_outputs_, n_samples))
 
         logger.info(
-            f'Start building the causal tree with criterion {type(criterion).__name__}'
+            f"Start building the causal tree with criterion {type(criterion).__name__}"
         )
 
         # Build tree step 2. Define splitter
         splitter = self.splitter
-        
+
         if not isinstance(self.splitter, Splitter):
             splitter = SPLITTERS[self.splitter](
                 criterion,
@@ -573,9 +573,7 @@ class CausalTree(BaseEstModel):
                 random_state,
             )
 
-        logger.info(
-            f'Building the causal tree with splitter {type(splitter).__name__}'
-        )
+        logger.info(f"Building the causal tree with splitter {type(splitter).__name__}")
 
         # Build tree step 3. Define the tree
         self.tree_ = Tree(
@@ -605,9 +603,7 @@ class CausalTree(BaseEstModel):
                 self.min_impurity_decrease,
             )
 
-        logger.info(
-            f'Building the causal tree with builder {type(builder).__name__}'
-        )
+        logger.info(f"Building the causal tree with builder {type(builder).__name__}")
 
         builder.build(self.tree_, wv, y, sample_weight + EPS)
 
@@ -622,12 +618,12 @@ class CausalTree(BaseEstModel):
         ----------
         data : pandas.DataFrame, optional, by default None
             If None, data will be set as the training data.
-        
+
         quantity : str, optional, by default None
             The type of the causal effect. Avaliable options are:
                 'CATE' : the estimator will evaluate the CATE;
                 'ATE' : the estimator will evaluate the ATE;
-                None : the estimator will evaluate the CITE.          
+                None : the estimator will evaluate the CITE.
 
         Returns
         -------
@@ -635,15 +631,13 @@ class CausalTree(BaseEstModel):
             The estimated causal effect with the type of the quantity.
         """
         if not self._is_fitted:
-            raise Exception('The model is not fitted yet.')
+            raise Exception("The model is not fitted yet.")
 
         effect = self._prepare4est(data)
 
-        logger.info(
-            f'Start estimating the causal effect with the type of {quantity}.'
-        )
-        
-        if quantity == 'ATE' or quantity == 'CATE':
+        logger.info(f"Start estimating the causal effect with the type of {quantity}.")
+
+        if quantity == "ATE" or quantity == "CATE":
             np.mean(effect, axis=0)
         else:
             return effect
@@ -656,7 +650,7 @@ class CausalTree(BaseEstModel):
         wv : ndarray
             The test samples as an ndarray. If None, then the DataFrame data
             will be used as the test samples.
-        
+
         data : pandas.DataFrame
             The test samples.
 
@@ -669,19 +663,19 @@ class CausalTree(BaseEstModel):
             wv = wv.reshape(-1, 1) if wv.ndim == 1 else wv
             assert wv.shape[1] == self.n_features_in_
             wv = wv.astype(np.float32)
-            
+
             return wv
 
         if data is None:
             wv = self._wv
         else:
             assert isinstance(data, pandas.DataFrame)
-            
+
             w, v = convert2array(data, self.adjustment, self.covariate)
             wv = get_wv(w, v)
-        
+
         wv = wv.astype(np.float32)
-        
+
         return wv
 
     def effect_nji(self, data=None):
@@ -700,12 +694,12 @@ class CausalTree(BaseEstModel):
 
     def _prune_tree(self):
         pass
-    
+
     def get_depth(self):
         """Return the depth of the causal tree.
         The depth of a tree is the maximum distance between the root
         and any leaf.
-        
+
         Returns
         -------
         self.tree_.max_depth : int
@@ -724,7 +718,6 @@ class CausalTree(BaseEstModel):
         assert self._is_fitted
         return self.tree_.n_leaves
 
-
     def apply(self, *, data=None, wv=None):
         """Return the index of the leaf that each sample is predicted as.
 
@@ -733,7 +726,7 @@ class CausalTree(BaseEstModel):
         wv : ndarray
             The input samples as an ndarray. If None, then the DataFrame data
             will be used as the input samples.
-        
+
         data : DataFrame, optional
             The input samples. The data must contains columns of the covariates
             used for training the model. If None, the training data will be
@@ -747,10 +740,10 @@ class CausalTree(BaseEstModel):
             ``[0; self.tree_.node_count)``, possibly with gaps in the
             numbering.
         """
-        assert self._is_fitted, 'The model is not fitted yet.'
+        assert self._is_fitted, "The model is not fitted yet."
         wv = self._check_features(wv=wv, data=data)
-        
-        return self.tree_.apply(wv)     
+
+        return self.tree_.apply(wv)
 
     def decision_path(self, *, data=None, wv=None):
         """Return the decision path in the tree.
@@ -760,24 +753,24 @@ class CausalTree(BaseEstModel):
         wv : ndarray
             The input samples as an ndarray. If None, then the DataFrame data
             will be used as the input samples.
-        
+
         data : DataFrame, optional
             The input samples. The data must contains columns of the covariates
             used for training the model. If None, the training data will be
             passed as input samples , by default None
-        
+
         Returns
         -------
         indicator : sparse matrix of shape (n_samples, n_nodes)
             Return a node indicator CSR matrix where non zero elements
             indicates that the samples goes through the nodes.
         """
-        assert self._is_fitted, 'The model is not fitted yet.'
+        assert self._is_fitted, "The model is not fitted yet."
 
         v = self._check_features(wv=wv, data=data)
 
         return self.tree_.decision_path(v)
-    
+
     @property
     def feature_importance(self):
         """Return the feature importances.
@@ -794,26 +787,27 @@ class CausalTree(BaseEstModel):
             Normalized total reduction of criteria by feature
             (Gini importance).
         """
-        assert self._is_fitted, 'The model is not fitted yet.'
-        
+        assert self._is_fitted, "The model is not fitted yet."
+
         return self.tree_.compute_feature_importances()
-    
+
     @property
     def n_features_(self):
         return self.n_features_in_
-    
+
     def plot_causal_tree(
-        self, *,
+        self,
+        *,
         max_depth=None,
         feature_names=None,
-        label='all',
+        label="all",
         filled=False,
         node_ids=False,
         proportion=False,
         rounded=False,
         precision=3,
         ax=None,
-        fontsize=None
+        fontsize=None,
     ):
         """Plot a causal tree.
         The visualization is fit automatically to the size of the axis.
@@ -821,16 +815,16 @@ class CausalTree(BaseEstModel):
         the size of the rendering.
 
         Parameters
-        ----------        
+        ----------
         max_depth : int, default=None
             The maximum depth of the representation. If None, the tree is fully
             generated.
-        
+
         label : {'all', 'root', 'none'}, default='all'
             Whether to show informative labels for impurity, etc.
             Options include 'all' to show at every node, 'root' to show only at
             the top root node, or 'none' to not show at any node.
-        
+
         filled : bool, default=False
             When set to ``True``, paint nodes to indicate majority class for
             classification, extremity of values for regression, or purity of node
@@ -839,29 +833,29 @@ class CausalTree(BaseEstModel):
         feature_names : list, default=None
             Names of features. If None, then the names of the adjustment or covariate
             will be used.
-        
+
         node_ids : bool, default=False
             When set to ``True``, show the ID number on each node.
-        
+
         proportion : bool, default=False
             When set to ``True``, change the display of 'values' and/or 'samples'
             to be proportions and percentages respectively.
-        
+
         rounded : bool, default=False
             When set to ``True``, draw node boxes with rounded corners and use
             Helvetica fonts instead of Times-Roman.
-        
+
         precision : int, default=3
             Number of digits of precision for floating point in the values of
             impurity, threshold and value attributes of each node.
-        
+
         ax : matplotlib axis, default=None
             Axes to plot to. If None, use current axis. Any previous content
             is cleared.
-        
+
         fontsize : int, default=None
             Size of text font. If None, determined automatically to fit figure.
-        
+
         Returns
         -------
         annotations : list of artists
@@ -874,14 +868,14 @@ class CausalTree(BaseEstModel):
 
         if feature_names is None:
             feature_names = []
-            
+
             if self.adjustment is not None:
                 if isinstance(self.adjustment, str):
                     adj = [self.adjustment]
                 else:
                     adj = list(self.adjustment)
                 feature_names.extend(adj)
-            
+
             if self.covariate is not None:
                 if isinstance(self.covariate, str):
                     cov = [self.covariate]
@@ -904,6 +898,12 @@ class CausalTree(BaseEstModel):
             ax=ax,
             fontsize=fontsize,
         )
+
+    def _fit_with_array(
+        self,
+    ):
+        pass
+
 
 # class _CausalTreeOld:
 #     """

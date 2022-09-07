@@ -19,7 +19,7 @@
     V_j = f(V_i, \eta_{ij})
 
 对于一些函数 :math:`f` 和噪声 :math:`\eta`,那么在一组变量 :math:`V` 的表示因果结构的DAG中，
-应该有一个箭头从 :math:`V_j` 指向 :math:`V_i` 。详细的介绍这种因果结构的DAGs可以在 [Pearl]_ 中找到。
+应该有一个箭头从 :math:`V_i` 指向 :math:`V_j` 。详细的介绍这种因果结构的DAGs可以在 [Pearl]_ 中找到。
 
 因果效应，也称为因果估计量，根据 [Pearl]_ ，能够被 :math:`do`-operator 表示。举个例子，
 

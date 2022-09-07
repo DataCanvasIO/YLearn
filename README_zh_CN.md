@@ -20,7 +20,53 @@
 pip install ylearn
 ```
 
-注意：YLearn依赖于本地环境中的c++编译器和graphviz，请在安装YLearn之前安装相关软件。
+注意：YLearn在绘制因果图时需要用到`Graphviz`，所以请在运行YLearn之前安装它。关于`Graphviz`的安装方式请参考 https://graphviz.org/download/ 。
+
+
+### Conda
+
+也可以使用 conda 安装 YLearn，命令如下：
+
+```bash
+conda install -c conda-forge ylearn
+```
+
+此命令将安装YLearn和所有依赖包（包括 `Graphviz`）。
+
+对于Windows平台，需要注意的的是由于 pytroch（可选依赖）  没有被发布到 *conda-forge* 中，所以您通过上述命令安装YLearn时不会自动安装pytroch。您可从其它channel中单独安装pytorch，如：
+
+```bash
+conda install -c defaults pytorch
+```
+
+ 或
+
+```bash
+conda install -c pytorch pytorch
+```
+关于安装pytorch的更多信息请参考其官网 https://pytorch.org/ 。
+
+###  Docker
+
+如果您拥有Docker环境的话，可下载我们发布的Docker镜像。YLearn的Docker镜像中包括如下内容：
+
+* Python 3.8
+* YLearn 及其依赖包
+* JupyterLab
+
+下载镜像:
+
+```bash
+docker pull datacanvas/ylearn
+```
+
+运行镜像:
+
+```bash
+docker run -ti -e NotebookToken="your-token" -p 8888:8888 datacanvas/ylearn
+```
+然后通过浏览器访问 “ http://&lt;ip-addr&gt;:8888 ”，输入您设置的token就可以开始使用YLearn了。
+
 
 ## YLearn概览
 
@@ -181,6 +227,16 @@ YLearn 有5个主要的因果推断相关概念，如下所示
 ## 欢迎贡献
 
 欢迎来自社区的开发者贡献！在开始前，请先阅读 [code of conduct](CODE_OF_CONDUCT.md) 和 [contributing guidelines](CONTRIBUTING.md).
+
+## 交流渠道
+
+我们为开发者提供多种交流渠道：
+- GitHub [Issues](https://github.com/DataCanvasIO/YLearn/issues) and [Discussions](https://github.com/DataCanvasIO/YLearn/discussions)
+- 邮箱: ylearn@zetyun.com
+- YLearn [Slack交流空间](https://join.slack.com/t/ylearnworkspace/shared_invite/zt-1dvi5e8cz-yHwN2OTIDX0gWsfPRgB9ZQ)
+- YLearn 微信交流群: 添加微信 DataCanvas小助手，邀请入群，备注：YLearn交流群
+
+   <img src="./fig/wechat_QRcode.png" width="200">
 
 ## 参考文献
 

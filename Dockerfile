@@ -12,7 +12,7 @@ RUN apt update \
     && pip install $PIP_OPTS $PIP_PKGS \
     && v=$(pip show ylearn|awk '/Version/{print($2)}') \
     && echo ylearn version:$v \
-    && pip download --no-deps --dest /tmp/ $PIP_OPTS ylearn==$v \
+    && pip download --no-deps --no-binary ylearn --dest /tmp/ $PIP_OPTS ylearn==$v \
     && tar xzf /tmp/ylearn-$v.tar.gz -C /tmp/ \
     && mkdir -p /opt/datacanvas \
     && cp -r /tmp/ylearn-$v/example_usages /opt/datacanvas/ \

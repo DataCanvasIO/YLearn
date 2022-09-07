@@ -1,11 +1,13 @@
 import numpy as np
 import pandas as pd
+import inspect
 
 from ylearn.utils import to_repr
+from collections import defaultdict
 
 # from ..utils._common import check_cols
 
-#TODO: add support for assigning different treatment values for different examples for all models.
+# TODO: add support for assigning different treatment values for different examples for all models.
 
 
 class BaseEstModel:
@@ -14,26 +16,9 @@ class BaseEstModel:
 
     Attributes
     ----------
-    ml_model_dic : dict
-        A dictionary of default machine learning sklearn models currently
-        including
-            'LR': LinearRegression
-            'LogistR': LogisticRegression.
 
     Methods
     ----------
-    _prepare(data, outcome, treatment, adjustment, individual=None)
-        Prepare (fit the model) for estimating various quantities including
-        ATE, CATE, ITE, and CITE.
-    estimate(data, outcome, treatment, adjustment, quantity='ATE',
-                 condition_set=None, condition=None, individual=None)
-        Integrate estimations for various quantities into a single method.
-    estimate_ate(self, data, outcome, treatment, adjustment)
-    estimate_cate(self, data, outcome, treatment, adjustment,
-                      condition_set, condition)
-    estimate_ite(self, data, outcome, treatment, adjustment, individual)
-    estimate_cite(self, data, outcome, treatment, adjustment,
-                      condition_set, condition, individual)
     """
 
     def __init__(
@@ -43,7 +28,7 @@ class BaseEstModel:
         is_discrete_outcome=False,
         _is_fitted=False,
         # is_discrete_instrument=False,
-        categories='auto'
+        categories="auto",
     ):
         self.random_state = random_state if random_state is not None else 2022
         self.is_discrete_treatment = is_discrete_treatment
@@ -91,6 +76,77 @@ class BaseEstModel:
 
     def effect_nji(self, *args, **kwargs):
         raise NotImplementedError()
+
+    @classmethod
+    def _get_param_names(cls):
+        """Get parameter names for the estimator"""
+        # fetch the constructor or the original constructor before
+        # deprecation wrapping if any
+        init = getattr(cls.__init__, "deprecated_original", cls.__init__)
+        if init is object.__init__:
+            # No explicit constructor to introspect
+            return []
+
+        # introspect the constructor arguments to find the model parameters
+        # to represent
+        init_signature = inspect.signature(init)
+        # Consider the constructor parameters excluding 'self'
+        parameters = [p for p in init_signature.parameters.values() if p.name != "self"]
+        # Extract and sort argument names excluding 'self'
+        return sorted([p.name for p in parameters])
+
+    def get_params(self, deep=True):
+
+        out = dict()
+        for key in self._get_param_names():
+            value = getattr(self, key)
+            if deep and hasattr(value, "get_params") and not isinstance(value, type):
+                deep_items = value.get_params().items()
+                out.update((key + "__" + k, val) for k, val in deep_items)
+            out[key] = value
+        return out
+
+    def set_params(self, **params):
+        """Set parameters.
+
+        Returns
+        -------
+        params : dict
+            parameters
+
+        Raises
+        ------
+        self
+            An instance of estimator
+
+        ValueError
+            raise error if wrong parameters are given
+        """
+        if not params:
+            return self
+
+        valid_params = self.get_params(deep=True)
+
+        nested_params = defaultdict(dict)  # grouped by prefix
+        for key, value in params.items():
+            key, delim, sub_key = key.partition("__")
+            if key not in valid_params:
+                local_valid_params = self._get_param_names()
+                raise ValueError(
+                    f"Invalid parameter {key!r} for estimator {self}. "
+                    f"Valid parameters are: {local_valid_params!r}."
+                )
+
+            if delim:
+                nested_params[key][sub_key] = value
+            else:
+                setattr(self, key, value)
+                valid_params[key] = value
+
+        for key, sub_params in nested_params.items():
+            valid_params[key].set_params(**sub_params)
+
+        return self
 
     #
     # def _prepare_(
@@ -142,8 +198,9 @@ class BaseEstModel:
     #     pass
 
     def estimate(self, data=None, **kwargs):
-        if not hasattr(self, '_is_fitted'):
-            raise Exception('The estimator has not been fitted yet.')
+        if not hasattr(self, "_is_fitted"):
+            raise Exception("The estimator has not been fitted yet.")
+
     #
     # # def estimate(
     # #     self,
@@ -306,4 +363,3 @@ class BaseEstModel:
 
     def __repr__(self):
         return to_repr(self)
-
