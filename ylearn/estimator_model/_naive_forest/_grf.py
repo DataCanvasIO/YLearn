@@ -7,10 +7,13 @@ from .utils import inverse_grad
 
 
 class NaiveGrf(BaseCausalForest):
+    """Avoid using this class to estimate causal effect when assuming discrete treatment."""
+
     def __init__(
         self,
         n_estimators=100,
         *,
+        sub_sample_num=None,
         max_depth=None,
         min_split_tolerance=1e-5,
         n_jobs=None,
@@ -31,6 +34,7 @@ class NaiveGrf(BaseCausalForest):
             max_samples=max_samples,
             categories=categories,
             random_state=random_state,
+            sub_sample_num=sub_sample_num,
         )
 
     def fit(
