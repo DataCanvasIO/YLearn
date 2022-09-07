@@ -246,6 +246,7 @@ def auuc_score(df, outcome='y', treatment='x', true_effect=None, treat=1, contro
                     treat=treat, control=control,
                     normalize=normalize, random_name=random_name, )
     auuc = gain.sum() / len(gain)
+    auuc.name = 'auuc'
     return auuc
 
 
@@ -261,5 +262,5 @@ def qini_score(df, outcome='y', treatment='x', true_effect=None, treat=1, contro
         qini = qini.drop('RANDOM')
     else:
         qini = (qini.sum(axis=0) - qini[random_name].sum()) / len(qini)
-
+    qini.name = 'qini'
     return qini

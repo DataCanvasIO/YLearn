@@ -149,13 +149,30 @@ def test_policy_interpreter_discrete_x2():
 
 
 @if_policy_tree_ready
-def test_policy_interpreter_discrete_x2_yb():
+def test_policy_interpreter_discrete_x2_yb_tlearner():
     data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x2b_y1()
     m = data[outcome].values.mean()
     data[outcome] = (data[outcome] > m).astype('int')
     test_data[outcome] = (test_data[outcome] > m).astype('int')
     # why = Why()
     why = Why(estimator='ml', estimator_options=dict(learner='t', model='lr'))
+    why.fit(data, outcome[0], treatment=treatment, adjustment=adjustment, covariate=covariate)
+
+    pi = why.policy_interpreter(test_data)
+    assert pi is not None
+
+    pi = why.policy_interpreter(test_data, target_outcome=0)
+    assert pi is not None
+
+
+@if_policy_tree_ready
+def test_policy_interpreter_discrete_x2_yb_dml():
+    data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x2b_y1()
+    m = data[outcome].values.mean()
+    data[outcome] = (data[outcome] > m).astype('int')
+    test_data[outcome] = (test_data[outcome] > m).astype('int')
+    why = Why(estimator='dml')
+    # why = Why(estimator='ml', estimator_options=dict(learner='t', model='lr'))
     why.fit(data, outcome[0], treatment=treatment, adjustment=adjustment, covariate=covariate)
 
     pi = why.policy_interpreter(test_data)
