@@ -292,10 +292,6 @@ Why: 一个一体化的因果学习API
 
         绘制因果关系图。
     
-    .. py:method:: plot_policy_tree(test_data, treatment=None, control=None, **kwargs)
-
-        绘制策略树。
-    
     .. py:method:: plot_policy_interpreter(test_data, treatment=None, control=None, **kwargs)
 
         绘制解释器。

@@ -368,13 +368,6 @@ Class Structures
     .. py:method:: plot_causal_graph()
 
         Plot the causal graph.
-    
-    .. py:method:: plot_policy_tree(test_data, treatment=None, control=None, **kwargs)
-
-        Plot the policy tree.
-
-        :returns: The fitted instance of :py:class:`PolicyTree`.
-        :rtype: instance of :py:class:`PolicyTree`
 
     .. py:method:: plot_policy_interpreter(test_data, treatment=None, control=None, **kwargs)
 
