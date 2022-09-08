@@ -140,6 +140,9 @@ Class Structures
     :param dict, optional, default=None discovery_options: Parameters (key-values) to initialize the discovery model
     :param str, optional, default='auto' estimator: Name of a valid EstimatorModel. One can also pass an instance of a valid estimator model.
     :param dict, optional, default=None estimator_options: Parameters (key-values) to initialize the estimator model
+    :param callable, optional, default=None fn_cost: Cost function,  used to readjust the causal effect based on cost.
+    :param str, default='effect' effect_name: The column name in the argument DataFrame passed to fn_cost.
+        Effective when fn_cost is not None.
     :param int, optional, default=None random_state: Random state seed
     
     .. py:attribute:: `feature_names_in_`
@@ -172,7 +175,7 @@ Class Structures
 
     .. py:attribute:: y_encoder_
 
-        `LabelEncoder` object or None. Used to encode outcome if its dtype was not numeric.
+        `LabelEncoder` object or None. Used to encode outcome if it is discrete.
     
     .. py:attribute:: preprocessor_
         
@@ -200,7 +203,7 @@ Class Structures
         :param list of str, optional, default=None covariate: Names of the covariate. Identified by identifier if adjustment/covariate/instrument are all None.
         :param list of str, optional, default=None instrument: Names of the instrument. Identified by identifier if adjustment/covariate/instrument are all None.
         :param int, optional treatment_count_limit: maximum treatment number, default `min(5, 10% of total feature number)`.
-        :param bool, default=True copy: Set to False to perform inplace transforming and avoid a copy of data.
+        :param bool, default=True copy: Set False to perform inplace transforming and avoid a copy of data.
 
         :returns: The fitted :py:class:`Why`.
         :rtype: instance of :py:class:`Why`
@@ -228,11 +231,13 @@ Class Structures
         :returns: Identified causal graph
         :rtype: instance of :py:class:`CausalGraph`
 
-    .. py:method:: causal_effect(test_data=None, treat=None, control=None, return_detail=False)
+    .. py:method:: causal_effect(test_data=None, treatment=None, treat=None, control=None, target_outcome=None, quantity='ATE', return_detail=False, **kwargs)
 
         Estimate the causal effect.
 
         :param pandas.DataFrame, optional test_data: The test data to evaluate the causal effect.  If None, the training data is used.
+        :param str or list, optional treatment: Treatment names, should be subset of  attribute **treatment_**,
+            default all elements in attribute **treatment_**
         :param treatment value or list or ndarray or pandas.Series, default None treat:  In the case of single discrete treatment, treat should be an int or
             str of one of all possible treatment values which indicates the
             value of the intended treatment;
@@ -244,19 +249,26 @@ Class Structures
             in the case of continuous treatment, treat should be a float or a ndarray or pandas.Series,
             by default None
         :param treatment value or list or ndarray or pandas.Series, default None control: This is similar to the cases of treat, by default None
+        :param outcome value, optional target_outcome: Only effective when the outcome is discrete. Default the last one in attribute **y_encoder_.classes_**.
+        :param str, optional, default 'ATE', optional quantity: 'ATE' or 'ITE', default 'ATE'.
         :param bool, default False return_detail: If True, return effect details in result.
+        :param dict, optional kwargs: Other options to call estimator.estimate().
 
-        :returns: causal effect of each treatment. The result DataFrame columns are:
+        :returns: causal effect of each treatment. When quantity='ATE', the result DataFrame columns are:
                * mean: mean of causal effect,
                * min: minimum of causal effect,
                * max: maximum of causal effect,
                * detail (if return_detail is True ): causal effect ndarray;
-            In the case of discrete treatment, the result DataFrame indices are multiindex of
+            in the case of discrete treatment, the result DataFrame indices are multiindex of
             (treatment name and treat_vs_control);
             in the case of continuous treatment, the result DataFrame indices are treatment names.
+            When quantity='ITE', the result DataFrame are individual causal effect of each treatment,
+            in the case of discrete treatment, the result DataFrame columns are multiindex of
+            (treatment name and treat_vs_control);
+            in the case of continuous treatment, the result DataFrame columns are treatment names.
         :rtype: pandas.DataFrame
     
-    .. py:method:: individual_causal_effect(test_data, control=None)
+    .. py:method:: individual_causal_effect(test_data, control=None, target_outcome=None)
 
         Estimate the causal effect for each individual.
 
@@ -271,6 +283,7 @@ Class Structures
             and that of the second treatment is taken as 'read';
             in the case of continuous treatment, treat should be a float or a ndarray or pandas.Series,
             by default None
+        :param outcome value, optional target_outcome: Only effective when the outcome is discrete. Default the last one in attribute **y_encoder_.classes_**.
 
         :returns: individual causal effect of each treatment. The result DataFrame columns are the treatment names;
             In the case of discrete treatment, the result DataFrame indices are multiindex of
@@ -312,30 +325,8 @@ Class Structures
 
         :returns: Score of the estimator models
         :rtype: float
-   
-    .. py:method:: policy_tree(test_data, treatment=None, control=None, **kwargs)
 
-        Get the policy tree
-
-        :param pandas.DataFrame, required test_data: The test data to evaluate.
-        :param str or list, optional treatment:  Treatment names, should be one or two element.
-            default the first two elements in attribute **treatment_**
-        :param treatment value or list or ndarray or pandas.Series control: In the case of single discrete treatment, control should be an int or
-            str of one of all possible treatment values which indicates the
-            value of the intended treatment;
-            in the case of multiple discrete treatment, control should be a list
-            where control[i] indicates the value of the i-th intended treatment,
-            for example, when there are multiple discrete treatments,
-            list(['run', 'read']) means the control value of the first treatment is taken as 'run'
-            and that of the second treatment is taken as 'read';
-            in the case of continuous treatment, control should be a float or a ndarray or pandas.Series,
-            by default None
-        :param dict kwargs: options to initialize the PolicyTree.
-
-        :returns: The fitted instance of :py:class:`PolicyTree`.
-        :rtype: instance of :py:class:`PolicyTree`
-
-    .. py:method:: policy_interpreter(test_data, treatment=None, control=None, **kwargs)
+    .. py:method:: policy_interpreter(test_data, treatment=None, control=None, target_outcome=None, **kwargs)
 
         Get the policy interpreter
 
@@ -352,10 +343,27 @@ Class Structures
             and that of the second treatment is taken as 'read';
             in the case of continuous treatment, control should be a float or a ndarray or pandas.Series,
             by default None
-        :param dcit kwargs: options to initialize the PolicyInterpreter.
+        :param outcome value, optional target_outcome: Only effective when the outcome is discrete. Default the last one in attribute **y_encoder_.classes_**.
+        :param dict kwargs: options to initialize the PolicyInterpreter.
 
         :returns: The fitted instance of :py:class:`PolicyInterpreter`.
         :rtype: instance of :py:class:`PolicyInterpreter`
+
+   .. py:method:: uplift_model(test_data, treatment=None, treat=None, control=None, target_outcome=None,  name=None, random=None)
+
+        Get uplift model over one treatment.
+
+        :param pandas.DataFrame, required test_data: The test data to evaluate.
+        :param str or list, optional treatment:  Treatment name. If str, it should be one of the fitted attribute **treatment_**.
+            If None, the first element in the attribute **treatment_** is used.
+        :param treatment value, optional treat: If None, the last element in the treatment encoder's attribute **classes_** is used.
+        :param treatment value, optional control: If None, the first element in the treatment encoder's attribute **classes_** is used.
+        :param outcome value, optional target_outcome: Only effective when the outcome is discrete. Default the last one in attribute **y_encoder_.classes_**.
+        :param str name:  Lift name. If None, treat value is used.
+        :param str, default None random:  Lift name for random generated data. if None, no random lift is generated.
+
+        :returns: The fitted instance of :py:class:`UpliftModel`.
+        :rtype: instance of :py:class:`UpliftModel`
 
     .. py:method:: plot_causal_graph()
 
