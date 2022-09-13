@@ -12,5 +12,10 @@ def grad_coef(x_dif, y_dif, ls_coef):
 
 
 def inverse_grad(grad, eps=1e-5):
-    grad += np.eye(grad.shape[0]) * eps
+    Id = np.eye(grad.shape[-1]) * eps
+    if grad.ndim > 2:
+        Id = np.tile(Id, grad.shape[:-2] + (1, 1))
+        grad += Id
+    else:
+        grad += Id
     return inv(grad)

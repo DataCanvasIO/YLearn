@@ -1,4 +1,5 @@
 import inspect
+from tkinter.messagebox import NO
 import numpy as np
 
 from collections import defaultdict
@@ -19,6 +20,10 @@ class Node:
         self.right = right
         self.feature = split[0]
         self.threshold = split[1]
+        self.sample_num = 0
+
+    def _add_sample_num(self, num):
+        self.sample_num += num
 
     @property
     def _is_leaf(self):
@@ -132,19 +137,24 @@ class _GrfTree:
 
         self.root = self._build_tree(x, y, w, v)
         self._is_fitted = True
+        return self
 
-    def _predict_with_array(self, w, v):
-        return np.array([self._traverse(v_i, self.root) for v_i in v])
+    def _predict_with_array(self, w, v, return_node=False):
+        return np.array([self._traverse(v_i, self.root, return_node) for v_i in v])
 
     def _build_tree(self, x, y, w, v, cur_depth=0):
         # return a leaf if has only one sample
         if len(y) == 1:
-            return Node(value=y[0])
+            node = Node(value=y[0])
+            node._add_sample_num(1)
+            return node
 
         # return a leaf if have reached max_depth
         if cur_depth >= self.max_depth:
             value = y.mean()
-            return Node(value=value)
+            node = Node(value=value)
+            node._add_sample_num(len(y))
+            return node
 
         n, v_d = v.shape
 
@@ -156,7 +166,9 @@ class _GrfTree:
         y_dif = y - y.mean()
         rho_ = grad_coef(x_dif, y_dif, ls_coef)
         if np.abs(rho_ - rho_[0]).max() <= self.min_split_tolerance:
-            return Node(value=y[0])
+            node = Node(value=y[0])
+            node._add_sample_num(len(y))
+            return node
 
         cur_depth += 1
         self.depth = max(self.depth, cur_depth)
@@ -224,12 +236,15 @@ class _GrfTree:
         n_right = len(rho) - n_left
         return sum_left**2 / n_left + sum_right**2 / n_right
 
-    def _traverse(self, X, node):
+    def _traverse(self, X, node, return_node=False):
         if node._is_leaf:
-            return node.value
+            if return_node:
+                return node
+            else:
+                return node.value
         if X[node.feature] <= node.threshold:
-            return self._traverse(X, node.left)
-        return self._traverse(X, node.right)
+            return self._traverse(X, node.left, return_node)
+        return self._traverse(X, node.right, return_node)
 
     @classmethod
     def _get_param_names(cls):

@@ -3,7 +3,10 @@ import numpy as np
 from sklearn import linear_model
 
 from .base_models import BaseEstModel
+
 # TODO: consider treatments other than binary treatment.
+"""Contents in this file are not complete. Avoid using them
+"""
 
 
 class PropensityScore:
@@ -37,12 +40,10 @@ class PropensityScore:
         ----------
         ml_model : str, optional. Defaults to None.
         """
-        self.ml_model_dic = {
-            'LogisticR': linear_model.LogisticRegression()
-        }
+        self.ml_model_dic = {"LogisticR": linear_model.LogisticRegression()}
 
         if ml_model is None:
-            ml_model = self.ml_model_dic['LogisticR']
+            ml_model = self.ml_model_dic["LogisticR"]
         if type(ml_model) is str:
             ml_model = self.ml_model_dic[ml_model]
 
@@ -141,8 +142,9 @@ class InversePbWeighting(BaseEstModel):
         eps = 1e-7  # numerical stability
         # The following computation is valid only for binary treatment.
         # TODO: consider continuous treatment.
-        result = (data[treatment] * data[outcome] + eps) / (ps + eps) \
-            - ((o - data[treatment]) * data[outcome] + eps) / (o - ps + eps)
+        result = (data[treatment] * data[outcome] + eps) / (ps + eps) - (
+            (o - data[treatment]) * data[outcome] + eps
+        ) / (o - ps + eps)
         return result
 
     # The following method is the old version.
