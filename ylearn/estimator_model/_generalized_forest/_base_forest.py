@@ -2,6 +2,7 @@
 
 import numbers
 import numpy as np
+import threading
 
 from abc import abstractmethod
 from copy import deepcopy
@@ -88,15 +89,16 @@ class BaseForest:
         return iter(self.estimators_)
 
 
-def _prediction(predict, w, v, v_train):
+def _prediction(predict, w, v, v_train, lock):
     pred = predict(w, v, return_node=False).reshape(-1, 1)
     y_pred = predict(w, v_train, return_node=True)
     y_test_pred, y_test_pred_num = [], []
-    for p in y_pred:
-        y_test_pred.append(p.value)
-        y_test_pred_num.append(p.sample_num)
+    with lock:
+        for p in y_pred:
+            y_test_pred.append(p.value)
+            y_test_pred_num.append(p.sample_num)
 
-    return (y_test_pred == pred) / y_test_pred_num
+        return (y_test_pred == pred) / y_test_pred_num
 
 
 class BaseCausalForest(BaseEstModel, BaseForest):
@@ -291,7 +293,7 @@ class BaseCausalForest(BaseEstModel, BaseForest):
 
     def _compute_alpha(self, v):
         # first implement a version which only take one example as its input
-        # lock = threading.Lock()
+        lock = threading.Lock()
         w = v.copy()
         if self.n_outputs_ > 1:
             raise ValueError(
@@ -301,7 +303,7 @@ class BaseCausalForest(BaseEstModel, BaseForest):
             alpha = np.zeros((v.shape[0], self._v.shape[0]))
 
         alpha_collection = Parallel(n_jobs=self.n_jobs, verbose=self.verbose,)(
-            delayed(_prediction)(e._predict_with_array, w, v, self._v[s])
+            delayed(_prediction)(e._predict_with_array, w, v, self._v[s], lock)
             for e, s in zip(self.estimators_, self.sub_sample_idx)
         )
         for alpha_, s in zip(alpha_collection, self.sub_sample_idx):

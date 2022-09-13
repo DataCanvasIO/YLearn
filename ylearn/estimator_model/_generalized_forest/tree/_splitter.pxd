@@ -1,13 +1,3 @@
-# Authors: Gilles Louppe <g.louppe@gmail.com>
-#          Peter Prettenhofer <peter.prettenhofer@gmail.com>
-#          Brian Holt <bdholt1@gmail.com>
-#          Joel Nothman <joel.nothman@gmail.com>
-#          Arnaud Joly <arnaud.v.joly@gmail.com>
-#          Jacob Schreiber <jmschreiber91@gmail.com>
-#
-# License: BSD 3 clause
-
-# See _splitter.pyx for details.
 
 import numpy as np
 cimport numpy as np
@@ -58,6 +48,7 @@ cdef class Splitter:
     cdef SIZE_t end                      # End position for the current node
 
     cdef const DOUBLE_t[:, ::1] y
+    cdef const DOUBLE_t[:, ::1] treatment
     cdef DOUBLE_t* sample_weight
 
     # The samples vector `samples` is maintained by the Splitter object such
@@ -77,7 +68,7 @@ cdef class Splitter:
     # This allows optimization with depth-based tree building.
 
     # Methods
-    cdef int init(self, object X, const DOUBLE_t[:, ::1] y,
+    cdef int init(self, object X, const DOUBLE_t[:, ::1] y, const DOUBLE_t[:, ::1] treatment,
                   DOUBLE_t* sample_weight) except -1
 
     cdef int node_reset(self, SIZE_t start, SIZE_t end,

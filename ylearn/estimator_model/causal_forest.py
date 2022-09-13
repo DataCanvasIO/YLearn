@@ -7,7 +7,7 @@ from copy import deepcopy
 from sklearn.utils import check_random_state
 
 from . import CausalTree, DoubleML, BaseEstModel
-from ._forest._base_forest import BaseCausalForest
+from ._generalized_forest._base_forest import BaseCausalForest
 
 
 """

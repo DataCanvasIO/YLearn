@@ -2,7 +2,7 @@ import threading
 import numpy as np
 
 from ._grf_tree import _GrfTree
-from .._forest import BaseCausalForest
+from .._generalized_forest import BaseCausalForest
 from .utils import inverse_grad
 
 
