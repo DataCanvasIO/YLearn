@@ -132,6 +132,8 @@ Why: 一个一体化的因果学习API
     :param dict, optional, default=None discovery_options: 参数（键值对）来初始化发现模型
     :param str, optional, default='auto' estimator: EstimatorModel的名字。 也可以传入一个合理的估计器模型的实例。
     :param dict, optional, default=None estimator_options: 参数（键值对）来初始化估计器模型
+    :param callable, optional, default=None fn_cost: 成本函数，基于成本对因果效应进行调整。
+    :param str, default='effect' effect_name: 在基于成本对因果效应进行调整时，传递给fn_cost的因果效应在DataFrame中的列名。仅当fn_cost不为None时生效。
     :param int, optional, default=None random_state: 随机种子
 
     .. py:attribute:: `feature_names_in_`
@@ -164,7 +166,7 @@ Why: 一个一体化的因果学习API
 
     .. py:attribute:: y_encoder_
 
-        `LabelEncoder` 对象或者None。用于编码结果，如果它的dtype不是数字的。
+        `LabelEncoder` 对象或者None。当outcome是类别型时，对outcome进行编码.
     
     .. py:attribute:: preprocessor_
         
@@ -210,28 +212,33 @@ Why: 一个一体化的因果学习API
         :returns: 识别的因果图
         :rtype: :py:class:`CausalGraph` 的实例
 
-    .. py:method:: causal_effect(test_data=None, treat=None, control=None, return_detail=False)
+    .. py:method:: causal_effect(test_data=None, treatment=None, treat=None, control=None, target_outcome=None, quantity='ATE', return_detail=False, **kwargs)
 
         估计因果效应。
 
         :param pandas.DataFrame, optional test_data: 用于评估因果效应的数据集。如果是None的话则使用fit时的数据集。
+        :param str or list, optional treatment: treatment名称或列表。应当是属性 **treatment_** 的子集。缺省是属性 **treatment_**的所有元素。
         :param treatment value or list or ndarray or pandas.Series, default None treat:  对于单个离散的treatment，treat应当是treatment所有可能值中的一个；对于多个离散的treatment，treat应当是由每个treatment的值组成的一个列表（list）；对于连续性treatment,treat应当是与test_data行数相同的ndarray或pandas.Series。缺省是None，由Why自行推断。
         :param treatment value or list or ndarray or pandas.Series, default None control: 与treat类似。
+        :param outcome value, optional target_outcome: 仅当outcome是离散型是生效。缺省是属性 **y_encoder_.classes_** 中的最后一个元素。
+        :param str, optional, default 'ATE', optional quantity: 'ATE' or 'ITE', 缺省是 'ATE'。
         :param bool, default False return_detail: 是否在返回结果中包括因果效应的详细数据(detail)
 
-        :returns: 所有治疗的因果效应。返回结果的DataFrame包括如下列:
+        :returns: 所有治疗的因果效应。当quantity='ATE'时，返回结果的DataFrame包括如下列:
                * mean: 因果效应的均值
                * min: 因果效应的最小值
                * max: 因果效应的最大值
-               * detail (当 return_detail=True时 ): 以ndarray表示的因果效应的详细数据
+               * detail (当 return_detail=True时 ): 以ndarray表示的因果效应的详细数据。
+            当quantity='ITE'时，返回结果是由个体因果效应组成的DataFrame。
         :rtype: pandas.DataFrame
     
-    .. py:method:: individual_causal_effect(test_data, control=None)
+    .. py:method:: individual_causal_effect(test_data, control=None, target_outcome=None)
 
         为每一个个体估计因果效应。
 
         :param pandas.DataFrame, optional test_data: 用于评估因果效应的数据集。如果是None的话则使用fit时的数据集。
         :param treatment value or list or ndarray or pandas.Series, default None control:  对于单个离散的treatment，control应当是treatment所有可能值中的一个；对于多个离散的treatment，control应当是由每个treatment的值组成的一个列表（list）；对于连续性treatment,control应当是与test_data行数相同的ndarray或pandas.Series。缺省是None，由Why自行推断。
+        :param outcome value, optional target_outcome: 仅当outcome是离散型是生效。缺省是属性 **y_encoder_.classes_** 中的最后一个元素。
 
         :returns: 对于每一个治疗，个体的因果效应。
         :rtype: pandas.DataFrame
@@ -252,37 +259,38 @@ Why: 一个一体化的因果学习API
         :returns: 估计器模型的分数
         :rtype: float
    
-    .. py:method:: policy_tree(test_data, treatment=None, control=None, **kwargs)
-
-        获得策略树
-
-        :param pandas.DataFrame, required test_data: 用于评估的数据集。
-        :param str or list, optional treatment:  treatment名称，缺省是 **treatment_** 的前两个元素。
-        :param treatment value or list or ndarray or pandas.Series control: 对于单个离散的treatment，control应当是treatment所有可能值中的一个；对于多个离散的treatment，control应当是由每个treatment的值组成的一个列表（list）；对于连续性treatment, control应当是与test_data行数相同的ndarray或pandas.Series。缺省是None，由Why自行推断。
-        :param dict kwargs: 用于初始化PolicyTree的参数。
-
-        :returns: 拟合的 :py:class:`PolicyTree` 的实例。
-        :rtype: :py:class:`PolicyTree` 的实例
-
-    .. py:method:: policy_interpreter(test_data, treatment=None, control=None, **kwargs)
+    .. py:method:: policy_interpreter(test_data, treatment=None, control=None, target_outcome=None, **kwargs)
 
         获得策略解释器
 
         :param pandas.DataFrame, required test_data: 用于评估的数据集。
         :param str or list, optional treatment:  treatment名称，缺省是 **treatment_** 的前两个元素。
         :param treatment value or list or ndarray or pandas.Series control: 对于单个离散的treatment，control应当是treatment所有可能值中的一个；对于多个离散的treatment，control应当是由每个treatment的值组成的一个列表（list）；对于连续性treatment, control应当是与test_data行数相同的ndarray或pandas.Series。缺省是None，由Why自行推断。
+        :param outcome value, optional target_outcome: 仅当outcome是离散型是生效。缺省是属性 **y_encoder_.classes_** 中的最后一个元素。
         :param dict kwargs: 用于初始化PolicyInterpreter的参数。
 
         :returns: 拟合的 :py:class:`PolicyInterpreter` 的实例。
         :rtype: :py:class:`PolicyInterpreter` 的实例
 
+   .. py:method:: uplift_model(test_data, treatment=None, treat=None, control=None, target_outcome=None,  name=None, random=None)
+
+        获取uplift model（针对一个treatment）
+
+        :param pandas.DataFrame, required test_data: The test data to evaluate.
+        :param str or list, optional treatment:  Treatment name. If str, it should be one of the fitted attribute **treatment_**.
+            If None, the first element in the attribute **treatment_** is used.
+        :param treatment value, optional treat: 缺省是treatment对应的编码器的 **classes_** 的最后一个值。
+        :param treatment value, optional control: 缺省是treatment对应的编码器的 **classes_** 的第一个值。
+        :param outcome value, optional target_outcome: 仅当outcome是离散型是生效。缺省是属性 **y_encoder_.classes_** 中的最后一个元素。
+        :param str name:  Lift名称。缺省使用treat值。
+        :param str, default None random:  随机生成数据的Lift名称，缺省不生成随机数据。
+
+        :returns: The fitted instance of :py:class:`UpliftModel`.
+        :rtype: instance of :py:class:`UpliftModel`
+
     .. py:method:: plot_causal_graph()
 
-        绘制因果图。
-    
-    .. py:method:: plot_policy_tree(test_data, treatment=None, control=None, **kwargs)
-
-        绘制策略树。
+        绘制因果关系图。
     
     .. py:method:: plot_policy_interpreter(test_data, treatment=None, control=None, **kwargs)
 

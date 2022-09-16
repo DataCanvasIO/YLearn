@@ -221,7 +221,7 @@ class Why:
         treatment_count_limit : int, default None
             Maximum treatment number, default `min(5, 10% of total feature number)`.
         copy : bool, default True
-            Set to False to perform inplace transforming and avoid a copy of data.
+            Set False to perform inplace transforming and avoid a copy of data.
         kwargs : options to fit estimators
 
         Returns
@@ -1244,7 +1244,7 @@ class Why:
     def uplift_model(self, test_data, treatment=None, treat=None, control=None, target_outcome=None, name=None,
                      random=None):
         """
-        Get cumulative uplifts over one treatment.
+        Get uplift model over one treatment.
 
         Parameters
         ----------

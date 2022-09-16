@@ -85,11 +85,11 @@ def is_notebook():
         return False
 
 
-def view_pydot(pdot, prog='dot'):
+def view_pydot(pdot_graph, prog='dot'):
     try:
         from IPython.display import Image, display
 
-        img = Image(pdot.create_png(prog=prog))
+        img = Image(pdot_graph.create_png(prog=prog))
         display(img)
     except Exception as e:
         warnings.warn(f'Failed to display pydot image: {e}.')
