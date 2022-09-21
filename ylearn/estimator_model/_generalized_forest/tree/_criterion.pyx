@@ -227,8 +227,8 @@ cdef class GrfTreeCriterion(CriterionEx):
         # tr_node: shape (n_node_samples, d_tr)
         # solve lstsq ls_coef_node = argmin_{\beta} || y_node - tr_node \beta ||_2
         cdef double* y_node_cpy = <DOUBLE_t*> calloc(ldb * self.n_outputs, sizeof(DOUBLE_t))
-        dlacpy(UPLO, &ldb, &self.n_outputs, y_node, &ldb, y_node_cpy, &ldb)
-        dgelsy(&self.n_node_samples, &self.d_tr, &self.n_outputs, tr_node, &lda, y_node_cpy, &ldb, 
+        dlacpy(UPLO, &ldb, &d_y, y_node, &ldb, y_node_cpy, &ldb)
+        dgelsy(&n_, &d_tr, &d_y, tr_node, &lda, y_node_cpy, &ldb, 
                &jpvt[0], &rcond, &rank, &work[0], &lwork, &info)
         # dgelsy(&n_, &d_tr, &d_y, tr_node, &lda, y_node, &ldb, &jpvt[0], &rcond, &rank, &work[0], &lwork, &info)
         for k_tr in range(self.d_tr):
