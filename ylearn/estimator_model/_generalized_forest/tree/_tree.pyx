@@ -1,5 +1,6 @@
 import numpy as np
 cimport numpy as np
+from libc.stdio cimport printf
 
 np.import_array()
 
@@ -20,8 +21,9 @@ cdef class GrfTreeBestFirstBuilder(BestFirstTreeBuilder):
 
         # init splitter
         cdef GrfTreeBestSplitter splitter = <GrfTreeBestSplitter>self.splitter
+        printf("init splitter\n")
         self._init_splitter_ex(splitter, X, y, treatment)
-
+        printf("build tree\n")
         # build tree
         self._build_tree(tree, splitter)
 

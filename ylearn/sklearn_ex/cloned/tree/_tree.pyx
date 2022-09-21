@@ -17,6 +17,7 @@
 # License: BSD 3 clause
 
 from cpython cimport Py_INCREF, PyObject, PyTypeObject
+from libc.stdio cimport printf
 
 from libc.stdlib cimport free
 from libc.math cimport fabs
@@ -378,6 +379,7 @@ cdef class BestFirstTreeBuilder(TreeBuilder):
 
     cdef _build_tree(self, Tree tree, Splitter splitter):
         # Parameters
+        printf("start building tree \n")
         cdef SIZE_t max_leaf_nodes = self.max_leaf_nodes
         cdef SIZE_t min_samples_leaf = self.min_samples_leaf
         cdef double min_weight_leaf = self.min_weight_leaf
@@ -397,10 +399,13 @@ cdef class BestFirstTreeBuilder(TreeBuilder):
 
         # Initial capacity
         cdef SIZE_t init_capacity = max_split_nodes + max_leaf_nodes
+        printf("start init tree with init_capacity=%d", init_capacity)
         tree._resize(init_capacity)
 
         with nogil:
+            printf("entering nogil loop\n")
             # add root to frontier
+            printf("start adding split node\n")
             rc = self._add_split_node(splitter, tree, 0, n_node_samples,
                                       INFINITY, IS_FIRST, IS_LEFT, NULL, 0,
                                       &split_node_left) # manipulate the root node: add left node to left split

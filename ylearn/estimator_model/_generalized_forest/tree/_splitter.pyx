@@ -1,6 +1,8 @@
 
 import numpy as np
 cimport numpy as np
+from libc.stdio cimport printf
+
 
 np.import_array()
 
@@ -21,6 +23,7 @@ cdef class GrfTreeBestSplitter(BestSplitter):
                         double* weighted_n_node_samples) nogil except -1:
         self.start = start
         self.end = end
+        printf("reset criterion\n")
 
         (<CriterionEx>self.criterion).init_ex(self.y,
                             self.treatment,

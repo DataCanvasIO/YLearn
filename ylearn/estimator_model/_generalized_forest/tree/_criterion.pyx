@@ -2,6 +2,8 @@
 # cython: boundscheck=False
 # cython: wraparound=False
 
+from libc.stdio cimport printf
+
 from libc.stdlib cimport free
 from libc.string cimport memcpy
 from libc.string cimport memset
@@ -101,6 +103,8 @@ cdef class GrfTreeCriterion(CriterionEx):
         self.sum_rho = 0.0
         self.sum_rho_left = 0.0
         self.sum_rho_right = 0.0
+
+        printf("c_init criterion\n")
 
     def __reduce__(self):
         return (type(self), (self.n_outputs, self.n_samples, self.d_tr), self.__getstate__())
@@ -290,6 +294,7 @@ cdef class GrfTreeCriterion(CriterionEx):
         free(grad_pvt)
         free(jpvt)
         free(work)
+        free(y_node_cpy)
         # Reset to pos=start
         self.reset()
         return 0

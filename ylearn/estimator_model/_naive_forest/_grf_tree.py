@@ -99,18 +99,6 @@ class _GrfTree:
         return self
 
     def predict(self, data=None):
-        """
-        Use the trained decision tree to classify or predict the examples in `X`.
-        Parameters
-        ----------
-        X : :py:class:`ndarray <numpy.ndarray>` of shape `(N, M)`
-            The training data of `N` examples, each with `M` features
-        Returns
-        -------
-        preds : :py:class:`ndarray <numpy.ndarray>` of shape `(N,)`
-            The integer class labels predicted for each example in `X` if
-            self.classifier = True, otherwise the predicted target values.
-        """
         assert self._is_fitted, "The model is not fitted yet"
         w, v = self.check_data(data, self.covariate)
         return self._predict_with_array(w, v)
