@@ -48,6 +48,24 @@ def read_extra_requirements():
     return extra
 
 
+def find_extensions(*base_dirs):
+    pyx = []
+    cpp = []
+    h = []
+    for d in base_dirs:
+        if d.endswith('.pyx'):
+            pyx.append(d)
+        elif d.endswith('.cpp'):
+            cpp.append(d)
+        elif d.endswith('.h'):
+            h.append(d)
+        else:
+            pyx.extend(glob(f"{d}/**/*.pyx", recursive=True))
+            cpp.extend(glob(f"{d}/**/*.cpp", recursive=True))
+            h.extend(glob(f"{d}/**/*.h", recursive=True))
+    return pyx, cpp, h
+
+
 try:
     execfile
 except NameError:
@@ -61,9 +79,10 @@ execfile(P.join(HERE, my_name, '_version.py'), version_ns)
 version = version_ns['__version__']
 
 np_include = numpy.get_include()
-pyx_files = glob(f"{my_name}/**/*.pyx", recursive=True)
-c_files = glob(f"{my_name}/**/*.cpp", recursive=True)
-h_files = glob(f"{my_name}/**/*.h", recursive=True)
+# pyx_files = glob(f"{my_name}/**/*.pyx", recursive=True)
+# c_files = glob(f"{my_name}/**/*.cpp", recursive=True)
+# h_files = glob(f"{my_name}/**/*.h", recursive=True)
+pyx_files, c_files, h_files = find_extensions(*os.environ.get('EXT_PATH', my_name).split(','))
 my_includes = list(set([P.split(P.abspath(h))[0] for h in h_files]))
 build_ext = any(map(lambda s: s == 'build_ext', sys.argv[1:]))
 
@@ -156,5 +175,8 @@ setup(
     include_package_data=True,
 )
 
-# setup extensions:
+# build all extensions:
 #     python setup.py build_ext --inplace
+#
+# build extension 'sklearn_ex' and 'grf._criterion':
+#     EXTPATH=ylearn/sklearn_ex,ylearn/estimator_model/_generalized_forest/tree/_criterion.pyx  python setup.py build_ext --inplace
