@@ -1,17 +1,19 @@
 from ylearn.sklearn_ex.cloned.tree._criterion cimport Criterion
 
-cdef class GrfTreeCriterion(Criterion):
-    cdef double sq_sum_total
+from ylearn.sklearn_ex.cloned.tree._tree cimport DOUBLE_t
+from ylearn.sklearn_ex.cloned.tree._tree cimport SIZE_t
 
-    cdef double[::1] sum_total   # The sum of w*y.
-    cdef double[::1] sum_left    # Same as above, but for the left side of the split
-    cdef double[::1] sum_right   # Same as above, but for the right side of the split
-    
-    cdef double[::1] sum_tr
-    cdef double[::1] mean_tr
-    cdef double[::1] mean_sum
+cdef class CriterionEx(Criterion):
+    """
+        Criterion with treatment
+    """
 
-    cdef double[::1] sum_rho_total
-    cdef double[::1] sum_rho_left 
-    cdef double[::1] sum_rho_right 
-    cdef double[::1] grad
+    cdef const DOUBLE_t[:, ::1] treatment
+
+    cdef int init_ex(self, const DOUBLE_t[:, ::1] y, const DOUBLE_t[:, ::1] treatment, DOUBLE_t* sample_weight, # fix
+                  double weighted_n_samples, SIZE_t* samples, SIZE_t start,
+                  SIZE_t end) nogil except -1
+
+
+cdef class GrfTreeCriterion(CriterionEx):
+    pass
