@@ -91,3 +91,30 @@ cdef class Splitter:
     cdef void node_value(self, double* dest) nogil
 
     cdef double node_impurity(self) nogil
+
+# =============================================================================
+# Added by lixfz
+# =============================================================================
+
+cdef class BaseDenseSplitter(Splitter):
+    cdef const DTYPE_t[:, :] X
+
+    cdef SIZE_t n_total_samples
+
+    cdef int init(self,
+                  object X,
+                  const DOUBLE_t[:, ::1] y,
+                  DOUBLE_t* sample_weight) except -1
+
+
+cdef class BestSplitter(BaseDenseSplitter):
+    # """Splitter for finding the best split."""
+    # def __reduce__(self):
+    #     return (BestSplitter, (self.criterion,
+    #                            self.max_features,
+    #                            self.min_samples_leaf,
+    #                            self.min_weight_leaf,
+    #                            self.random_state), self.__getstate__())
+
+    cdef int node_split(self, double impurity, SplitRecord* split,
+                        SIZE_t* n_constant_features) nogil except -1

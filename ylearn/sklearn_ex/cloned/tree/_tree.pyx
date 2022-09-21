@@ -295,20 +295,26 @@ cdef class DepthFirstTreeBuilder(TreeBuilder):
 
 
 # Best first builder ----------------------------------------------------------
-cdef struct FrontierRecord:
-    # Record of information of a Node, the frontier for a split. Those records are
-    # maintained in a heap to access the Node with the best improvement in impurity,
-    # allowing growing trees greedily on this improvement.
-    SIZE_t node_id
-    SIZE_t start
-    SIZE_t end
-    SIZE_t pos
-    SIZE_t depth
-    bint is_leaf
-    double impurity
-    double impurity_left
-    double impurity_right
-    double improvement
+
+# =============================================================================
+# Commented by lixfz
+# =============================================================================
+
+# cdef struct FrontierRecord:
+#     # Record of information of a Node, the frontier for a split. Those records are
+#     # maintained in a heap to access the Node with the best improvement in impurity,
+#     # allowing growing trees greedily on this improvement.
+#     SIZE_t node_id
+#     SIZE_t start
+#     SIZE_t end
+#     SIZE_t pos
+#     SIZE_t depth
+#     bint is_leaf
+#     double impurity
+#     double impurity_left
+#     double impurity_right
+#     double improvement
+#
 
 cdef inline bool _compare_records(
     const FrontierRecord& left,
@@ -331,7 +337,7 @@ cdef class BestFirstTreeBuilder(TreeBuilder):
     The best node to expand is given by the node at the frontier that has the
     highest impurity improvement.
     """
-    cdef SIZE_t max_leaf_nodes
+    # cdef SIZE_t max_leaf_nodes
 
     def __cinit__(self, Splitter splitter, SIZE_t min_samples_split,
                   SIZE_t min_samples_leaf,  min_weight_leaf,
@@ -352,19 +358,30 @@ cdef class BestFirstTreeBuilder(TreeBuilder):
         # check input
         X, y, sample_weight = self._check_input(X, y, sample_weight)
 
+        # init splitter
+        cdef Splitter splitter = self.splitter
+        self._init_splitter(splitter,X,y)
+
+        # build tree
+        self._build_tree(tree,splitter)
+
+    cdef _init_splitter(self, Splitter splitter, object X, np.ndarray y,
+                   np.ndarray sample_weight= None):
+
         cdef DOUBLE_t* sample_weight_ptr = NULL
         if sample_weight is not None:
             sample_weight_ptr = <DOUBLE_t*> sample_weight.data
 
+        # Recursive partition (without actual recursion)
+        splitter.init(X, y, sample_weight_ptr)
+
+
+    cdef _build_tree(self, Tree tree, Splitter splitter):
         # Parameters
-        cdef Splitter splitter = self.splitter
         cdef SIZE_t max_leaf_nodes = self.max_leaf_nodes
         cdef SIZE_t min_samples_leaf = self.min_samples_leaf
         cdef double min_weight_leaf = self.min_weight_leaf
         cdef SIZE_t min_samples_split = self.min_samples_split
-
-        # Recursive partition (without actual recursion)
-        splitter.init(X, y, sample_weight_ptr)
 
         cdef vector[FrontierRecord] frontier
         cdef FrontierRecord record
