@@ -1,6 +1,17 @@
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import OneHotEncoder
+from numpy.linalg import inv
+
+
+def inverse_grad(grad, eps=1e-5):
+    Id = np.eye(grad.shape[-1]) * eps
+    if grad.ndim > 2:
+        Id = np.tile(Id, grad.shape[:-2] + (1, 1))
+        grad += Id
+    else:
+        grad += Id
+    return inv(grad)
 
 
 def check_classes(target, classes_):

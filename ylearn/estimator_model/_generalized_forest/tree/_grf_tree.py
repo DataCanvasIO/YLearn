@@ -286,7 +286,7 @@ class GrfTree(BaseEstModel):
         min_impurity_decrease=0.0,
         min_weight_fraction_leaf=0.0,
         ccp_alpha=0.0,
-        categories="auto",
+        # categories="auto",
     ):
         self.max_depth = max_depth
         self.min_samples_split = min_samples_split
@@ -342,7 +342,7 @@ class GrfTree(BaseEstModel):
         w, v = self.check_data(data, self.covariate)
         return self._predict_with_array(w, v)
 
-    def _fit_with_array(self, x, y, w, v, sample_weight=None):
+    def _fit_with_array(self, x, y, w, v, i, sample_weight=None):
         # TODO: clarify the role of w and v, currently we treat all w as v
         """
         Parameters
@@ -356,6 +356,8 @@ class GrfTree(BaseEstModel):
         v : :py:class:`ndarray` of shape `(n, p)`
             The covariate vector of the training data specifying hetergeneity
         """
+        print(f"building the {i+1} tree")
+
         random_state = check_random_state(self.random_state)
         wv = get_wv(w, v)
         n_samples, self.n_features_in_ = wv.shape

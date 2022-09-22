@@ -1,5 +1,4 @@
 # Some snippets of code are from scikit-learn
-
 import numbers
 import numpy as np
 import threading
@@ -14,6 +13,9 @@ from ..utils import convert2array
 
 from ..base_models import BaseEstModel
 from sklearn.preprocessing import OrdinalEncoder
+from ylearn.sklearn_ex.cloned.tree import _tree
+
+DOUBLE = _tree.DOUBLE
 
 # we ignore the warm start and inference parts in the current version
 class BaseForest:
@@ -125,7 +127,8 @@ class BaseCausalForest(BaseEstModel, BaseForest):
         max_samples=None,
         categories="auto",
         is_discrete_treatment=True,
-        is_discrete_outocme=False,
+        is_discrete_outcome=False,
+        ccp_alpha=0.0,
     ):
         if estimator_params is None:
             estimator_params = (
@@ -151,7 +154,7 @@ class BaseCausalForest(BaseEstModel, BaseForest):
         )
         BaseEstModel.__init__(
             self,
-            is_discrete_outcome=is_discrete_outocme,
+            is_discrete_outcome=is_discrete_outcome,
             is_discrete_treatment=is_discrete_treatment,
             categories=categories,
         )
@@ -165,6 +168,7 @@ class BaseCausalForest(BaseEstModel, BaseForest):
         self.max_leaf_nodes = max_leaf_nodes
         self.min_impurity_decrease = min_impurity_decrease
         self.sub_sample_num = sub_sample_num
+        self.ccp_alpha = ccp_alpha
 
     # TODO: the current implementation is a simple version
     # TODO: add shuffle sample
@@ -173,6 +177,7 @@ class BaseCausalForest(BaseEstModel, BaseForest):
         data,
         outcome,
         treatment,
+        sample_weight=None,
         adjustment=None,
         covariate=None,
     ):
@@ -187,6 +192,8 @@ class BaseCausalForest(BaseEstModel, BaseForest):
         n_train = y.shape[0]
         if y.ndim == 1:
             y = y.reshape(-1, 1)
+        if x.ndim == 1:
+            x = x.reshape(-1, 1)
 
         # Determin treatment settings
         if self.categories == "auto" or self.categories is None:
@@ -200,6 +207,14 @@ class BaseCausalForest(BaseEstModel, BaseForest):
             x = self.transformer.transform(x)
 
         self.n_outputs_ = y.shape[1]
+
+        # if sample_weight is not None:
+        #     sample_weight =
+
+        if getattr(y, "dtype", None) != DOUBLE or not y.flags.contiguous:
+            y = np.ascontiguousarray(y, dtype=DOUBLE)
+        if getattr(x, "dtype", None) != DOUBLE or not x.flags.contiguous:
+            x = np.ascontiguousarray(x, dtype=DOUBLE)
 
         if self.sub_sample_num is not None:
             sub_sample_num_ = self.sub_sample_num
@@ -215,7 +230,8 @@ class BaseCausalForest(BaseEstModel, BaseForest):
             self.estimators_ = []
 
         n_more_estimators = self.n_estimators - len(self.estimators_)
-        y_ = y.squeeze()
+
+        # y_ = y.squeeze()
         if n_more_estimators < 0:
             raise ValueError(
                 f"n_estimators={self.n_estimators} must be larger or equal to "
@@ -242,12 +258,13 @@ class BaseCausalForest(BaseEstModel, BaseForest):
                 verbose=self.verbose,
                 prefer="threads",
             )(
-                delayed(t._fit_with_array)(x[s], y_[s], w[s], v[s], i)
+                delayed(t._fit_with_array)(x[s], y[s], w[s], v[s], i)
                 for i, (t, s) in enumerate(zip(trees, self.sub_sample_idx))
             )
 
             # Collect newly grown trees
             self.estimators_.extend(trees)
+
         self._is_fitted = True
 
         return self
@@ -288,9 +305,6 @@ class BaseCausalForest(BaseEstModel, BaseForest):
         theta = np.einsum("njk,nk->nj", inv_grad_, theta_)
         return theta
 
-    def _compute_aug(self, y, x, alpha):
-        pass
-
     def _compute_alpha(self, v):
         # first implement a version which only take one example as its input
         lock = threading.Lock()
@@ -309,3 +323,46 @@ class BaseCausalForest(BaseEstModel, BaseForest):
         for alpha_, s in zip(alpha_collection, self.sub_sample_idx):
             alpha[:, s] += alpha_
         return alpha / self.n_estimators
+
+    def _compute_aug(self, y, x, alpha):
+        r"""Formula:
+        We first need to repeat vectors in training set the number of the #test set times to enable
+        tensor calculation.
+
+        The first half is
+            g_n^j_k = \sum_i \alpha_n^i (x_n^i_j - \sum_i \alpha_n^i x_n^i_j)(x_n^i_j - \sum_i \alpha_n^i x_n^i_j)^T
+        while the second half is
+            \theta_n^j = \sum_i \alpha_n^i (x_n^i_j - \sum_i \alpha_n^i x_n^i_j)(y_n^i - \sum_i \alpha_n^i y_n^i)
+        which are then combined to give
+            g_n^j_k \theta_{nj}
+
+        Parameters
+        ----------
+        y : ndarray
+            outcome vector of the training set, shape (i,)
+        x : ndarray
+            treatment vector of the training set, shape(i, j)
+        alpha : ndarray
+            The computed alpha, shape (n, i) where i is the number of training set
+
+        Returns
+        -------
+        ndarray, ndarray
+            the first is inv_grad while the second is theta_
+        """
+        n_test, n_train = alpha.shape
+        x = np.tile(x.reshape((1,) + x.shape), (n_test, 1, 1))
+        x_dif = x - (alpha.reshape(n_test, -1, 1) * x).sum(axis=1).reshape(
+            n_test, 1, -1
+        )
+        grad_ = alpha.reshape(n_test, n_train, 1, 1) * np.einsum(
+            "nij,nik->nijk", x_dif, x_dif
+        )
+        grad_ = grad_.sum(1)
+        inv_grad = inverse_grad(grad_)
+
+        y = np.tile(y.reshape(1, -1), (n_test, 1))
+        y_dif = y - alpha * y
+        theta_ = ((alpha * y_dif).reshape(n_test, n_train, 1) * x_dif).sum(1)
+
+        return inv_grad, theta_

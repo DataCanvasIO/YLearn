@@ -121,7 +121,7 @@ class _GrfTree:
 
         if self.max_depth is None:
             self.max_depth = INF
-
+        y = y.squeeze()
         self.root = self._build_tree(x, y, w, v)
         self._is_fitted = True
         return self

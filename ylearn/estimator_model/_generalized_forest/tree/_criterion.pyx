@@ -207,7 +207,7 @@ cdef class GrfTreeCriterion(CriterionEx):
                 w_y_ik = w * y_ik
                 y_node[p + self.n_node_samples * k] = w_y_ik
                 self.sum_total[k] += w_y_ik
-                self.sq_sum_total += w_y_ik * y_ik
+                # self.sq_sum_total += w_y_ik * y_ik
             
             # compute sum of tr for computing its mean which then gives us tr_dif
             for k_tr in range(self.d_tr):
