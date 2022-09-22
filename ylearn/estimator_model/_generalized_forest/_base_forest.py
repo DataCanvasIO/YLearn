@@ -9,7 +9,7 @@ from joblib import Parallel, delayed
 
 from sklearn.utils import check_random_state
 
-from ..utils import convert2array
+from ..utils import convert2array, inverse_grad, count_leaf_num
 
 from ..base_models import BaseEstModel
 from sklearn.preprocessing import OrdinalEncoder
@@ -91,7 +91,7 @@ class BaseForest:
         return iter(self.estimators_)
 
 
-def _prediction(predict, w, v, v_train, lock):
+def _prediction_naive(predict, w, v, v_train, lock):
     pred = predict(w, v, return_node=False).reshape(-1, 1)
     y_pred = predict(w, v_train, return_node=True)
     y_test_pred, y_test_pred_num = [], []
@@ -101,6 +101,15 @@ def _prediction(predict, w, v, v_train, lock):
             y_test_pred_num.append(p.sample_num)
 
         return (y_test_pred == pred) / y_test_pred_num
+
+
+def _prediction(predict, w, v, v_train, lock):
+    pred = predict(w, v).reshape(-1, 1)
+    y_pred = predict(w, v_train).reshape(1, -1)
+    with lock:
+        temp = y_pred == pred
+        num = np.count_nonzero(temp, axis=1).reshape(-1, 1)
+        return temp / num
 
 
 class BaseCausalForest(BaseEstModel, BaseForest):

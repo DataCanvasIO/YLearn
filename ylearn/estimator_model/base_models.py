@@ -148,6 +148,19 @@ class BaseEstModel:
 
         return self
 
+    def _validate_params(self):
+        """Validate types and values of constructor parameters
+        The expected type and values must be defined in the `_parameter_constraints`
+        class attribute, which is a dictionary `param_name: list of constraints`. See
+        the docstring of `validate_parameter_constraints` for a description of the
+        accepted constraints.
+        """
+        validate_parameter_constraints(
+            self._parameter_constraints,
+            self.get_params(deep=False),
+            caller_name=self.__class__.__name__,
+        )
+
     #
     # def _prepare_(
     #     self,

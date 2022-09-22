@@ -450,7 +450,26 @@ class GrfTree(BaseEstModel):
         )
         builder.build_ex(self.tree_, wv, y, x, sample_weight)
 
+        self._is_fitted = True
         return self
 
-    def _predict_with_array(self, w, v, return_node=False):
-        pass
+    def _predict_with_array(self, w, v, **kwargs):
+        assert self._is_fitted, "The model is not fitted yet"
+        # wv = get_wv(w, v)
+        wv = v
+        wv = wv.astype(np.float32)
+        proba = self.tree_.predict(wv)
+        n_samples = wv.shape[0]
+
+        if self.n_outputs_ == 1:
+            return proba[:, 0]
+        else:
+            return proba[:, :, 0]
+
+    def get_depth(self):
+        assert self._is_fitted, "The model is not fitted yet"
+        return self.tree_.max_depth
+
+    def get_n_leaves(self):
+        assert self._is_fitted, "The model is not fitted yet"
+        return self.tree_.n_leaves
