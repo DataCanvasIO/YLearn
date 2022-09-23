@@ -8,7 +8,9 @@ from ._common import if_torch_ready, if_policy_tree_ready, is_policy_tree_ready
 
 try:
     import castle
+    from ylearn.causal_discovery import GCastleProxy
 
+    _g = GCastleProxy()
     is_gcastle_ready = True
 except ImportError:
     is_gcastle_ready = False
