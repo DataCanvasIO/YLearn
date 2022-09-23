@@ -113,7 +113,10 @@ class IdentifierWithDiscovery(DefaultIdentifier):
 
         m = BaseDiscovery.matrix2dict(causation, threshold=threshold)
 
-        if self.method == 'straight':
+        if self.method == 'dfs':
+            covariate, instrument = self._identify_ci_dfs(
+                causation, data, outcome, treatment, threshold=threshold)
+        elif self.method == 'straight':
             covariate, instrument = self._identify_ci_straight_forward(
                 m, data, outcome, treatment)
         else:
@@ -195,6 +198,33 @@ class IdentifierWithDiscovery(DefaultIdentifier):
 
         return covariate, instrument
 
+    @staticmethod
+    def _identify_ci_dfs(causal_matrix, data, outcome, treatment, depth=None, threshold=0.0):
+        import networkx as nx
+
+        assert isinstance(causal_matrix, pd.DataFrame)
+        assert causal_matrix.shape[0] == causal_matrix.shape[1]
+
+        n = len(causal_matrix)
+        names = causal_matrix.columns.tolist()
+        matrix_values = np.where(causal_matrix.values > threshold, 1, 0)
+        g = nx.from_numpy_matrix(matrix_values, create_using=nx.DiGraph).reverse()
+
+        yi = names.index(outcome)
+        covariate = set(c[1] for c in nx.dfs_edges(g, yi, depth_limit=depth))
+
+        instrument = set()
+        for t in treatment:
+            ti = names.index(t)
+            s = set(c[1] for c in nx.dfs_edges(g, ti, depth_limit=depth) if c[1] not in covariate)
+            instrument.update(s)
+
+        targets = treatment + [outcome]
+        covariate = [names[i] for i in range(n) if i in covariate and names[i] not in targets]
+        instrument = [names[i] for i in range(n) if i in instrument and names[i] not in targets]
+
+        return covariate, instrument
+
 
 class IdentifierWithNotears(IdentifierWithDiscovery):
     def _discovery_causation(self, X):
@@ -206,6 +236,18 @@ class IdentifierWithNotears(IdentifierWithDiscovery):
 
         cd = CausalDiscovery(**options)
         return cd(X)
+
+
+class IdentifierWithGCastle(IdentifierWithDiscovery):
+    def _discovery_causation(self, X):
+        from ylearn.causal_discovery import GCastleProxy
+
+        options = dict(random_state=self.random_state)
+        if self.discovery_options is not None:
+            options.update(self.discovery_options)
+
+        g = GCastleProxy(**options)
+        return g(X)
 
 
 class IdentifierWithLearner(IdentifierWithDiscovery):
