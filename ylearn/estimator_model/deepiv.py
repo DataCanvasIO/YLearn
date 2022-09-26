@@ -112,7 +112,8 @@ class MixtureDensityNetwork(nn.Module):
             component of sigma is large than 0.
         """
         x = self.embed(x)
-        x = torch.cat((x, w), dim=1).to(torch.float32)
+        # x = torch.cat((x, w), dim=1).to(torch.float32)
+        x = torch.cat((x, w), dim=1)
         h = self.hidden_layer(x)
         # h += 1 + 1e-15
         pi = self.pi(h)

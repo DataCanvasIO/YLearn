@@ -23,12 +23,12 @@ _test_settings = {
 
 @if_torch_ready
 @pytest.mark.parametrize('dg', _test_settings.keys())
-@pytest.mark.xfail(reason='to be fixed: expected scalar type Double but found Float')
+# @pytest.mark.xfail(reason='to be fixed: expected scalar type Double but found Float')
 def test_iv_with_params(dg):
     # y_model, x_model = _test_settings[dg]
     dr = DeepIV(num_gaussian=10)
     validate_it(dg, dr,
-                float32=True,
+                float64=True,
                 fit_kwargs=dict(
                     sample_n=2,
                     lr=0.5,
@@ -39,42 +39,44 @@ def test_iv_with_params(dg):
 
 
 @if_torch_ready
-@pytest.mark.xfail(reason='to be fixed')
+# @pytest.mark.xfail(reason='to be fixed')
 def test_deep_iv_basis():
     n = 5000
+    dtype = torch.float64
+    itype = torch.int64
 
     # Initialize exogenous variables; normal errors, uniformly distributed covariates and instruments
     e = np.random.normal(size=(n, 1))
     w = np.random.uniform(low=0.0, high=10.0, size=(n, 1))
     z = np.random.uniform(low=0.0, high=10.0, size=(n, 1))
 
-    e, w, z = torch.tensor(e), torch.tensor(w), torch.tensor(z)
-    weight_w = torch.randn(1)
-    weight_z = torch.randn(1)
+    e, w, z = torch.tensor(e, dtype=dtype), torch.tensor(w, dtype=dtype), torch.tensor(z, dtype=dtype)
+    weight_w = torch.randn(1, dtype=dtype)
+    weight_z = torch.randn(1, dtype=dtype)
 
-    def treatment(w, z, e):
+    def to_treatment(w, z, e):
         x = torch.sqrt(w) * weight_w + torch.sqrt(z) * weight_z + e
         x = (torch.sign(x) + 1) / 2
         return F.one_hot(x.reshape(-1).to(int))
 
     # Outcome equation
-    weight_x = torch.randn(2, 1)
-    weight_wx = torch.randn(2, 1)
+    weight_x = torch.randn(2, 1, dtype=dtype)
+    weight_wx = torch.randn(2, 1, dtype=dtype)
 
-    def outcome(w, e, treatment):
-        wx = torch.mm(treatment.to(torch.float32), weight_x)
-        wx1 = (w * treatment.to(torch.float32)).to(torch.float32).matmul(weight_wx.to(torch.float32))
+    def to_outcome(w, e, treatment_):
+        wx = torch.mm(treatment_.to(dtype), weight_x)
+        wx1 = (w * treatment_.to(dtype)).matmul(weight_wx)
         # wx1 = w
         return (wx ** 2) * 10 - wx1 + e / 2
 
-    treatment = treatment(w, z, e)
-    y = outcome(w, e, treatment)
+    treatment = to_treatment(w, z, e)
+    y = to_outcome(w, e, treatment)
 
     data_dict = {
-        'z': z.squeeze().to(torch.float32),
-        'w': w.squeeze().to(torch.float32),
-        'x': torch.argmax(treatment, dim=1),
-        'y': y.squeeze().to(torch.float32)
+        'z': z.squeeze().to(dtype),
+        'w': w.squeeze().to(dtype),
+        'x': torch.argmax(treatment, dim=1).to(itype),
+        'y': y.squeeze().to(dtype)
     }
     data = pd.DataFrame(data_dict)
 

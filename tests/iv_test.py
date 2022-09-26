@@ -11,6 +11,7 @@ from . import _dgp
 
 def validate_it(data_generator, estimator,
                 float32=False,
+                float64=False,
                 fit_kwargs=None, estimate_kwargs=None,
                 check_fitted=True, check_effect=True):
     # generate data
@@ -22,7 +23,11 @@ def validate_it(data_generator, estimator,
         if cols:
             data[cols] = data[cols].astype('float32')
             test_data[cols] = test_data[cols].astype('float32')
-
+    elif float64:
+        cols = data.select_dtypes(include='float32').columns.tolist()
+        if cols:
+            data[cols] = data[cols].astype('float64')
+            test_data[cols] = test_data[cols].astype('float64')
     instrument = adjustment[:3]
     adjustment = adjustment[3:]
 
