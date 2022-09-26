@@ -25,6 +25,8 @@ _test_settings = {
 @pytest.mark.parametrize('dg', _test_settings.keys())
 # @pytest.mark.xfail(reason='to be fixed: expected scalar type Double but found Float')
 def test_iv_with_params(dg):
+    torch.set_default_dtype(torch.float64)
+
     # y_model, x_model = _test_settings[dg]
     dr = DeepIV(num_gaussian=10)
     validate_it(dg, dr,
@@ -41,9 +43,11 @@ def test_iv_with_params(dg):
 @if_torch_ready
 # @pytest.mark.xfail(reason='to be fixed')
 def test_deep_iv_basis():
-    n = 5000
+    torch.set_default_dtype(torch.float64)
     dtype = torch.float64
     itype = torch.int64
+
+    n = 5000
 
     # Initialize exogenous variables; normal errors, uniformly distributed covariates and instruments
     e = np.random.normal(size=(n, 1))
