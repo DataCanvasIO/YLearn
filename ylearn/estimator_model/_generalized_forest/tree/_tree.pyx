@@ -21,9 +21,7 @@ cdef class GrfTreeBestFirstBuilder(BestFirstTreeBuilder):
 
         # init splitter
         cdef GrfTreeBestSplitter splitter = <GrfTreeBestSplitter>self.splitter
-        printf("init splitter\n")
         self._init_splitter_ex(splitter, X, y, treatment)
-        printf("build tree\n")
         # build tree
         self._build_tree(tree, splitter)
 

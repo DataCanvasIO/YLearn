@@ -21,6 +21,8 @@ from ylearn.sklearn_ex.cloned.tree import _tree
 
 DOUBLE = _tree.DOUBLE
 
+# TODO: Note that currently our tree is not an honest one, which could be updated later
+
 
 class GrfTree(BaseEstModel):
     """A class for estimating causal effect with decision tree.
@@ -298,6 +300,8 @@ class GrfTree(BaseEstModel):
         self.min_impurity_decrease = min_impurity_decrease
         self.ccp_alpha = ccp_alpha
 
+        self.leaf_record = None
+
     def _check_data(self, data, outcome, treatment, adjustment, covariate):
         """Return transformed data in the form of array.
 
@@ -409,7 +413,9 @@ class GrfTree(BaseEstModel):
 
         self.max_features_ = max_features
 
-        max_leaf_nodes = 3 if self.max_leaf_nodes is None else self.max_leaf_nodes
+        max_leaf_nodes = (
+            np.int(1e3) if self.max_leaf_nodes is None else self.max_leaf_nodes
+        )
 
         if len(y) != n_samples or len(x) != n_samples:
             raise ValueError(
@@ -434,6 +440,7 @@ class GrfTree(BaseEstModel):
             min_weight_leaf,
             random_state,
         )
+
         self.tree_ = Tree(
             self.n_features_in_,
             np.array([1] * self.n_outputs_, dtype=np.intp),
@@ -448,9 +455,12 @@ class GrfTree(BaseEstModel):
             max_leaf_nodes,
             self.min_impurity_decrease,
         )
+
         builder.build_ex(self.tree_, wv, y, x, sample_weight)
 
         self._is_fitted = True
+
+        self.leaf_record = self._predict_with_array(w, wv)
         return self
 
     def _predict_with_array(self, w, v, **kwargs):

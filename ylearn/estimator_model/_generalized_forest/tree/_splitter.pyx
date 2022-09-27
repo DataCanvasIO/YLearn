@@ -23,7 +23,6 @@ cdef class GrfTreeBestSplitter(BestSplitter):
                         double* weighted_n_node_samples) nogil except -1:
         self.start = start
         self.end = end
-        printf("reset criterion\n")
 
         (<CriterionEx>self.criterion).init_ex(self.y,
                             self.treatment,

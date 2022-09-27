@@ -12,7 +12,7 @@ from sklearn.utils import check_random_state
 from ..utils import convert2array, inverse_grad, count_leaf_num
 
 from ..base_models import BaseEstModel
-from sklearn.preprocessing import OrdinalEncoder
+from sklearn.preprocessing import OrdinalEncoder, OneHotEncoder
 from ylearn.sklearn_ex.cloned.tree import _tree
 
 DOUBLE = _tree.DOUBLE
@@ -91,23 +91,12 @@ class BaseForest:
         return iter(self.estimators_)
 
 
-def _prediction_naive(predict, w, v, v_train, lock):
-    pred = predict(w, v, return_node=False).reshape(-1, 1)
-    y_pred = predict(w, v_train, return_node=True)
-    y_test_pred, y_test_pred_num = [], []
-    with lock:
-        for p in y_pred:
-            y_test_pred.append(p.value)
-            y_test_pred_num.append(p.sample_num)
-
-        return (y_test_pred == pred) / y_test_pred_num
-
-
-def _prediction(predict, w, v, v_train, lock):
-    pred = predict(w, v).reshape(-1, 1)
-    y_pred = predict(w, v_train).reshape(1, -1)
+def _prediction(e, w, v, v_train, lock, i):
+    pred = e._predict_with_array(w, v).reshape(-1, 1)
+    y_pred = e.leaf_record.reshape(1, -1)
     with lock:
         temp = y_pred == pred
+        # TODO: note that this line actually calculates counts multiple times so it may be improved
         num = np.count_nonzero(temp, axis=1).reshape(-1, 1)
         return temp / num
 
@@ -211,9 +200,12 @@ class BaseCausalForest(BaseEstModel, BaseForest):
             categories = list(self.categories)
 
         if self.is_discrete_treatment:
-            self.transformer = OrdinalEncoder(categories=categories)
-            self.transformer.fit(x)
-            x = self.transformer.transform(x)
+            # self.transformer = OrdinalEncoder(categories=categories)
+            # self.transformer = OneHotEncoder(categories=categories)
+            # self.transformer.fit(x)
+            # x = self.transformer.transform(x).toarray()
+            # # x += np.ones_like(x)
+            pass
 
         self.n_outputs_ = y.shape[1]
 
@@ -326,8 +318,8 @@ class BaseCausalForest(BaseEstModel, BaseForest):
             alpha = np.zeros((v.shape[0], self._v.shape[0]))
 
         alpha_collection = Parallel(n_jobs=self.n_jobs, verbose=self.verbose,)(
-            delayed(_prediction)(e._predict_with_array, w, v, self._v[s], lock)
-            for e, s in zip(self.estimators_, self.sub_sample_idx)
+            delayed(_prediction)(e, w, v, self._v[s], lock, i)
+            for i, (e, s) in enumerate(zip(self.estimators_, self.sub_sample_idx))
         )
         for alpha_, s in zip(alpha_collection, self.sub_sample_idx):
             alpha[:, s] += alpha_

@@ -4,6 +4,19 @@ import numpy as np
 from ._grf_tree import _GrfTree
 from .._generalized_forest import BaseCausalForest
 from .utils import inverse_grad
+from joblib import Parallel, delayed
+
+
+def _prediction(predict, w, v, v_train, lock, i):
+    pred = predict(w, v, return_node=False).reshape(-1, 1)
+    y_pred = predict(w, v_train, return_node=True)
+    y_test_pred, y_test_pred_num = [], []
+    with lock:
+        for p in y_pred:
+            y_test_pred.append(p.value)
+            y_test_pred_num.append(p.sample_num)
+
+        return (y_test_pred == pred) / y_test_pred_num
 
 
 class NaiveGrf(BaseCausalForest):
@@ -48,6 +61,25 @@ class NaiveGrf(BaseCausalForest):
         super().fit(
             data, outcome, treatment, adjustment=adjustment, covariate=covariate
         )
+
+    def _compute_alpha(self, v):
+        # first implement a version which only take one example as its input
+        lock = threading.Lock()
+        w = v.copy()
+        if self.n_outputs_ > 1:
+            raise ValueError(
+                "Currently do not support the number of output which is larger than 1"
+            )
+        else:
+            alpha = np.zeros((v.shape[0], self._v.shape[0]))
+
+        alpha_collection = Parallel(n_jobs=self.n_jobs, verbose=self.verbose,)(
+            delayed(_prediction)(e._predict_with_array, w, v, self._v[s], lock, i)
+            for i, (e, s) in enumerate(zip(self.estimators_, self.sub_sample_idx))
+        )
+        for alpha_, s in zip(alpha_collection, self.sub_sample_idx):
+            alpha[:, s] += alpha_
+        return alpha / self.n_estimators
 
     def _compute_aug(self, y, x, alpha):
         r"""Formula:
