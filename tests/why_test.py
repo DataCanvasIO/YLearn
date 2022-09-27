@@ -6,6 +6,15 @@ from ylearn import Why
 from . import _dgp
 from ._common import if_torch_ready, if_policy_tree_ready, is_policy_tree_ready
 
+try:
+    import castle
+    from ylearn.causal_discovery import GCastleProxy
+
+    _g = GCastleProxy()
+    is_gcastle_ready = True
+except ImportError:
+    is_gcastle_ready = False
+
 
 def _validate_it(why, test_data, check_score=True):
     print('-' * 30)
@@ -198,6 +207,24 @@ def test_discovery_taci():
     data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x2b_y1()
     why = Why(identifier='discovery')
     # w.fit(data, outcome[0], treatment=treatment, adjustment=adjustment, covariate=covariate)
+    why.fit(data, outcome[0])
+
+    _validate_it(why, test_data, check_score=False)
+
+
+@if_torch_ready
+def test_discovery_taci_dfs():
+    data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x2b_y1()
+    why = Why(identifier='discovery', discovery_options=dict(method='dfs'))
+    why.fit(data, outcome[0])
+
+    _validate_it(why, test_data, check_score=False)
+
+
+@pytest.mark.skipif(not is_gcastle_ready, reason='gcastle is not ready')
+def test_discovery_taci_with_gcastle():
+    data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x2b_y1()
+    why = Why(identifier='gcastle', discovery_options=dict(method='dfs'))
     why.fit(data, outcome[0])
 
     _validate_it(why, test_data, check_score=False)
