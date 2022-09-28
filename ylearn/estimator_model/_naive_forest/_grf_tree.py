@@ -116,8 +116,8 @@ class _GrfTree:
         v : :py:class:`ndarray` of shape `(n, p)`
             The covariate vector of the training data specifying hetergeneity
         """
-        if self.verbose >= 1:
-            print(f"building {i+1}-th tree")
+        # if self.verbose >= 1:
+        #     print(f"building {i+1}-th tree")
 
         if self.max_depth is None:
             self.max_depth = INF

@@ -360,10 +360,11 @@ class GrfTree(BaseEstModel):
         v : :py:class:`ndarray` of shape `(n, p)`
             The covariate vector of the training data specifying hetergeneity
         """
-        print(f"building the {i+1} tree")
+        # print(f"building the {i+1} tree")
 
         random_state = check_random_state(self.random_state)
-        wv = get_wv(w, v)
+        # wv = get_wv(w, v)
+        wv = v
         n_samples, self.n_features_in_ = wv.shape
 
         if x.ndim == 1:
