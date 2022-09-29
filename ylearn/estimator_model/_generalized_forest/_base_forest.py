@@ -8,6 +8,8 @@ from copy import deepcopy
 from joblib import Parallel, delayed
 
 from sklearn.utils import check_random_state
+from sklearn.utils.validation import _check_sample_weight
+
 
 from ..utils import convert2array, inverse_grad, count_leaf_num
 
@@ -16,7 +18,7 @@ from sklearn.preprocessing import OrdinalEncoder, OneHotEncoder
 from ylearn.sklearn_ex.cloned.tree import _tree
 
 DOUBLE = _tree.DOUBLE
-
+MAX_INT = np.iinfo(np.int32).max
 # we ignore the warm start and inference parts in the current version
 class BaseForest:
     @abstractmethod
@@ -29,7 +31,7 @@ class BaseForest:
         n_jobs=None,
         random_state=None,
         warm_start=None,
-        max_samples=None,
+        sub_sample_num=None,
         class_weight=None,
     ):
         self.base_estimator = base_estimator
@@ -39,7 +41,7 @@ class BaseForest:
         self.random_state = random_state
         self.n_jobs = n_jobs
         self.warm_start = warm_start
-        self.max_samples = max_samples
+        self.sub_sample_num = sub_sample_num
         self.class_weight = class_weight
 
     def _validate_estimator(self, default=None):
@@ -91,6 +93,13 @@ class BaseForest:
         return iter(self.estimators_)
 
 
+def _generate_sub_samples(random_state, all_idx, sub_samples):
+    rd = check_random_state(random_state)
+    z = rd.choice(all_idx, size=sub_samples, replace=False)
+    # print(z)
+    return z
+
+
 def _prediction(e, w, v, v_train, lock, i):
     pred = e._predict_with_array(w, v).reshape(-1, 1)
     y_pred = e.leaf_record.reshape(1, -1)
@@ -122,7 +131,6 @@ class BaseCausalForest(BaseEstModel, BaseForest):
         random_state=None,
         verbose=0,
         warm_start=False,
-        max_samples=None,
         categories="auto",
         is_discrete_treatment=True,
         is_discrete_outcome=False,
@@ -148,7 +156,7 @@ class BaseCausalForest(BaseEstModel, BaseForest):
             estimator_params=estimator_params,
             random_state=random_state,
             warm_start=warm_start,
-            max_samples=max_samples,
+            sub_sample_num=sub_sample_num,
         )
         BaseEstModel.__init__(
             self,
@@ -184,6 +192,9 @@ class BaseCausalForest(BaseEstModel, BaseForest):
         )
 
         y, x, w, v = convert2array(data, outcome, treatment, adjustment, covariate)
+
+        # TODO: add check data
+
         for k, value in {"y": y, "x": x, "v": v}.items():
             setattr(self, "_" + k, value)
 
@@ -201,26 +212,25 @@ class BaseCausalForest(BaseEstModel, BaseForest):
 
         if self.is_discrete_treatment:
             # self.transformer = OrdinalEncoder(categories=categories)
-            # self.transformer = OneHotEncoder(categories=categories)
+            # # self.transformer = OneHotEncoder(categories=categories)
             # self.transformer.fit(x)
-            # x = self.transformer.transform(x).toarray()
+            # x = self.transformer.transform(x)
             # # x += np.ones_like(x)
             pass
 
         self.n_outputs_ = y.shape[1]
 
-        # if sample_weight is not None:
-        #     sample_weight =
+        if sample_weight is not None:
+            sample_weight = _check_sample_weight(sample_weight, v)
 
         if getattr(y, "dtype", None) != DOUBLE or not y.flags.contiguous:
             y = np.ascontiguousarray(y, dtype=DOUBLE)
         if getattr(x, "dtype", None) != DOUBLE or not x.flags.contiguous:
             x = np.ascontiguousarray(x, dtype=DOUBLE)
 
-        if self.sub_sample_num is not None:
-            sub_sample_num_ = self.sub_sample_num
-        else:
-            sub_sample_num_ = int(n_train * 0.8)
+        sub_sample_num_ = self._get_sub_samples_num(
+            n_samples=x.shape[0], sub_samples=self.sub_sample_num
+        )
 
         self._validate_estimator()
 
@@ -239,15 +249,21 @@ class BaseCausalForest(BaseEstModel, BaseForest):
                 f"len(estimators_)={len(self.estimators_)} when warm_start==True"
             )
         else:
+            if self.warm_start and len(self.estimators_) > 0:
+                random_state.randint(MAX_INT, size=len(self.estimators_))
+
             trees = [
                 self._make_estimator(append=False, random_state=random_state)
                 for i in range(n_more_estimators)
             ]
+
+            # get sub samples idices
             all_idx = np.arange(start=0, stop=self._y.shape[0])
             self.sub_sample_idx = [
-                np.random.choice(all_idx, size=sub_sample_num_, replace=False)
-                for i in range(n_more_estimators)
+                _generate_sub_samples(t.random_state, all_idx, sub_sample_num_)
+                for t in trees
             ]
+
             # Parallel loop: we prefer the threading backend as the Cython code
             # for fitting the trees is internally releasing the Python GIL
             # making threading more efficient than multiprocessing in
@@ -294,6 +310,20 @@ class BaseCausalForest(BaseEstModel, BaseForest):
 
     # TODO: support oob related methods
 
+    def _get_sub_samples_num(self, n_samples, sub_samples):
+        if sub_samples is None:
+            return round(n_samples * 0.85)
+
+        if isinstance(sub_samples, numbers.Integral):
+            if sub_samples > n_samples:
+                raise ValueError(
+                    f"sub_samples_num must be <= n_samples={n_samples} but was given {sub_samples}"
+                )
+            return sub_samples
+
+        if isinstance(sub_samples, numbers.Real):
+            return round(n_samples * sub_samples)
+
     def _check_features(self, data):
         v = self._v if data is None else convert2array(data, self.covariate)[0]
         return v
@@ -318,7 +348,7 @@ class BaseCausalForest(BaseEstModel, BaseForest):
             alpha = np.zeros((v.shape[0], self._v.shape[0]))
 
         alpha_collection = Parallel(n_jobs=self.n_jobs, verbose=self.verbose,)(
-            delayed(_prediction)(e, w, v, self._v[s], lock, i)
+            delayed(_prediction)(e, w, v, self._v, lock, i)
             for i, (e, s) in enumerate(zip(self.estimators_, self.sub_sample_idx))
         )
         for alpha_, s in zip(alpha_collection, self.sub_sample_idx):

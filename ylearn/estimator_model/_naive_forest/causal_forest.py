@@ -21,7 +21,6 @@ class NaiveCausalForest(DoubleML):
         max_depth=None,
         min_split_tolerance=1e-5,
         n_jobs=None,
-        max_samples=None,
     ):
         yx_model = NaiveGrf(
             n_estimators=n_estimators,
@@ -30,7 +29,6 @@ class NaiveCausalForest(DoubleML):
             min_split_tolerance=min_split_tolerance,
             n_jobs=n_jobs,
             random_state=random_state,
-            max_samples=max_samples,
         )
         super().__init__(
             x_model,

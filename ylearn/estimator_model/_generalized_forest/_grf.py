@@ -1,13 +1,9 @@
-import numbers
-from random import sample
-import numpy as np
-
 from sklearn.utils import check_random_state
 
-from .tree._grf_tree import GrfTree
+from .tree import GrfTree
 from ._base_forest import BaseCausalForest
 
-# causal forest with local centering technique
+# causal forest without local centering technique
 class GRForest(BaseCausalForest):
     def __init__(
         self,
@@ -23,7 +19,6 @@ class GRForest(BaseCausalForest):
         min_impurity_decrease=0.0,
         n_jobs=None,
         random_state=None,
-        max_samples=None,
         # categories="auto",
         ccp_alpha=0.0,
         is_discrete_treatment=True,
@@ -48,7 +43,6 @@ class GRForest(BaseCausalForest):
                 "ccp_alpha",
             ),
             n_jobs=n_jobs,
-            max_samples=max_samples,
             # categories=categories,
             random_state=random_state,
             sub_sample_num=sub_sample_num,

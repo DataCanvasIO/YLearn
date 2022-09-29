@@ -31,7 +31,6 @@ class NaiveGrf(BaseCausalForest):
         min_split_tolerance=1e-5,
         n_jobs=None,
         random_state=None,
-        max_samples=None,
         categories="auto",
     ):
         base_estimator = _GrfTree()
@@ -44,10 +43,9 @@ class NaiveGrf(BaseCausalForest):
             n_estimators=n_estimators,
             max_depth=max_depth,
             n_jobs=n_jobs,
-            max_samples=max_samples,
+            sub_sample_num=sub_sample_num,
             categories=categories,
             random_state=random_state,
-            sub_sample_num=sub_sample_num,
         )
 
     def fit(

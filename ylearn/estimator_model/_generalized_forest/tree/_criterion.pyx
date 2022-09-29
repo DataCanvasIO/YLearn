@@ -477,8 +477,7 @@ cdef class GrfTreeCriterion(CriterionEx):
         This method computes the improvement in impurity when a split occurs.
         The weighted impurity improvement equation is the following:
 
-            N_t / N * (impurity - N_t_R / N_t * right_impurity
-                                - N_t_L / N_t * left_impurity)
+            right_impurity_improvement + left_impurity_impurity_improvement
 
         where N is the total number of samples, N_t is the number of samples
         at the current node, N_t_L is the number of samples in the left child,

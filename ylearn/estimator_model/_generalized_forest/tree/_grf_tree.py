@@ -1,7 +1,7 @@
 # some parts of this code are forked from sci-kit learn
 
+from copy import deepcopy
 import numbers
-from numbers import Integral, Real
 from math import ceil
 
 import numpy as np
@@ -29,12 +29,6 @@ class GrfTree(BaseEstModel):
 
     Parameters
     ----------
-    splitter : {"best", "random"}, default="best"
-
-        The strategy used to choose the split at each node. Supported
-        strategies are "best" to choose the best split and "random" to choose
-        the best random split.
-
     max_depth : int, default=None
         The maximum depth of the tree. If None, then nodes are expanded until
         all leaves are pure or until all leaves contain less than
@@ -58,39 +52,28 @@ class GrfTree(BaseEstModel):
         `ceil(min_samples_leaf * n_samples)` are the minimum
         number of samples for each node.
 
-    max_features : int, float or {"sqrt", "log2"}, default=None
+    max_features : int, float or {"auto", "sqrt", "log2"}, default=None
         The number of features to consider when looking for the best split:
 
             1. If int, then consider `max_features` features at each split.
             2. If float, then `max_features` is a fraction and `int(max_features * n_features)` features are considered at each split.
             3. If "sqrt", then `max_features=sqrt(n_features)`.
             4. If "log2", then `max_features=log2(n_features)`.
-            5. If None, then `max_features=n_features`.
+            5. If None or "auto", then `max_features=n_features`.
 
-    random_state : int
+    random_state : int, default=2022
         Controls the randomness of the estimator.
 
     max_leaf_nodes : int, default to None
         Grow a tree with ``max_leaf_nodes`` in best-first fashion.
-        Best nodes are defined as relative reduction in impurity.
-        If None then unlimited number of leaf nodes.
+        If None then set as 1e3.
 
     min_impurity_decrease : float, default=0.0
         A node will be split if this split induces a decrease of the impurity
         greater than or equal to this value.
-        The weighted impurity decrease equation is the following::
-            N_t / N * (impurity - N_t_R / N_t * right_impurity
-                                - N_t_L / N_t * left_impurity)
-        where ``N`` is the total number of samples, ``N_t`` is the number of
-        samples at the current node, ``N_t_L`` is the number of samples in the
-        left child, and ``N_t_R`` is the number of samples in the right child.
-        ``N``, ``N_t``, ``N_t_R`` and ``N_t_L`` all refer to the weighted sum,
-        if ``sample_weight`` is passed.
 
     ccp_alpha : non-negative float, default to 0.0
         Value for pruning the tree. *Not implemented yet*.
-
-    categories : str, optional. Defaults to 'auto'.
 
     See Also
     --------
@@ -134,26 +117,6 @@ class GrfTree(BaseEstModel):
         ----------
         instance of CausalTree
             The fitted CausalTree.
-
-    estimate(data=None, quantity=None)
-        Estimate the causal effect of the treatment on the outcome in data.
-
-        Parameters
-        ----------
-        data : pandas.DataFrame, optional, by default None
-            If None, data will be set as the training data.
-
-        quantity : str, optional, by default None
-            The type of the causal effect. Avaliable options are:
-
-                1. 'CATE' : the estimator will evaluate the CATE;
-                2. 'ATE' : the estimator will evaluate the ATE;
-                3. None : the estimator will evaluate the CITE.
-
-        Returns
-        -------
-        ndarray or float, optional
-            The estimated causal effect with the type of the quantity.
 
     get_depth()
         Return the depth of the causal tree. The depth of a tree is the maximum distance between the root
@@ -220,60 +183,6 @@ class GrfTree(BaseEstModel):
         feature_importances_ : ndarray of shape (n_features,)
             Normalized total reduction of criteria by feature
             (Gini importance).
-
-    plot_causal_tree(max_depth=None, feature_names=None, label='all', filled=False, node_ids=False, proportion=False, rounded=False, precision=3, ax=None, fontsize=None)
-        Plot a causal tree.
-        The visualization is fit automatically to the size of the axis.
-        Use the ``figsize`` or ``dpi`` arguments of ``plt.figure``  to control
-        the size of the rendering.
-
-        Parameters
-        ----------
-        max_depth : int, default=None
-            The maximum depth of the representation. If None, the tree is fully
-            generated.
-
-        label : {'all', 'root', 'none'}, default='all'
-            Whether to show informative labels for impurity, etc.
-            Options include 'all' to show at every node, 'root' to show only at
-            the top root node, or 'none' to not show at any node.
-
-        filled : bool, default=False
-            When set to ``True``, paint nodes to indicate majority class for
-            classification, extremity of values for regression, or purity of node
-            for multi-output.
-
-        feature_names : list, default=None
-            Names of features. If None, then the names of the adjustment or covariate
-            will be used.
-
-        node_ids : bool, default=False
-            When set to ``True``, show the ID number on each node.
-
-        proportion : bool, default=False
-            When set to ``True``, change the display of 'values' and/or 'samples'
-            to be proportions and percentages respectively.
-
-        rounded : bool, default=False
-            When set to ``True``, draw node boxes with rounded corners and use
-            Helvetica fonts instead of Times-Roman.
-
-        precision : int, default=3
-            Number of digits of precision for floating point in the values of
-            impurity, threshold and value attributes of each node.
-
-        ax : matplotlib axis, default=None
-            Axes to plot to. If None, use current axis. Any previous content
-            is cleared.
-
-        fontsize : int, default=None
-            Size of text font. If None, determined automatically to fit figure.
-
-        Returns
-        -------
-        annotations : list of artists
-            List containing the artists for the annotation boxes making up the
-            tree.
     """
 
     def __init__(
@@ -318,6 +227,7 @@ class GrfTree(BaseEstModel):
         covariate : str or list of str
             Names of covariat set, by default None
         """
+        # TODO: it might be better to give this function to the base class
         pass
 
     def fit(
@@ -360,9 +270,11 @@ class GrfTree(BaseEstModel):
         v : :py:class:`ndarray` of shape `(n, p)`
             The covariate vector of the training data specifying hetergeneity
         """
-        # print(f"building the {i+1} tree")
+        # TODO: add check for parameters
 
         random_state = check_random_state(self.random_state)
+
+        # TODO: care about the difference between covariates and adjustment sets
         # wv = get_wv(w, v)
         wv = v
         n_samples, self.n_features_in_ = wv.shape
@@ -425,15 +337,13 @@ class GrfTree(BaseEstModel):
 
         if sample_weight is not None:
             sample_weight = _check_sample_weight(sample_weight, wv, DOUBLE)
-
-        # Set min_weight_leaf from min_weight_fraction_leaf
-        if sample_weight is None:
-            min_weight_leaf = self.min_weight_fraction_leaf * n_samples
-        else:
             min_weight_leaf = self.min_weight_fraction_leaf * np.sum(sample_weight)
+        else:
+            min_weight_leaf = self.min_weight_fraction_leaf * n_samples
 
         # Build tree
         criterion = GrfTreeCriterion(self.n_outputs_, n_samples, self.d_treatments)
+        criterion = deepcopy(criterion)
         splitter = GrfTreeBestSplitter(
             criterion,
             self.max_features_,
@@ -468,14 +378,45 @@ class GrfTree(BaseEstModel):
         assert self._is_fitted, "The model is not fitted yet"
         # wv = get_wv(w, v)
         wv = v
+
+        if wv.ndim == 1:
+            wv = wv.reshape(-1, 1)
+
+        self._check_dim(wv=wv)
+
         wv = wv.astype(np.float32)
         proba = self.tree_.predict(wv)
-        n_samples = wv.shape[0]
 
         if self.n_outputs_ == 1:
             return proba[:, 0]
         else:
             return proba[:, :, 0]
+
+    def apply(self, w, v):
+        """Return the index of the leaf that each sample is predicted as.
+
+        Parameters
+        ----------
+        wv : ndarray of shape (n_samples, n_features)
+            The input samples. Internally, it will be converted to
+            ``dtype=np.float32``.
+
+        Returns
+        -------
+        X_leaves : array-like of shape (n_samples,)
+            For each datapoint x in X, return the index of the leaf x
+            ends up in. Leaves are numbered within
+            ``[0; self.tree_.node_count)``, possibly with gaps in the
+            numbering.
+        """
+        assert self._is_fitted, "The model is not fitted yet"
+        # wv = get_wv(w, v)
+        wv = v
+        if wv.ndim == 1:
+            wv = wv.reshape(-1, 1)
+
+        self._check_dim(wv=wv)
+        return self.tree_.applyw(wv)
 
     def get_depth(self):
         assert self._is_fitted, "The model is not fitted yet"
@@ -484,3 +425,68 @@ class GrfTree(BaseEstModel):
     def get_n_leaves(self):
         assert self._is_fitted, "The model is not fitted yet"
         return self.tree_.n_leaves
+
+    @property
+    def feature_importances_(self):
+        """Return the feature importances.
+        The importance of a feature is computed as the (normalized) total
+        reduction of the criterion brought by that feature.
+        It is also known as the Gini importance.
+        Warning: impurity-based feature importances can be misleading for
+        high cardinality features (many unique values). See
+        :func:`sklearn.inspection.permutation_importance` as an alternative.
+
+        Returns
+        -------
+        feature_importances_ : ndarray of shape (n_features,)
+            Normalized total reduction of criteria by feature
+            (Gini importance).
+        """
+        assert self._is_fitted, "The model is not fitted yet"
+        return self.tree_.compute_feature_importances()
+
+    def decision_path(self, w, v):
+        """Return the decision path in the tree.
+
+        Parameters
+        ----------
+        X : {array-like, sparse matrix} of shape (n_samples, n_features)
+            The input samples. Internally, it will be converted to
+            ``dtype=np.float32`` and if a sparse matrix is provided
+            to a sparse ``csr_matrix``.
+        check_input : bool, default=True
+            Allow to bypass several input checking.
+            Don't use this parameter unless you know what you're doing.
+        Returns
+        -------
+        indicator : sparse matrix of shape (n_samples, n_nodes)
+            Return a node indicator CSR matrix where non zero elements
+            indicates that the samples goes through the nodes.
+        """
+        wv = v
+        self._check_dim(wv=wv)
+        if wv.ndim == 1:
+            wv = wv.reshape(-1, 1)
+
+        wv = wv.astype(np.float32)
+
+        return self.tree_.decision_path(wv)
+
+    def _prune_tree(self):
+        # potential function
+        pass
+
+    def _check_dim(self, **kwargs):
+        _param_dim = {
+            "y": self.n_outputs_,
+            "x": self.d_treatments,
+            "wv": self.n_features_in_,
+        }
+        for k, v in kwargs.items():
+            if v.ndim == 1:
+                v = v.reshape(-1, 1)
+
+            if v.shape[1] != _param_dim[k]:
+                raise ValueError(
+                    f"The dimension of {k} should be {_param_dim[k]}, but was given {v.shape[1]}"
+                )
