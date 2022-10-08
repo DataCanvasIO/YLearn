@@ -1,4 +1,4 @@
-# Some snippets of code are from scikit-learn
+# Some snippets of theses codes are from scikit-learn
 import numbers
 import numpy as np
 import threading
@@ -11,10 +11,9 @@ from sklearn.utils import check_random_state
 from sklearn.utils.validation import _check_sample_weight
 
 
-from ..utils import convert2array, inverse_grad, count_leaf_num
+from ..utils import convert2array, inverse_grad
 
 from ..base_models import BaseEstModel
-from sklearn.preprocessing import OrdinalEncoder, OneHotEncoder
 from ylearn.sklearn_ex.cloned.tree import _tree
 
 DOUBLE = _tree.DOUBLE
@@ -193,8 +192,32 @@ class BaseCausalForest(BaseEstModel, BaseForest):
 
         y, x, w, v = convert2array(data, outcome, treatment, adjustment, covariate)
 
-        # TODO: add check data
+        self._fit_with_array(y, x, w, v, sample_weight=sample_weight)
 
+    def estimate(self, data=None, **kwargs):
+        effect_ = self._prepare4est(data=data)
+        return effect_
+
+    def effect_nji(self, *args, **kwargs):
+        return super().effect_nji(*args, **kwargs)
+
+    def apply(self):
+        pass
+
+    def decision_path(
+        self,
+    ):
+        pass
+
+    def feature_importances_(self):
+        pass
+
+    @property
+    def n_features_(self):
+        pass
+
+    # TODO: add check data
+    def _fit_with_array(self, y, x, w, v, sample_weight):
         for k, value in {"y": y, "x": x, "v": v}.items():
             setattr(self, "_" + k, value)
 
@@ -286,30 +309,7 @@ class BaseCausalForest(BaseEstModel, BaseForest):
 
         return self
 
-    def estimate(self, data=None, **kwargs):
-        effect_ = self._prepare4est(data=data)
-        return effect_
-
-    def effect_nji(self, *args, **kwargs):
-        return super().effect_nji(*args, **kwargs)
-
-    def apply(self):
-        pass
-
-    def decision_path(
-        self,
-    ):
-        pass
-
-    def feature_importances_(self):
-        pass
-
-    @property
-    def n_features_(self):
-        pass
-
     # TODO: support oob related methods
-
     def _get_sub_samples_num(self, n_samples, sub_samples):
         if sub_samples is None:
             return round(n_samples * 0.85)

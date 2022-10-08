@@ -406,13 +406,11 @@ class DoubleML(BaseEstModel):
         y_hat = self.y_hat_dict["paras"][0].reshape(y.shape)
 
         # step 3: calculate the differences
-        x_diff = x - x_hat
         y_prime = y - y_hat
-        v = np.hstack([np.ones((v.shape[0], 1)), v])
-        x_prime = nd_kron(x_diff, v)
+        x_prime = self._cal_x_prime(x, x_hat, v)
 
         # step 4: fit the regression problem
-        self._fit_2nd_stage(self.yx_model, x_prime, y_prime)
+        self._fit_2nd_stage(self.yx_model, x_prime, y_prime, v, **kwargs)
 
         self._is_fitted = True
 
@@ -749,6 +747,8 @@ class DoubleML(BaseEstModel):
         yx_model,
         x_prime,
         y_prime,
+        v,
+        **kwargs,
     ):
         """Fit the models in the second stage.
 
@@ -765,6 +765,11 @@ class DoubleML(BaseEstModel):
         """
         logger.info(f"_fit_2nd_stage: fitting yx_model {type(self.yx_model).__name__}")
         yx_model.fit(x_prime, y_prime)
+
+    def _cal_x_prime(self, x, x_hat, v):
+        x_diff = x - x_hat
+        v = np.hstack([np.ones((v.shape[0], 1)), v])
+        return nd_kron(x_diff, v)
 
     # def __repr__(self) -> str:
     #     return f'Double Machine Learning Estimator'
