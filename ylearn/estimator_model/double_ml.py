@@ -546,6 +546,7 @@ class DoubleML(BaseEstModel):
             x_transformed = self.ord_transformer.transform(x).astype(int)
             x = np.full((x.shape[0], 1), np.NaN)
 
+            # time consuming!
             for i, x_i in enumerate(x_transformed):
                 x[i] = self.label_dict[tuple(x_i)]
 

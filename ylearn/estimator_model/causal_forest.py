@@ -89,6 +89,11 @@ class CausalForest(DoubleML):
     def _cal_x_prime(self, x, x_hat, v):
         return x - x_hat
 
+    def estimate(
+        self, data=None, treat=None, control=None, quantity=None, target_outcome=None
+    ):
+        return self.yx_model.estimate(data=data)
+
 
 # for iv
 class IVCausalForest:
