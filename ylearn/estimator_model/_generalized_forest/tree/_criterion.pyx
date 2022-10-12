@@ -357,8 +357,8 @@ cdef class GrfTreeCriterion(CriterionEx):
 
         # memset(&self.sum_rho_right, 0, sizeof(double))
         # memcpy(&self.sum_rho_left, &self.sum_rho, sizeof(double))
-        self.sum_rho_left = 0
-        self.sum_rho_right = self.sum_rho
+        self.sum_rho_right = 0
+        self.sum_rho_left = self.sum_rho
 
         self.weighted_n_right = 0.0
         self.weighted_n_left = self.weighted_n_node_samples
