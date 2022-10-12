@@ -66,6 +66,51 @@ def find_extensions(*base_dirs):
     return pyx, cpp, h
 
 
+def download(url, file_path):
+    import shutil
+    import urllib3
+
+    http = urllib3.PoolManager()
+    with http.request('GET', url, preload_content=False) as r, open(file_path, 'wb') as out_file:
+        if r.status != 200:
+            raise ConnectionError(f'[{r.status}] Failed to request {url}')
+        shutil.copyfileobj(r, out_file)
+
+
+def extract(tar_path, extract_path='.'):
+    """
+    see: https://www.codegrepper.com/code-examples/python/extract+tgz+files+in+python
+    """
+    import tarfile
+
+    tar = tarfile.open(tar_path, 'r')
+    for item in tar:
+        tar.extract(item, extract_path)
+        if item.name.find(".tgz") != -1 or item.name.find(".tar") != -1:
+            extract(item.name, "./" + item.name[:item.name.rfind('/')])
+
+
+def prepare_eigen3(tarball='eigen-3.4.0', target_path='./downloads'):
+    eigen3_path = os.environ.get('EIGEN3_PATH', None)
+
+    if eigen3_path is None:
+        eigen3_path = f'{target_path}/{tarball}'
+        if (not os.path.exists(eigen3_path)) or len(dir(f'{eigen3_path}/*')) == 0:
+            url = f'https://gitlab.com/libeigen/eigen/-/archive/3.4.0/{tarball}.tar.gz'
+            tarball_file = f'{target_path}/{tarball}.tar.gz'
+            os.makedirs(target_path, exist_ok=True)
+
+            print(f'download {tarball} ...')
+            download(url, tarball_file)
+            print(f'extract {tarball} ...')
+            extract(tarball_file, target_path)
+
+    assert os.path.exists(eigen3_path), f'Not found path EIGEN3_PATH: {eigen3_path}'
+
+    print(f'using EIGEN3_PATH: {eigen3_path}')
+    return eigen3_path
+
+
 try:
     execfile
 except NameError:
@@ -84,10 +129,12 @@ np_include = numpy.get_include()
 # h_files = glob(f"{my_name}/**/*.h", recursive=True)
 pyx_files, c_files, h_files = find_extensions(*os.environ.get('EXT_PATH', my_name).split(','))
 my_includes = list(set([P.split(P.abspath(h))[0] for h in h_files]))
+my_includes = my_includes + [prepare_eigen3()]
 build_ext = any(map(lambda s: s == 'build_ext', sys.argv[1:]))
 
 pyx_modules = [P.splitext(f)[0] for f in pyx_files]
 c_modules = [P.splitext(f)[0] for f in c_files]
+c_modules = [f for f in c_modules if not f.endswith('_lib')]  # no-extension
 
 if build_ext:
     c_modules = [f for f in c_modules if f not in pyx_modules]
