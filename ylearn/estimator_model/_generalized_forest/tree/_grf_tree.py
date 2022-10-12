@@ -198,6 +198,7 @@ class GrfTree(BaseEstModel):
         min_weight_fraction_leaf=0.0,
         ccp_alpha=0.0,
         # categories="auto",
+        honest=False,
     ):
         self.max_depth = max_depth
         self.min_samples_split = min_samples_split
@@ -209,6 +210,7 @@ class GrfTree(BaseEstModel):
         self.min_impurity_decrease = min_impurity_decrease
         self.ccp_alpha = ccp_alpha
 
+        self.honest = honest
         self.leaf_record = None
 
     def _check_data(self, data, outcome, treatment, adjustment, covariate):
@@ -256,7 +258,7 @@ class GrfTree(BaseEstModel):
         w, v = self.check_data(data, self.covariate)
         return self._predict_with_array(w, v)
 
-    def _fit_with_array(self, x, y, w, v, i, sample_weight=None):
+    def _fit_with_array(self, x, y, w, v, sample_weight=None):
         # TODO: clarify the role of w and v, currently we treat all w as v
         """
         Parameters
@@ -371,7 +373,9 @@ class GrfTree(BaseEstModel):
 
         self._is_fitted = True
 
-        self.leaf_record = self._predict_with_array(w, wv)
+        if not self.honest:
+            self.leaf_record = self._predict_with_array(w, wv)
+
         return self
 
     def _predict_with_array(self, w, v, **kwargs):

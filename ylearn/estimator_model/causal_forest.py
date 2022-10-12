@@ -47,6 +47,7 @@ class CausalForest(DoubleML):
         covariate_transformer=None,
         categories="auto",
         proba_output=False,
+        honest_subsample_num=None,
     ):
         yx_model = GRForest(
             n_estimators=n_estimators,
@@ -65,6 +66,7 @@ class CausalForest(DoubleML):
             is_discrete_outcome=is_discrete_outcome,
             verbose=verbose,
             warm_start=warm_start,
+            honest_subsample_num=honest_subsample_num,
         )
 
         super().__init__(
