@@ -308,7 +308,6 @@ cdef class HonestCMSE(RegressionCriterion):
         return 0
 
     cdef double node_impurity(self) nogil:
-        #printf("impurity\n")
         cdef double impurity
         #### FIXME
         # Note: the reason we initiate impurity as alpha is to prevent node_impurity
@@ -317,7 +316,6 @@ cdef class HonestCMSE(RegressionCriterion):
         impurity += 2 * (self.yt_sq_sum_total / (self.nt_total + eps) - (self.yt_sum_total[0] / (self.nt_total + eps))**2.0) / (self.nt_total + eps)
         impurity += 2 * (self.y0_sq_sum_total / (self.n0_total + eps) - (self.y0_sum_total[0] / (self.n0_total + eps))**2.0) / (self.n0_total + eps)
         impurity -= (self.yt_sum_total[0] / (self.nt_total + eps) - self.y0_sum_total[0] / (self.n0_total + eps))**2.0
-        #printf("impurity value %f\n", impurity)
         return impurity
 
     cdef void children_impurity(self, double* impurity_left,
@@ -384,7 +382,6 @@ cdef class HonestCMSE(RegressionCriterion):
         impurity_right[0] -= (self.yt_sum_right[0] / (self.nt_right + eps) - self.y0_sum_right[0] / (self.n0_right + eps)) ** 2.0 
     
     cdef void node_value(self, double* dest) nogil:
-        #printf("node_value")
         """Compute the node value of samples[start:end] into dest."""
         #### FIXME
         dest[0] = self.yt_sum_total[0] / (self.nt_total + eps) - self.y0_sum_total[0] /  (self.n0_total + eps)
@@ -394,8 +391,7 @@ cdef class HonestCMSE(RegressionCriterion):
         cdef double impurity_left
         cdef double impurity_right
         self.children_impurity(&impurity_left, &impurity_right)
-        #printf("impurity left %f\n", impurity_left)
-        #printf("impurity right %f\n", impurity_right)
+
 
         return (- (self.nt_right + self.n0_right) * impurity_right
                 - (self.nt_left + self.n0_left) * impurity_left)
@@ -403,18 +399,15 @@ cdef class HonestCMSE(RegressionCriterion):
     cdef double impurity_improvement(self, double impurity_parent,
                                      double impurity_left,
                                      double impurity_right) nogil:
-        #printf("improve\n")
         return (impurity_parent - ((self.nt_right + self.n0_right) / (self.nt_total + self.n0_total) * impurity_right)
                                 - ((self.nt_left + self.n0_left) / (self.nt_total + self.n0_total) * impurity_left))
 
 
 cdef class CMSE(HonestCMSE):
     cdef double node_impurity(self) nogil:
-        #printf("impurity\n")
         cdef double impurity
         #### FIXME
         #impurity = log(1 + exp(- (self.yt_sum_total[0] / (self.nt_total + eps) - self.y0_sum_total[0] / (self.n0_total + eps))**2.0))
-        #printf("impurity value %f\n", impurity)
         #impurity = (self.yt_sq_sum_total + self.y0_sq_sum_total) / (self.nt_total + self.n0_total)
         impurity = alpha
         impurity -= (self.yt_sum_total[0] / (self.nt_total + eps) - self.y0_sum_total[0] / (self.n0_total + eps))**2.0
@@ -431,7 +424,6 @@ cdef class CMSE(HonestCMSE):
         impurity_right[0] -= (self.yt_sum_right[0] / (self.nt_right + eps) - self.y0_sum_right[0] / (self.n0_right + eps)) ** 2.0
 
     cdef void node_value(self, double* dest) nogil:
-        #printf("node_value")
         """Compute the node value of samples[start:end] into dest."""
         #### FIXME
         dest[0] = self.yt_sum_total[0] / (self.nt_total + eps) - self.y0_sum_total[0] /  (self.n0_total + eps)
@@ -441,8 +433,6 @@ cdef class CMSE(HonestCMSE):
         cdef double impurity_left
         cdef double impurity_right
         self.children_impurity(&impurity_left, &impurity_right)
-        #printf("impurity left %f\n", impurity_left)
-        #printf("impurity right %f\n", impurity_right)
 
         return (- (self.nt_right + self.n0_right) * impurity_right
                 - (self.nt_left + self.n0_left) * impurity_left)
@@ -450,7 +440,6 @@ cdef class CMSE(HonestCMSE):
     cdef double impurity_improvement(self, double impurity_parent,
                                      double impurity_left,
                                      double impurity_right) nogil:
-        #printf("improve\n")
         return (impurity_parent - ((self.nt_right + self.n0_right) / (self.nt_total + self.n0_total) * impurity_right)
                                 - ((self.nt_left + self.n0_left) / (self.nt_total + self.n0_total) * impurity_left))
 
@@ -468,7 +457,6 @@ cdef class MSE(RegressionCriterion):
         """
         cdef double impurity
         cdef SIZE_t k
-        printf("node impurity\n")
         impurity = self.sq_sum_total / self.weighted_n_node_samples
 
         for k in range(self.n_outputs):
@@ -521,7 +509,6 @@ cdef class MSE(RegressionCriterion):
         cdef SIZE_t p
         cdef SIZE_t k
         cdef DOUBLE_t w = 1.0
-        printf("children impurity\n")
         for p in range(start, pos):
             i = samples[p]
 

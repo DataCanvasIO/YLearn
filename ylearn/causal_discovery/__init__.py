@@ -14,3 +14,16 @@ except ImportError as e:
 
         def __call__(self, data, *, return_dict=False, threshold=None, **kwargs):
             raise ImportError(_msg)
+
+try:
+    from ._gcastle import GCastleProxy
+except ImportError as e:
+    _msg = f'{e}, install gcastle and try again.'
+
+
+    class GCastleProxy(BaseDiscovery):
+        def __init__(self, *args, **kwargs):
+            raise ImportError(_msg)
+
+        def __call__(self, data, *, return_dict=False, threshold=None, **kwargs):
+            raise ImportError(_msg)

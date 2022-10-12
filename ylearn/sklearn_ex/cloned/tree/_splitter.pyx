@@ -234,9 +234,9 @@ cdef class Splitter:
 
 
 cdef class BaseDenseSplitter(Splitter):
-    cdef const DTYPE_t[:, :] X
-
-    cdef SIZE_t n_total_samples
+    # cdef const DTYPE_t[:, :] X
+    #
+    # cdef SIZE_t n_total_samples
 
     cdef int init(self,
                   object X,

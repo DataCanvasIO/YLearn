@@ -17,6 +17,7 @@
 # License: BSD 3 clause
 
 from cpython cimport Py_INCREF, PyObject, PyTypeObject
+from libc.stdio cimport printf
 
 from libc.stdlib cimport free
 from libc.math cimport fabs
@@ -295,20 +296,26 @@ cdef class DepthFirstTreeBuilder(TreeBuilder):
 
 
 # Best first builder ----------------------------------------------------------
-cdef struct FrontierRecord:
-    # Record of information of a Node, the frontier for a split. Those records are
-    # maintained in a heap to access the Node with the best improvement in impurity,
-    # allowing growing trees greedily on this improvement.
-    SIZE_t node_id
-    SIZE_t start
-    SIZE_t end
-    SIZE_t pos
-    SIZE_t depth
-    bint is_leaf
-    double impurity
-    double impurity_left
-    double impurity_right
-    double improvement
+
+# =============================================================================
+# Commented by lixfz
+# =============================================================================
+
+# cdef struct FrontierRecord:
+#     # Record of information of a Node, the frontier for a split. Those records are
+#     # maintained in a heap to access the Node with the best improvement in impurity,
+#     # allowing growing trees greedily on this improvement.
+#     SIZE_t node_id
+#     SIZE_t start
+#     SIZE_t end
+#     SIZE_t pos
+#     SIZE_t depth
+#     bint is_leaf
+#     double impurity
+#     double impurity_left
+#     double impurity_right
+#     double improvement
+#
 
 cdef inline bool _compare_records(
     const FrontierRecord& left,
@@ -331,7 +338,7 @@ cdef class BestFirstTreeBuilder(TreeBuilder):
     The best node to expand is given by the node at the frontier that has the
     highest impurity improvement.
     """
-    cdef SIZE_t max_leaf_nodes
+    # cdef SIZE_t max_leaf_nodes
 
     def __cinit__(self, Splitter splitter, SIZE_t min_samples_split,
                   SIZE_t min_samples_leaf,  min_weight_leaf,
@@ -352,19 +359,30 @@ cdef class BestFirstTreeBuilder(TreeBuilder):
         # check input
         X, y, sample_weight = self._check_input(X, y, sample_weight)
 
+        # init splitter
+        cdef Splitter splitter = self.splitter
+        self._init_splitter(splitter,X,y)
+
+        # build tree
+        self._build_tree(tree,splitter)
+
+    cdef _init_splitter(self, Splitter splitter, object X, np.ndarray y,
+                   np.ndarray sample_weight= None):
+
         cdef DOUBLE_t* sample_weight_ptr = NULL
         if sample_weight is not None:
             sample_weight_ptr = <DOUBLE_t*> sample_weight.data
 
+        # Recursive partition (without actual recursion)
+        splitter.init(X, y, sample_weight_ptr)
+
+
+    cdef _build_tree(self, Tree tree, Splitter splitter):
         # Parameters
-        cdef Splitter splitter = self.splitter
         cdef SIZE_t max_leaf_nodes = self.max_leaf_nodes
         cdef SIZE_t min_samples_leaf = self.min_samples_leaf
         cdef double min_weight_leaf = self.min_weight_leaf
         cdef SIZE_t min_samples_split = self.min_samples_split
-
-        # Recursive partition (without actual recursion)
-        splitter.init(X, y, sample_weight_ptr)
 
         cdef vector[FrontierRecord] frontier
         cdef FrontierRecord record
@@ -386,7 +404,7 @@ cdef class BestFirstTreeBuilder(TreeBuilder):
             # add root to frontier
             rc = self._add_split_node(splitter, tree, 0, n_node_samples,
                                       INFINITY, IS_FIRST, IS_LEFT, NULL, 0,
-                                      &split_node_left)
+                                      &split_node_left) # manipulate the root node: add left node to left split
             if rc >= 0:
                 _add_to_frontier(split_node_left, frontier)
 
@@ -467,12 +485,13 @@ cdef class BestFirstTreeBuilder(TreeBuilder):
         cdef SIZE_t n_left, n_right
         cdef double imp_diff
 
-        splitter.node_reset(start, end, &weighted_n_node_samples)
+        splitter.node_reset(start, end, &weighted_n_node_samples) # reset the start and end of the current splitter, i.e. splitter.start = start,  and call splitter.criterion.init() which calculates
+                                                                  # all info stored in the current node, e.g., criterion.sum_total and reset its pos to start
 
         if is_first:
-            impurity = splitter.node_impurity()
+            impurity = splitter.node_impurity() # compute the node_impurity of the current by actually calling splitter.criterion.node_impurity()
 
-        n_node_samples = end - start
+        n_node_samples = end - start # the number of the samples in the current node
         is_leaf = (depth >= self.max_depth or
                    n_node_samples < self.min_samples_split or
                    n_node_samples < 2 * self.min_samples_leaf or
@@ -480,10 +499,13 @@ cdef class BestFirstTreeBuilder(TreeBuilder):
                    impurity <= EPSILON  # impurity == 0 with tolerance
                    )
 
-        if not is_leaf:
-            splitter.node_split(impurity, &split, &n_constant_features)
+        if not is_leaf: # continue splitting if not is_leaf
+            splitter.node_split(impurity, &split, &n_constant_features) # manipulate the split rule of the current record 'split', basically it is done by repeatedly calling criterion.update()
+                                                                        # to change the current pos when computing the proxy improvement in every single loop of calling criterion.reset(). Finally,
+                                                                        # it will add info to the 'split'
             # If EPSILON=0 in the below comparison, float precision issues stop
             # splitting early, producing trees that are dissimilar to v0.18
+
             is_leaf = (is_leaf or split.pos >= end or
                        split.improvement + EPSILON < min_impurity_decrease)
 
@@ -497,7 +519,7 @@ cdef class BestFirstTreeBuilder(TreeBuilder):
             return -1
 
         # compute values also for split nodes (might become leafs later).
-        splitter.node_value(tree.value + node_id * tree.value_stride)
+        splitter.node_value(tree.value + node_id * tree.value_stride) # this line is done by calling the node_value() of splitter.criterion.node_value()
 
         res.node_id = node_id
         res.start = start
@@ -510,7 +532,7 @@ cdef class BestFirstTreeBuilder(TreeBuilder):
             res.pos = split.pos
             res.is_leaf = 0
             res.improvement = split.improvement
-            res.impurity_left = split.impurity_left
+            res.impurity_left = split.impurity_left # also done by calling the splitter.criterion.impurity_left()
             res.impurity_right = split.impurity_right
 
         else:

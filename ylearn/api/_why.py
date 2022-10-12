@@ -423,6 +423,10 @@ class Why:
                 return IdentifierWithLearner(self.discovery_model, random_state=self.random_state, **options)
             else:
                 return IdentifierWithNotears(random_state=self.random_state, **options)
+        elif self.identifier == 'gcastle':
+            from ._identifier import IdentifierWithGCastle
+            options = self.discovery_options if self.discovery_options is not None else {}
+            return IdentifierWithGCastle(random_state=self.random_state, **options)
         else:
             return DefaultIdentifier()
 

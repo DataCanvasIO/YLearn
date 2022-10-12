@@ -101,3 +101,41 @@ cdef class TreeBuilder:
     cpdef build(self, Tree tree, object X, np.ndarray y,
                 np.ndarray sample_weight=*)
     cdef _check_input(self, object X, np.ndarray y, np.ndarray sample_weight)
+
+# =============================================================================
+# Added by lixfz
+# =============================================================================
+
+cdef struct FrontierRecord:
+    # Record of information of a Node, the frontier for a split. Those records are
+    # maintained in a heap to access the Node with the best improvement in impurity,
+    # allowing growing trees greedily on this improvement.
+    SIZE_t node_id
+    SIZE_t start
+    SIZE_t end
+    SIZE_t pos
+    SIZE_t depth
+    bint is_leaf
+    double impurity
+    double impurity_left
+    double impurity_right
+    double improvement
+
+cdef class BestFirstTreeBuilder(TreeBuilder):
+    """Build a decision tree in best-first fashion.
+
+    The best node to expand is given by the node at the frontier that has the
+    highest impurity improvement.
+    """
+    cdef SIZE_t max_leaf_nodes
+
+    cdef _init_splitter(self,Splitter splitter, object X, np.ndarray y,
+                   np.ndarray sample_weight= *)
+
+    cdef _build_tree(self, Tree tree, Splitter splitter)
+
+    cdef inline int _add_split_node(self, Splitter splitter, Tree tree,
+                                    SIZE_t start, SIZE_t end, double impurity,
+                                    bint is_first, bint is_left, Node*parent,
+                                    SIZE_t depth,
+                                    FrontierRecord*res) nogil except -1
