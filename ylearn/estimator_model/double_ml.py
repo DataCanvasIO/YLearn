@@ -86,6 +86,15 @@ logger = logging.get_logger(__name__)
 #         raise NotImplementedError
 
 
+def _set_random_state(model, random_state):
+    if (
+        hasattr(model, "set_params")
+        and hasattr(model, "random_state")
+        and (model.random_state is None)
+    ):
+        model.set_params(random_state=random_state)
+
+
 class DoubleML(BaseEstModel):
     r"""Double machine learning for estimating CATE.
     # TODO: convert the einstein notations in this section to the usual ones.
@@ -289,6 +298,9 @@ class DoubleML(BaseEstModel):
         self.cf_fold = cf_fold
         self.x_model = clone(x_model)
         self.y_model = clone(y_model)
+
+        _set_random_state(self.x_model, random_state)
+        _set_random_state(self.y_model, random_state)
 
         if yx_model is None:
             self.yx_model = LinearRegression()
