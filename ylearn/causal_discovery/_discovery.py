@@ -100,11 +100,13 @@ class DagNet(nn.Module):
 class CausalDiscovery(BaseDiscovery):
     def __init__(self, hidden_layer_dim=None,
                  lambdaa: float = 0.01, h_tol: float = 1e-6, rho_max: float = 1e6,
+                 scale='auto',
                  device=None, random_state=None):
         self.hidden_layer_dim = hidden_layer_dim
         self.lambdaa = lambdaa
         self.h_tol = h_tol
         self.rho_max = rho_max
+        self.scale = scale
         self.device = device
         self.random_state = random_state
 
@@ -140,6 +142,21 @@ class CausalDiscovery(BaseDiscovery):
         alpha += rho * h_new
         return rho, alpha, h_new
 
+    def _get_scaler(self):
+        if self.scale is None or self.scale is False:
+            return None
+        elif self.scale is True or self.scale in {'auto', 'minmax'}:
+            from sklearn.preprocessing import MinMaxScaler
+            return MinMaxScaler()
+        elif self.scale in {'std', 'standard'}:
+            from sklearn.preprocessing import StandardScaler
+            return StandardScaler()
+        elif hasattr(self.scale, 'fit_transform'):
+            import copy
+            return copy.copy(self.scale)
+        else:
+            raise ValueError(f'Failed to create scaler {self.scale}')
+
     def __call__(self, data, *, return_dict=False, threshold=None,
                  # optimizer='lbfgs',
                  epoch=100, lr=0.01, max_iter=1500,
@@ -153,6 +170,10 @@ class CausalDiscovery(BaseDiscovery):
             data = data.values
         else:
             columns = None
+
+        scaler = self._get_scaler()
+        if scaler is not None:
+            data = scaler.fit_transform(data)
 
         device = self.device
         if device is None or device == 'auto':

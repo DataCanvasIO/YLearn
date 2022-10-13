@@ -2,33 +2,8 @@ import numpy as np
 import pandas as pd
 
 from ylearn.utils import const, infer_task_type
-
-
-def to_list(v, name=None):
-    if v is None or isinstance(v, (list, tuple)):
-        pass
-    elif isinstance(v, str):
-        v = [s.strip() for s in v.split(',')]
-        v = [s for s in v if len(s) > 0]
-    else:
-        tag = name if name is not None else 'value'
-        raise ValueError(f'Unexpected {tag}: {v}')
-
-    return v
-
-
-def join_list(*args):
-    r = []
-    for a in args:
-        if a is None:
-            pass
-        elif isinstance(a, list):
-            r += a
-        elif isinstance(a, tuple):
-            r += list(a)
-        else:
-            r += to_list(a)
-    return r
+# noinspection PyUnresolvedReferences
+from ylearn.utils import to_list, join_list
 
 
 def is_empty(v):
