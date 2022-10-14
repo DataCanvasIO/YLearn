@@ -3,10 +3,10 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to YLearn's documentation!
+欢迎来到 YLearn 文档!
 ==================================
 
-YLearn, a pun of "learn why", is a python package for causal learning which supports various aspects of causal inference ranging from causal effect identification, estimation, and causal graph discovery, etc.
+YLearn是一个因果学习算法工具包，这个名字是“learn why”的谐音。它主要支持因果学习任务中的各类相关任务，从因果效应识别（causal effect idenfitication），到因果效应估计（causal effect estimation），到因果发现（causal discovery）等等，都可以通过YLearn实现，最大程度地降低了学习一个因果工具的成本。
 
 .. toctree::
     :maxdepth: 2
