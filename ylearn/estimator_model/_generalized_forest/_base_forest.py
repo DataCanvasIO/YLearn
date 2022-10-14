@@ -32,11 +32,13 @@ class BaseForest:
         warm_start=None,
         sub_sample_num=None,
         class_weight=None,
+        honest=None,
     ):
         self.base_estimator = base_estimator
         self.n_estimators = n_estimators
         self.estimator_params = estimator_params
 
+        self.honest = honest
         self.random_state = random_state
         self.n_jobs = n_jobs
         self.warm_start = warm_start
@@ -99,14 +101,44 @@ def _generate_sub_samples(random_state, all_idx, sub_samples):
     return z
 
 
+def _fit(t, x, y, w, v, s, i, honest_sample_num, sample_weight=None, verbose=0):
+    if verbose != 0:
+        print(f"Fit the {i + 1} tree")
+
+    sample_weight_honest = None
+
+    if sample_weight is not None:
+        sample_weight = sample_weight[s]
+        sample_weight_honest = sample_weight[honest_sample_num:]
+
+    if honest_sample_num is None:
+        t._fit_with_array(x[s], y[s], w[s], v[s], sample_weight)
+    else:
+        t._fit_with_array(
+            x[s][honest_sample_num:],
+            y[s][honest_sample_num:],
+            w[s][honest_sample_num:],
+            v[s][honest_sample_num:],
+            sample_weight_honest,
+        )
+        t.leaf_record = t._predict_with_array(w, v[s][:honest_sample_num])
+
+    return t
+
+
 def _prediction(e, w, v, v_train, lock, i):
     pred = e._predict_with_array(w, v).reshape(-1, 1)
     y_pred = e.leaf_record.reshape(1, -1)
     with lock:
-        temp = y_pred == pred
-        # TODO: note that this line actually calculates counts multiple times so it may be improved
-        num = np.count_nonzero(temp, axis=1).reshape(-1, 1)
-        return temp / num
+        temp = (
+            y_pred == pred
+        )  # compute the leaf value to which every test sample belongs
+        # TODO: note that this line actually calculates counts multiple times so it could be improved
+        num = np.count_nonzero(temp, axis=1).reshape(
+            -1, 1
+        )  # compute the number of samples in that leaf
+        with np.errstate(divide="ignore", invalid="ignore"):
+            return np.nan_to_num(temp / num)
 
 
 class BaseCausalForest(BaseEstModel, BaseForest):
@@ -134,6 +166,7 @@ class BaseCausalForest(BaseEstModel, BaseForest):
         is_discrete_treatment=True,
         is_discrete_outcome=False,
         ccp_alpha=0.0,
+        honest_subsample_num=None,
     ):
         if estimator_params is None:
             estimator_params = (
@@ -145,8 +178,9 @@ class BaseCausalForest(BaseEstModel, BaseForest):
                 "max_leaf_nodes",
                 "min_impurity_decrease",
                 "random_state",
+                "honest",
             )
-        # TODO: modify the multiple inheritance
+
         BaseForest.__init__(
             self,
             base_estimator=base_estimator,
@@ -156,6 +190,7 @@ class BaseCausalForest(BaseEstModel, BaseForest):
             random_state=random_state,
             warm_start=warm_start,
             sub_sample_num=sub_sample_num,
+            honest=honest_subsample_num,
         )
         BaseEstModel.__init__(
             self,
@@ -174,6 +209,9 @@ class BaseCausalForest(BaseEstModel, BaseForest):
         self.min_impurity_decrease = min_impurity_decrease
         self.sub_sample_num = sub_sample_num
         self.ccp_alpha = ccp_alpha
+        self.honest_subsample_num = honest_subsample_num
+
+        self.honest_sample = None
 
     # TODO: the current implementation is a simple version
     # TODO: add shuffle sample
@@ -186,6 +224,7 @@ class BaseCausalForest(BaseEstModel, BaseForest):
         adjustment=None,
         covariate=None,
     ):
+
         super().fit(
             data, outcome, treatment, adjustment=adjustment, covariate=covariate
         )
@@ -218,14 +257,14 @@ class BaseCausalForest(BaseEstModel, BaseForest):
 
     # TODO: add check data
     def _fit_with_array(self, y, x, w, v, sample_weight):
-        for k, value in {"y": y, "x": x, "v": v}.items():
-            setattr(self, "_" + k, value)
-
         n_train = y.shape[0]
         if y.ndim == 1:
             y = y.reshape(-1, 1)
         if x.ndim == 1:
             x = x.reshape(-1, 1)
+
+        for k, value in {"y": y, "x": x, "v": v}.items():
+            setattr(self, "_" + k, value)
 
         # Determin treatment settings
         if self.categories == "auto" or self.categories is None:
@@ -254,6 +293,8 @@ class BaseCausalForest(BaseEstModel, BaseForest):
         sub_sample_num_ = self._get_sub_samples_num(
             n_samples=x.shape[0], sub_samples=self.sub_sample_num
         )
+
+        self.honest_sample = self._get_honest_samples_num(sub_samples=sub_sample_num_)
 
         self._validate_estimator()
 
@@ -298,7 +339,20 @@ class BaseCausalForest(BaseEstModel, BaseForest):
                 verbose=self.verbose,
                 prefer="threads",
             )(
-                delayed(t._fit_with_array)(x[s], y[s], w[s], v[s], i)
+                # delayed(t._fit_with_array)(x[s], y[s], w[s], v[s], i)
+                # for i, (t, s) in enumerate(zip(trees, self.sub_sample_idx))
+                delayed(_fit)(
+                    t,
+                    x,
+                    y,
+                    w,
+                    v,
+                    s,
+                    i,
+                    self.honest_sample,
+                    sample_weight,
+                    self.verbose,
+                )
                 for i, (t, s) in enumerate(zip(trees, self.sub_sample_idx))
             )
 
@@ -323,6 +377,20 @@ class BaseCausalForest(BaseEstModel, BaseForest):
 
         if isinstance(sub_samples, numbers.Real):
             return round(n_samples * sub_samples)
+
+    def _get_honest_samples_num(self, sub_samples):
+        if self.honest_subsample_num is None:
+            return None
+
+        if isinstance(self.honest_subsample_num, numbers.Integral):
+            if self.honest_subsample > sub_samples:
+                raise ValueError(
+                    f"honest_subsample must be <= sub_samples={sub_samples} but was given {self.honest_subsample}"
+                )
+            return self.honest_subsample_num
+
+        if isinstance(self.honest_subsample_num, numbers.Real):
+            return round(self.honest_subsample_num * sub_samples)
 
     def _check_features(self, data):
         v = self._v if data is None else convert2array(data, self.covariate)[0]
@@ -349,9 +417,12 @@ class BaseCausalForest(BaseEstModel, BaseForest):
 
         alpha_collection = Parallel(n_jobs=self.n_jobs, verbose=self.verbose,)(
             delayed(_prediction)(e, w, v, self._v, lock, i)
-            for i, (e, s) in enumerate(zip(self.estimators_, self.sub_sample_idx))
+            # for i, (e, s) in enumerate(zip(self.estimators_, self.sub_sample_idx))
+            for i, e in enumerate(self.estimators_)
         )
         for alpha_, s in zip(alpha_collection, self.sub_sample_idx):
+            if self.honest_sample is not None:
+                s = s[: self.honest_sample]
             alpha[:, s] += alpha_
         return alpha / self.n_estimators
 

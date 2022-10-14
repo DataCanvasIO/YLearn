@@ -101,7 +101,7 @@ class Why:
         If False, force the treatment variables as continuous;
         if None, inferred from the first treatment
     identifier : str, default='auto'
-        Available options: 'auto' or 'discovery'
+        Available options: 'auto' or 'discovery' or 'gcastle'
     discovery_model : IdentifierWithDiscovery object or callable or str, default=None
         Reserved
     discovery_options : dict, default=None

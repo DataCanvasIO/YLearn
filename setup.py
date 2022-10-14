@@ -90,13 +90,14 @@ def extract(tar_path, extract_path='.'):
             extract(item.name, "./" + item.name[:item.name.rfind('/')])
 
 
-def prepare_eigen3(tarball='eigen-3.4.0', target_path='./downloads'):
+def prepare_eigen3(ver='3.4.0', target_path='./downloads'):
     eigen3_path = os.environ.get('EIGEN3_PATH', None)
 
     if eigen3_path is None:
+        tarball = f'eigen-{ver}'
         eigen3_path = f'{target_path}/{tarball}'
         if (not os.path.exists(eigen3_path)) or len(dir(f'{eigen3_path}/*')) == 0:
-            url = f'https://gitlab.com/libeigen/eigen/-/archive/3.4.0/{tarball}.tar.gz'
+            url = f'https://gitlab.com/libeigen/eigen/-/archive/{ver}/{tarball}.tar.gz'
             tarball_file = f'{target_path}/{tarball}.tar.gz'
             os.makedirs(target_path, exist_ok=True)
 

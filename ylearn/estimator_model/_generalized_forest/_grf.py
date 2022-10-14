@@ -25,6 +25,7 @@ class GRForest(BaseCausalForest):
         is_discrete_outcome=False,
         verbose=0,
         warm_start=False,
+        honest_subsample_num=None,
     ):
         base_estimator = GrfTree()
 
@@ -41,6 +42,7 @@ class GRForest(BaseCausalForest):
                 "min_impurity_decrease",
                 "random_state",
                 "ccp_alpha",
+                "honest",
             ),
             n_jobs=n_jobs,
             # categories=categories,
@@ -58,6 +60,7 @@ class GRForest(BaseCausalForest):
             is_discrete_outcome=is_discrete_outcome,
             verbose=verbose,
             warm_start=warm_start,
+            honest_subsample_num=honest_subsample_num,
         )
 
     def fit(

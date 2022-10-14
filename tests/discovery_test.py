@@ -36,6 +36,31 @@ def test_dataframe():
 
 
 @if_torch_ready
+def test_dataframe_disable_scale():
+    X1 = gen()
+    X1 = pd.DataFrame(X1, columns=[f'x{i}' for i in range(X1.shape[1])])
+    cd = CausalDiscovery(hidden_layer_dim=[3], scale=False)
+    est = cd(X1, threshold=0.01)
+    print(est)
+    assert isinstance(est, pd.DataFrame)
+    assert est.columns.to_list() == X1.columns.to_list()
+    assert est.shape[0] == est.shape[1]
+
+
+@if_torch_ready
+def test_dataframe_with_maxabs_sacler():
+    from sklearn.preprocessing import MaxAbsScaler
+    X1 = gen()
+    X1 = pd.DataFrame(X1, columns=[f'x{i}' for i in range(X1.shape[1])])
+    cd = CausalDiscovery(hidden_layer_dim=[3], scale=MaxAbsScaler())
+    est = cd(X1, threshold=0.01)
+    print(est)
+    assert isinstance(est, pd.DataFrame)
+    assert est.columns.to_list() == X1.columns.to_list()
+    assert est.shape[0] == est.shape[1]
+
+
+@if_torch_ready
 def test_return_dict():
     X1 = gen()
     cd = CausalDiscovery(hidden_layer_dim=[3])
