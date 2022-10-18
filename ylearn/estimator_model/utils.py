@@ -59,9 +59,10 @@ def get_wv(*wv):
 
 
 def get_tr_ctrl(tr_crtl, trans, *, treat=False, one_hot=False, discrete_treat=True):
-    if tr_crtl is None or not discrete_treat:
-        tr_crtl = 1 if treat else 0
-    else:
+    if tr_crtl is None:
+        return 1 if treat else 0
+
+    if discrete_treat:
         if not isinstance(tr_crtl, np.ndarray):
             if not isinstance(tr_crtl, (list, tuple)):
                 tr_crtl = [tr_crtl]
@@ -71,7 +72,6 @@ def get_tr_ctrl(tr_crtl, trans, *, treat=False, one_hot=False, discrete_treat=Tr
 
         if not one_hot:
             tr_crtl = convert4onehot(tr_crtl).astype(int)[0]
-
     return tr_crtl
 
 

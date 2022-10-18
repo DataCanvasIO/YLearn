@@ -2,6 +2,7 @@ from copy import deepcopy
 from collections import defaultdict
 
 import numpy as np
+import pandas as pd
 
 from sklearn import clone
 from sklearn.preprocessing import OneHotEncoder, OrdinalEncoder
@@ -480,7 +481,13 @@ class DoubleML(BaseEstModel):
 
         dis_tr = self.is_discrete_treatment
 
-        if not isinstance(treat, np.ndarray) or dis_tr:
+        if isinstance(treat, pd.Series):
+            treat = treat.values
+
+        if isinstance(control, pd.Series):
+            control = control.values
+
+        if not isinstance(treat, np.ndarray):
             treat = get_tr_ctrl(
                 treat,
                 self.comp_transormer,
@@ -489,7 +496,7 @@ class DoubleML(BaseEstModel):
                 discrete_treat=dis_tr,
             )
 
-        if not isinstance(control, np.ndarray) or dis_tr:
+        if not isinstance(control, np.ndarray):
             control = get_tr_ctrl(
                 control,
                 self.comp_transormer,
@@ -497,6 +504,7 @@ class DoubleML(BaseEstModel):
                 one_hot=False,
                 discrete_treat=dis_tr,
             )
+
         self.treat = treat
 
         if self.is_discrete_treatment:

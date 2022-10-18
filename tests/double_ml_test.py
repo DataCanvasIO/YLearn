@@ -92,6 +92,7 @@ def test_dml_single_continuous_treatment():
     ested_te = dml.estimate(data_test).ravel()
     s = r2_score(true_te, ested_te)
     print(s)
+    assert_single_continuous_treatment_estimation(dml, data_test[:3])
 
 
 def test_dml_with_single_continuous_treatment_with_covariate_transformer():
@@ -159,3 +160,40 @@ def test_dml_single_binary_treatment():
         covariate=covariate1,
     )
     predicted = dml1.estimate(data_test1)
+    assert_single_binary_treatment_estimation(dml1, data_test1)
+
+
+def assert_single_continuous_treatment_estimation(dml_model, data_test):
+    # numpy type
+    ested_te_a:np.ndarray = dml_model.estimate(data_test, treat=np.ones((3))*2, control=np.ones((3)))
+    ested_te_b:np.ndarray = dml_model.estimate(data_test, treat=np.ones((3))*3, control=np.ones((3)))
+    ested_te_c:np.ndarray = dml_model.estimate(data_test, treat=np.ones((3))*2, control=np.ones((3)))
+    assert (ested_te_a == ested_te_c).all()
+    assert (ested_te_a != ested_te_b).any()
+
+    # float type
+    ested_te_e:np.ndarray = dml_model.estimate(data_test, treat=2.0, control=1.0)
+    ested_te_f:np.ndarray = dml_model.estimate(data_test, treat=3.0, control=1.0)
+    ested_te_g:np.ndarray = dml_model.estimate(data_test, treat=2.0, control=1.0)
+    assert (ested_te_e == ested_te_g).all()
+    assert (ested_te_e != ested_te_f).any()
+
+
+def assert_single_binary_treatment_estimation(dml_model, data_test):
+    #
+    # numpy type
+    # ested_te_a:np.ndarray = dml_model.estimate(data_test, treat=np.array([1,1]), control=np.array([0,0]))
+    # ested_te_b:np.ndarray = dml_model.estimate(data_test, treat=np.array([2,2]), control=np.array([0,0]))
+    # ested_te_c:np.ndarray = dml_model.estimate(data_test, treat=np.array([1,1]), control=np.array([0,0]))
+    #
+    # assert (ested_te_a == ested_te_c).all()
+    # assert (ested_te_a != ested_te_b).any()
+
+    # float type
+    ested_te_e:np.ndarray = dml_model.estimate(data_test, treat=1, control=0)
+    ested_te_f:np.ndarray = dml_model.estimate(data_test, treat=0, control=1)
+    ested_te_g:np.ndarray = dml_model.estimate(data_test, treat=1, control=0)
+
+    assert (ested_te_e == ested_te_g).all()
+    assert (ested_te_e != ested_te_f).any()
+
