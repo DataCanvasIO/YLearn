@@ -15,6 +15,14 @@ try:
 except ImportError:
     is_gcastle_ready = False
 
+try:
+    from ylearn.causal_discovery import PgmProxy
+
+    _g = PgmProxy()
+    is_pgm_ready = True
+except ImportError:
+    is_pgm_ready = False
+
 
 def _validate_it(why, test_data, check_score=True):
     print('-' * 30)
@@ -225,6 +233,15 @@ def test_discovery_taci_dfs():
 def test_discovery_taci_with_gcastle():
     data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x2b_y1()
     why = Why(identifier='gcastle', discovery_options=dict(method='dfs'))
+    why.fit(data, outcome[0])
+
+    _validate_it(why, test_data, check_score=False)
+
+
+@pytest.mark.skipif(not is_pgm_ready, reason='pgmpy is not ready')
+def test_discovery_taci_with_pgm():
+    data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x2b_y1()
+    why = Why(identifier='pgm', discovery_options=dict(method='dfs'))
     why.fit(data, outcome[0])
 
     _validate_it(why, test_data, check_score=False)

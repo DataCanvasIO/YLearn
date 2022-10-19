@@ -101,7 +101,7 @@ class Why:
         If False, force the treatment variables as continuous;
         if None, inferred from the first treatment
     identifier : str, default='auto'
-        Available options: 'auto' or 'discovery' or 'gcastle'
+        Available options: 'auto' or 'discovery' or 'gcastle' or 'pgm'
     discovery_model : IdentifierWithDiscovery object or callable or str, default=None
         Reserved
     discovery_options : dict, default=None
@@ -427,6 +427,10 @@ class Why:
             from ._identifier import IdentifierWithGCastle
             options = self.discovery_options if self.discovery_options is not None else {}
             return IdentifierWithGCastle(random_state=self.random_state, **options)
+        elif self.identifier == 'pgm':
+            from ._identifier import IdentifierWithPgm
+            options = self.discovery_options if self.discovery_options is not None else {}
+            return IdentifierWithPgm(random_state=self.random_state, **options)
         else:
             return DefaultIdentifier()
 

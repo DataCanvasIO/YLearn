@@ -246,8 +246,20 @@ class IdentifierWithGCastle(IdentifierWithDiscovery):
         if self.discovery_options is not None:
             options.update(self.discovery_options)
 
-        g = GCastleProxy(**options)
-        return g(X)
+        proxy = GCastleProxy(**options)
+        return proxy(X)
+
+
+class IdentifierWithPgm(IdentifierWithDiscovery):
+    def _discovery_causation(self, X):
+        from ylearn.causal_discovery import PgmProxy
+
+        options = dict(random_state=self.random_state)
+        if self.discovery_options is not None:
+            options.update(self.discovery_options)
+
+        proxy = PgmProxy(**options)
+        return proxy(X)
 
 
 class IdentifierWithLearner(IdentifierWithDiscovery):

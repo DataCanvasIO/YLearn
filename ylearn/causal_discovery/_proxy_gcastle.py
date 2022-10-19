@@ -3,9 +3,14 @@ A proxy to Huawei Noah's Ark Lab gCastle.
 see: https://github.com/huawei-noah/trustworthyAI/tree/master/gcastle
 """
 import copy
+import os
 
 import numpy as np
 import pandas as pd
+
+if os.getenv('CASTLE_BACKEND') is None:
+    os.environ['CASTLE_BACKEND'] = 'pytorch'
+
 from castle import algorithms as A
 from castle.common import BaseLearner
 
