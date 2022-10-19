@@ -125,7 +125,7 @@ Outputs:
 Class Structures
 ================
 
-.. class:: ylearn._why.Why(discrete_outcome=None, discrete_treatment=None, identifier='auto', discovery_model=None, discovery_options=None, estimator='auto', estimator_options=None, random_state=None)
+.. class:: ylearn._why.Why(discrete_outcome=None, discrete_treatment=None, identifier='auto', identifier_options=None, estimator='auto', estimator_options=None, random_state=None)
 
     An all-in-one API for causal learning.
 
@@ -135,9 +135,8 @@ Class Structures
     :param bool, default=None discrete_treatment: If True, force the treatment variables as discrete;
         If False, force the treatment variables as continuous;
         if None, inferred from the first treatment
-    :param str, default=auto' identifier: Available options: 'auto' or 'discovery'
-    :param str, optional, default=None discovery_model: Reserved
-    :param dict, optional, default=None discovery_options: Parameters (key-values) to initialize the discovery model
+    :param str or Identifier, default=auto' identifier: If str, available options: 'auto' or 'discovery' or 'gcastle' or 'pgm'
+    :param dict, optional, default=None identifier_options: Parameters (key-values) to initialize the identifier
     :param str, optional, default='auto' estimator: Name of a valid EstimatorModel. One can also pass an instance of a valid estimator model.
     :param dict, optional, default=None estimator_options: Parameters (key-values) to initialize the estimator model
     :param callable, optional, default=None fn_cost: Cost function,  used to readjust the causal effect based on cost.
@@ -219,7 +218,7 @@ Class Structures
         :param list of str, optional, default=None adjustment: Names of the adjustment. Identified by identifier if adjustment/covariate/instrument are all None.
         :param list of str, optional, default=None covariate: Names of the covariate. Identified by identifier if adjustment/covariate/instrument are all None.
         :param list of str, optional, default=None instrument: Names of the instrument. Identified by identifier if adjustment/covariate/instrument are all None.
-        :param int, optional treatment_count_limit: maximum treatment number, default `min(5, 10% of total feature number)`.
+        :param int, optional treatment_count_limit: maximum treatment number, default `min(5, 10%  of the number of features)`.
 
         :returns: tuple of identified treatment, adjustment, covariate, instrument
         :rtypes: tuple

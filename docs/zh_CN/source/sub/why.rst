@@ -127,9 +127,8 @@ Why: 一个一体化的因果学习API
 
     :param bool, default=None discrete_outcome: 如果是True则强制将结果看作是离散变量，如果是False则强制将结果看作是连续变量， 如果是None则在fit时自动推断。
     :param bool, default=None discrete_treatment: 如果是True则强制将treatment看作是离散变量，如果是False则强制将treatment看作是连续变量， 如果是None则在fit时自动推断。
-    :param str, default=auto' identifier: 可用的选项： 'auto' 或 'discovery'
-    :param str, optional, default=None discovery_model: （暂不使用）
-    :param dict, optional, default=None discovery_options: 参数（键值对）来初始化发现模型
+    :param str or Identifier, default=auto' identifier: 可用的选项： 'auto' 或 'discovery' 或 'gcastle' 或 'pgm'
+    :param dict, optional, default=None identifier_options: 参数（键值对）来初始化 identifier
     :param str, optional, default='auto' estimator: EstimatorModel的名字。 也可以传入一个合理的估计器模型的实例。
     :param dict, optional, default=None estimator_options: 参数（键值对）来初始化估计器模型
     :param callable, optional, default=None fn_cost: 成本函数，基于成本对因果效应进行调整。

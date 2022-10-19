@@ -100,12 +100,10 @@ class Why:
         If True, force the treatment variables as discrete;
         If False, force the treatment variables as continuous;
         if None, inferred from the first treatment
-    identifier : str, default='auto'
-        Available options: 'auto' or 'discovery' or 'gcastle' or 'pgm'
-    discovery_model : IdentifierWithDiscovery object or callable or str, default=None
-        Reserved
-    discovery_options : dict, default=None
-        Parameters (key-values) to initialize the discovery model
+    identifier : str or Identifier, default='auto'
+        if str, available options: 'auto' or 'discovery' or 'gcastle' or 'pgm'
+    identifier_options : dict, default=None
+        Parameters (key-values) to initialize the identifier
     estimator : str, default='auto'
         Name of a valid EstimatorModel. One can also pass an instance of a valid estimator model
     estimator_options : dict, default=None
@@ -143,13 +141,18 @@ class Why:
                  discrete_outcome=None,
                  discrete_treatment=None,
                  identifier='auto',
-                 discovery_model=None,
-                 discovery_options=None,
+                 identifier_options=None,
                  estimator='auto',
                  estimator_options=None,
                  fn_cost=None,
                  effect_name='effect',
                  random_state=None):
+        assert isinstance(identifier, (str, Identifier)) or callable(identifier)
+        if isinstance(identifier, str):
+            valid_identifiers = {'auto', 'discovery', 'notears', 'gcastle', 'pgm'}
+            assert identifier in valid_identifiers, \
+                f'identifier should be one of {valid_identifiers} or instance of Identifier or callable'
+
         assert isinstance(estimator, (str, BaseEstModel))
         if isinstance(estimator, str):
             assert estimator == 'auto' or estimator in ESTIMATOR_FACTORIES.keys(), \
@@ -158,8 +161,7 @@ class Why:
         self.discrete_outcome = discrete_outcome
         self.discrete_treatment = discrete_treatment
         self.identifier = identifier
-        self.discovery_model = discovery_model
-        self.discovery_options = discovery_options
+        self.identifier_options = identifier_options
         self.estimator = estimator
         self.estimator_options = estimator_options
         self.fn_cost = fn_cost
@@ -364,7 +366,7 @@ class Why:
             Names of the instrument variables. Identified by identifier if adjustment/covariate/instrument are all None.
             If str, will be split into list with comma
         treatment_count_limit : int, default None
-            Maximum treatment number, default `min(5, 10% of total feature number)`.
+            Maximum treatment number, default `min(5, 10% of the number of features)`.
         Returns
         -------
         tuple of identified treatment, adjustment, covariate, instrument
@@ -415,21 +417,21 @@ class Why:
         return treatment, adjustment, covariate, instrument
 
     def _create_identifier(self):
-        if isinstance(self.discovery_model, Identifier):
-            return self.discovery_model
-        elif self.identifier == 'discovery':
-            options = self.discovery_options if self.discovery_options is not None else {}
-            if callable(self.discovery_model):
-                return IdentifierWithLearner(self.discovery_model, random_state=self.random_state, **options)
-            else:
-                return IdentifierWithNotears(random_state=self.random_state, **options)
+        if isinstance(self.identifier, Identifier):
+            return self.identifier
+        elif callable(self.identifier):
+            options = self.identifier_options if self.identifier_options is not None else {}
+            return IdentifierWithLearner(self.identifier, random_state=self.random_state, **options)
+        elif self.identifier in {'discovery', 'notears'}:
+            options = self.identifier_options if self.identifier_options is not None else {}
+            return IdentifierWithNotears(random_state=self.random_state, **options)
         elif self.identifier == 'gcastle':
             from ._identifier import IdentifierWithGCastle
-            options = self.discovery_options if self.discovery_options is not None else {}
+            options = self.identifier_options if self.identifier_options is not None else {}
             return IdentifierWithGCastle(random_state=self.random_state, **options)
         elif self.identifier == 'pgm':
             from ._identifier import IdentifierWithPgm
-            options = self.discovery_options if self.discovery_options is not None else {}
+            options = self.identifier_options if self.identifier_options is not None else {}
             return IdentifierWithPgm(random_state=self.random_state, **options)
         else:
             return DefaultIdentifier()

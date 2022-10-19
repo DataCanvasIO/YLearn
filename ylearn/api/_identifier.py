@@ -113,7 +113,7 @@ class IdentifierWithDiscovery(DefaultIdentifier):
 
         m = BaseDiscovery.matrix2dict(causation, threshold=threshold)
 
-        if self.method == 'dfs':
+        if self.method is None or self.method == 'dfs':
             covariate, instrument = self._identify_ci_dfs(
                 causation, data, outcome, treatment, threshold=threshold)
         elif self.method == 'straight':

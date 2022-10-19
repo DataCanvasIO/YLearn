@@ -211,9 +211,9 @@ def test_discovery_treatment():
 
 # @pytest.mark.xfail(reason='to be fixed')
 @if_torch_ready
-def test_discovery_taci():
+def test_discovery_taci_backdoor():
     data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x2b_y1()
-    why = Why(identifier='discovery')
+    why = Why(identifier='discovery', identifier_options=dict(method=('backdoor', 'simple')))
     # w.fit(data, outcome[0], treatment=treatment, adjustment=adjustment, covariate=covariate)
     why.fit(data, outcome[0])
 
@@ -223,7 +223,8 @@ def test_discovery_taci():
 @if_torch_ready
 def test_discovery_taci_dfs():
     data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x2b_y1()
-    why = Why(identifier='discovery', discovery_options=dict(method='dfs'))
+    # why = Why(identifier='discovery', identifier_options=dict(method='dfs'))
+    why = Why(identifier='discovery')
     why.fit(data, outcome[0])
 
     _validate_it(why, test_data, check_score=False)
@@ -232,7 +233,7 @@ def test_discovery_taci_dfs():
 @pytest.mark.skipif(not is_gcastle_ready, reason='gcastle is not ready')
 def test_discovery_taci_with_gcastle():
     data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x2b_y1()
-    why = Why(identifier='gcastle', discovery_options=dict(method='dfs'))
+    why = Why(identifier='gcastle')
     why.fit(data, outcome[0])
 
     _validate_it(why, test_data, check_score=False)
@@ -241,7 +242,7 @@ def test_discovery_taci_with_gcastle():
 @pytest.mark.skipif(not is_pgm_ready, reason='pgmpy is not ready')
 def test_discovery_taci_with_pgm():
     data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x2b_y1()
-    why = Why(identifier='pgm', discovery_options=dict(method='dfs'))
+    why = Why(identifier='pgm', )
     why.fit(data, outcome[0])
 
     _validate_it(why, test_data, check_score=False)
