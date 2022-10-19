@@ -104,13 +104,15 @@ class IdentifierWithDiscovery(DefaultIdentifier):
         if self.causation_matrix_ is None:
             self.causation_matrix_ = self._discovery(data, outcome)
         causation = self.causation_matrix_
-        # threshold = causation.values.diagonal().max()
-        threshold = min(np.quantile(causation.values.diagonal(), 0.8),
-                        np.mean(causation.values))
+        threshold = self.discovery_options.get('threshold', None)
+        if threshold is None:
+            threshold = min(np.quantile(causation.values.diagonal(), 0.8),
+                            np.mean(causation.values))
 
         if np.isnan(threshold):
             return super().identify_aci(data, outcome, treatment)
 
+        # logger.info(f'matrix2dict with threshold={threshold}')
         m = BaseDiscovery.matrix2dict(causation, threshold=threshold)
 
         if self.method is None or self.method == 'dfs':
@@ -234,8 +236,12 @@ class IdentifierWithNotears(IdentifierWithDiscovery):
         if self.discovery_options is not None:
             options.update(self.discovery_options)
 
-        cd = CausalDiscovery(**options)
-        return cd(X)
+        init_kwargs = {}
+        for k in inspect.signature(CausalDiscovery.__init__).parameters.keys():
+            if k in options.keys():
+                init_kwargs[k] = options.pop(k)
+        cd = CausalDiscovery(**init_kwargs)
+        return cd(X, **options)
 
 
 class IdentifierWithGCastle(IdentifierWithDiscovery):

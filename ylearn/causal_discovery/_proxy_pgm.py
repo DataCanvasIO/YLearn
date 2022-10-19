@@ -15,7 +15,9 @@ from ._base import BaseDiscovery
 logger = logging.get_logger(__name__)
 
 _default_options = dict(
-    PC=dict(variant="stable", show_progress=False),
+    PC=dict(variant="stable",
+            ci_test="pearsonr",  # default continuous datasets.
+            show_progress=False),
 )
 
 
@@ -54,6 +56,8 @@ class PgmProxy(BaseDiscovery):
         learner = self._create_learner(df, options)
 
         logger.info(f'discovery causation with {type(learner).__name__}')
+        if isinstance(learner, A.PC):
+            options['return_type'] = 'dag'
         dag = learner.estimate(**options)
 
         columns = df.columns.tolist()
