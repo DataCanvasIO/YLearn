@@ -8,10 +8,12 @@ import pandas as pd
 import torch
 import torch.nn as nn
 
-from ylearn.utils import drop_none, set_random_state
+from ylearn.utils import drop_none, set_random_state, logging
 from ._base import BaseDiscovery
 
 _is_cuda_available = torch.cuda.is_available()
+
+logger = logging.get_logger(__name__)
 
 
 class L(nn.Module):
@@ -101,13 +103,14 @@ class CausalDiscovery(BaseDiscovery):
     def __init__(self, hidden_layer_dim=None,
                  lambdaa: float = 0.01, h_tol: float = 1e-6, rho_max: float = 1e6,
                  scale='auto',
-                 device=None, random_state=None):
+                 device=None, dtype=None, random_state=None):
         self.hidden_layer_dim = hidden_layer_dim
         self.lambdaa = lambdaa
         self.h_tol = h_tol
         self.rho_max = rho_max
         self.scale = scale
         self.device = device
+        self.dtype = dtype
         self.random_state = random_state
 
     @staticmethod
@@ -157,7 +160,7 @@ class CausalDiscovery(BaseDiscovery):
         else:
             raise ValueError(f'Failed to create scaler {self.scale}')
 
-    def __call__(self, data, *, return_dict=False, threshold=None,
+    def __call__(self, data, *, return_dict=False, threshold=0.01,
                  # optimizer='lbfgs',
                  epoch=100, lr=0.01, max_iter=1500,
                  **kwargs):
@@ -178,12 +181,17 @@ class CausalDiscovery(BaseDiscovery):
         device = self.device
         if device is None or device == 'auto':
             device = 'cuda' if _is_cuda_available else 'cpu'
-        dtype = torch.float32 if str(device) == 'cuda' else torch.float64
-        data_t = torch.tensor(data, dtype=dtype, device=self.device)
 
-        d = data.shape[1]
+        dtype = self.dtype
+        if dtype is None:
+            dtype = torch.float32 if str(device) == 'cuda' else torch.float64
         hidden = self.hidden_layer_dim if self.hidden_layer_dim is not None else []
-        model = DagNet(dims=[d] + hidden + [1], dtype=dtype, device=self.device)
+        dims = [data.shape[1]] + hidden + [1]
+
+        logger.info(f'learning data{data.shape} with device={device}, dtype={dtype}, dims={dims}')
+
+        model = DagNet(dims=dims, dtype=dtype, device=device)
+        data_t = torch.tensor(data, dtype=dtype, device=device)
         rho, alpha, h = 1.0, 0.0, np.inf
         for _ in range(epoch):
             optimizer = torch.optim.LBFGS(
@@ -195,12 +203,10 @@ class CausalDiscovery(BaseDiscovery):
             if h <= self.h_tol or rho >= self.rho_max or np.isnan(W_est).any():
                 break
 
-        matrix = model.get_W()
+        matrix = model.get_W().T
 
-        if threshold is None:
-            threshold = min(np.quantile(matrix.diagonal(), 0.8),
-                            np.mean(matrix))
-        if not np.isnan(threshold):
+        logger.info(f'trim causal matrix to DAG, threshold={threshold}.')
+        if threshold is not None:
             matrix[np.abs(matrix) < threshold] = 0
         matrix = self._to_dag(matrix)
 

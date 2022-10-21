@@ -123,10 +123,10 @@ class IdentifierWithDiscovery(DefaultIdentifier):
             covariate = [c for c in data.columns.tolist()
                          if c != outcome and c not in treatment and (is_empty(instrument) or c not in instrument)]
 
-        if logger.is_info_enabled():
-            if non_empty(instrument):
-                logger.info(f'found instrument: {instrument}')
-            logger.info(f'found covariate: {covariate}')
+        # if logger.is_info_enabled():
+        #     if non_empty(instrument):
+        #         logger.info(f'found instrument: {instrument}')
+        #     logger.info(f'found covariate: {covariate}')
 
         if is_empty(instrument):
             instrument = None
@@ -222,6 +222,15 @@ class IdentifierWithDiscovery(DefaultIdentifier):
 
         return covariate, instrument
 
+    def plot(self, **kwargs):
+        import networkx as nx
+
+        ng = nx.from_pandas_adjacency(self.causal_matrix_, create_using=nx.DiGraph)
+        ng.remove_nodes_from(list(nx.isolates(ng)))
+        options = dict(with_labels=True, **kwargs)
+        nx.draw(ng, **options)
+        return ng
+
 
 class IdentifierWithNotears(IdentifierWithDiscovery):
     def _discovery_causation(self, X):
@@ -230,6 +239,8 @@ class IdentifierWithNotears(IdentifierWithDiscovery):
         options = dict(random_state=self.random_state)
         if self.discovery_options is not None:
             options.update(self.discovery_options)
+        if 'hidden_layer_dim' not in options.keys():
+            options['hidden_layer_dim'] = [X.shape[1] // 2, ]
 
         init_kwargs = {}
         for k in inspect.signature(CausalDiscovery.__init__).parameters.keys():

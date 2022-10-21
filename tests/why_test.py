@@ -202,7 +202,10 @@ def test_policy_interpreter_discrete_x2_yb_dml():
 @if_torch_ready
 def test_discovery_treatment():
     data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x2b_y1()
-    why = Why(identifier='discovery')
+    why = Why(identifier='discovery',
+              identifier_options=dict(hidden_layer_dim=None,  # disable hidden layer to speedup test
+                                      device='cpu')
+              )
     # w.fit(data, outcome[0], treatment=treatment, adjustment=adjustment, covariate=covariate)
     why.fit(data, outcome[0], treatment=None, adjustment=adjustment, covariate=covariate)
 
@@ -213,7 +216,11 @@ def test_discovery_treatment():
 @if_torch_ready
 def test_discovery_taci_backdoor():
     data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x2b_y1()
-    why = Why(identifier='discovery', identifier_options=dict(method=('backdoor', 'simple')))
+    why = Why(identifier='discovery',
+              identifier_options=dict(hidden_layer_dim=None,  # disable hidden layer to speedup test
+                                      method=('backdoor', 'simple'),
+                                      device='cpu')
+              )
     # w.fit(data, outcome[0], treatment=treatment, adjustment=adjustment, covariate=covariate)
     why.fit(data, outcome[0])
 
@@ -224,7 +231,10 @@ def test_discovery_taci_backdoor():
 def test_discovery_taci_dfs():
     data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x2b_y1()
     # why = Why(identifier='discovery', identifier_options=dict(method='dfs'))
-    why = Why(identifier='discovery')
+    why = Why(identifier='discovery',
+              identifier_options=dict(hidden_layer_dim=None,  # disable hidden layer to speedup test
+                                      device='cpu')
+              )
     why.fit(data, outcome[0])
 
     _validate_it(why, test_data, check_score=False)
