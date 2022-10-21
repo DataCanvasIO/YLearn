@@ -1,5 +1,6 @@
 from collections import OrderedDict
 
+import networkx as nx
 import numpy as np
 import pandas as pd
 
@@ -10,54 +11,57 @@ class BaseDiscovery:
     def __call__(self, data, *, return_dict=False, threshold=None, **kwargs):
         raise NotImplementedError()
 
-    # @staticmethod
-    # def _matrix2dict_(matrix, names=None, threshold=0.1):
-    #     assert isinstance(matrix, np.ndarray)
-    #     assert matrix.ndim == 2 and matrix.shape[0] == matrix.shape[1]
-    #     assert feature_names is None or len(feature_names) == matrix.shape[0]
-    #
-    #     if names is None:
-    #         names = [f'X{i}' for i in range(matrix.shape[0])]
-    #
-    #     df = pd.DataFrame(matrix, columns=names, index=names)
-    #     df = df.T.abs()
-    #
-    #     m = OrderedDict()
-    #     for f in names:
-    #         m[f] = df[df[f] > threshold].index.tolist()
-    #
-    #     return m
+    @staticmethod
+    def trim_cycle(matrix):
+        assert isinstance(matrix, np.ndarray)
+        assert matrix.ndim == 2 and matrix.shape[0] == matrix.shape[1]
+
+        g = nx.from_numpy_matrix(matrix, create_using=nx.DiGraph)  # .reverse()
+
+        def trim_with_weight():
+            edge_weights = nx.get_edge_attributes(g, 'weight')
+            edges = sorted(edge_weights.keys(), key=lambda e: edge_weights[e], reverse=True)
+            for X, Y in edges:
+                if nx.has_path(g, Y, X):
+                    paths = list(nx.all_shortest_paths(g, Y, X, weight='weight'))
+                    for p in paths:
+                        es = sorted(zip(p[:-1], p[1:]), key=lambda e: edge_weights[e])
+                        u, v = es[0]
+                        if g.has_edge(u, v):
+                            g.remove_edge(u, v)
+                    return True
+            return False
+
+        while trim_with_weight():
+            pass
+
+        assert nx.is_directed_acyclic_graph(g)
+        return nx.to_numpy_array(g)
 
     @staticmethod
-    def matrix2dict(matrix, threshold=0.1, names=None, ):
+    def matrix2dict(matrix, names=None, depth=None):
         assert isinstance(matrix, (np.ndarray, pd.DataFrame))
         assert matrix.ndim == 2 and matrix.shape[0] == matrix.shape[1]
         assert names is None or len(names) == matrix.shape[0]
 
         matrix = matrix.copy()
+        n = matrix.shape[0]
 
-        if names is None and isinstance(matrix, pd.DataFrame):
-            names = matrix.columns.tolist()
+        if names is None:
+            if isinstance(matrix, pd.DataFrame):
+                names = matrix.columns.tolist()
+            else:
+                names = range(n)
+
         if isinstance(matrix, pd.DataFrame):
             matrix = matrix.values
 
-        for i in range(matrix.shape[0]):
-            for c in range(i + 1, matrix.shape[0]):
-                if abs(matrix[i, c]) < abs(matrix[c, i]):
-                    matrix[i, c] = 0.
-                else:
-                    matrix[c, i] = 0.
-            matrix[i, i] = 0.
+        g = nx.from_numpy_matrix(matrix, create_using=nx.DiGraph).reverse()
 
         d = OrderedDict()
-        idx = np.arange(matrix.shape[0])
-        for i in range(matrix.shape[0]):
-            row = matrix[i]
-            to = np.where(np.where(np.abs(row) > threshold, idx, -1) >= 0)[0]
-            if names is None:
-                d[i] = to.tolist()
-            else:
-                d[names[i]] = [names[t] for t in to]
+        for i, name in enumerate(names):
+            t = set(c[1] for c in nx.dfs_edges(g, i, depth_limit=depth))
+            d[name] = [names[j] for j in range(n) if j in t]
 
         return d
 

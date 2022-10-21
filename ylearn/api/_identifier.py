@@ -55,7 +55,7 @@ class IdentifierWithDiscovery(DefaultIdentifier):
         self.method = method
         self.random_state = random_state
         self.discovery_options = kwargs.copy()
-        self.causation_matrix_ = None
+        self.causal_matrix_ = None
 
     def _discovery(self, data, outcome):
         logger.info('discovery causation')
@@ -96,34 +96,27 @@ class IdentifierWithDiscovery(DefaultIdentifier):
             logger.info(f'Not found treatment with causal discovery, so identify treatment by default')
             treatment = super().identify_treatment(data, outcome, discrete_treatment, count_limit, excludes=excludes)
 
-        self.causation_matrix_ = causation
+        self.causal_matrix_ = causation
 
         return treatment
 
     def identify_aci(self, data, outcome, treatment):
-        if self.causation_matrix_ is None:
-            self.causation_matrix_ = self._discovery(data, outcome)
-        causation = self.causation_matrix_
-        threshold = self.discovery_options.get('threshold', None)
-        if threshold is None:
-            threshold = min(np.quantile(causation.values.diagonal(), 0.8),
-                            np.mean(causation.values))
-
-        if np.isnan(threshold):
+        if self.causal_matrix_ is None:
+            self.causal_matrix_ = self._discovery(data, outcome)
+        causation = self.causal_matrix_
+        if np.isnan(causation.values).any():
+            logger.info(f'found nan in causation_matrix_, so identify_aci as default')
             return super().identify_aci(data, outcome, treatment)
-
-        # logger.info(f'matrix2dict with threshold={threshold}')
-        m = BaseDiscovery.matrix2dict(causation, threshold=threshold)
 
         if self.method is None or self.method == 'dfs':
             covariate, instrument = self._identify_ci_dfs(
-                causation, data, outcome, treatment, threshold=threshold)
+                causation, data, outcome, treatment)
         elif self.method == 'straight':
             covariate, instrument = self._identify_ci_straight_forward(
-                m, data, outcome, treatment)
+                causation, data, outcome, treatment)
         else:
             covariate, instrument = self._identify_ci_with_causal_model(
-                m, data, outcome, treatment, method=self.method)
+                causation, data, outcome, treatment, method=self.method)
 
         if is_empty(covariate):
             logger.info('Not found covariate by discovery, so setup it as default')
@@ -141,10 +134,11 @@ class IdentifierWithDiscovery(DefaultIdentifier):
         return None, covariate, instrument
 
     @staticmethod
-    def _identify_ci_with_causal_model(causal_dict, data, outcome, treatment, method=None):
+    def _identify_ci_with_causal_model(causal_matrix, data, outcome, treatment, method=None):
         if method is None:
             method = ('backdoor', 'simple')
 
+        causal_dict = BaseDiscovery.matrix2dict(causal_matrix)
         cg = CausalGraph(causal_dict)
         cm = CausalModel(cg)
         try:
@@ -174,8 +168,9 @@ class IdentifierWithDiscovery(DefaultIdentifier):
         return covariate, instrument
 
     @staticmethod
-    def _identify_ci_straight_forward(causal_dict, data, outcome, treatment):
+    def _identify_ci_straight_forward(causal_matrix, data, outcome, treatment):
         # expand causal dict
+        causal_dict = BaseDiscovery.matrix2dict(causal_matrix)
         m0 = deepcopy(causal_dict)
         for _ in range(data.shape[1] + 1):
             flag = 0
@@ -201,7 +196,7 @@ class IdentifierWithDiscovery(DefaultIdentifier):
         return covariate, instrument
 
     @staticmethod
-    def _identify_ci_dfs(causal_matrix, data, outcome, treatment, depth=None, threshold=0.0):
+    def _identify_ci_dfs(causal_matrix, data, outcome, treatment, depth=None):
         import networkx as nx
 
         assert isinstance(causal_matrix, pd.DataFrame)
@@ -209,7 +204,7 @@ class IdentifierWithDiscovery(DefaultIdentifier):
 
         n = len(causal_matrix)
         names = causal_matrix.columns.tolist()
-        matrix_values = np.where(causal_matrix.values > threshold, 1, 0)
+        matrix_values = np.where(causal_matrix.values > 0, 1, 0)
         g = nx.from_numpy_matrix(matrix_values, create_using=nx.DiGraph).reverse()
 
         yi = names.index(outcome)

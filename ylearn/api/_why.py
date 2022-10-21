@@ -533,7 +533,7 @@ class Why:
         -------
         CausalGraph object
         """
-        causation = self.identifier_.causation_matrix_ \
+        causation = self.identifier_.causal_matrix_ \
             if isinstance(self.identifier_, IdentifierWithDiscovery) else None
 
         if causation is not None:

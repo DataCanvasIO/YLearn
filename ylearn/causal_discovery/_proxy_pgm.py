@@ -51,7 +51,7 @@ class PgmProxy(BaseDiscovery):
         else:
             df = pd.DataFrame(data)
 
-        options = _default_options.get(self.learner, {})
+        options = _default_options.get(self.learner, {}).copy()
         options.update(**self.options)
         learner = self._create_learner(df, options)
 

@@ -194,14 +194,33 @@ class CausalDiscovery(BaseDiscovery):
             W_est = model.get_W()
             if h <= self.h_tol or rho >= self.rho_max or np.isnan(W_est).any():
                 break
-        est = model.get_W()
+
+        matrix = model.get_W()
+
+        if threshold is None:
+            threshold = min(np.quantile(matrix.diagonal(), 0.8),
+                            np.mean(matrix))
+        if not np.isnan(threshold):
+            matrix[np.abs(matrix) < threshold] = 0
+        matrix = self._to_dag(matrix)
 
         if columns is not None:
-            est = pd.DataFrame(est, columns=columns, index=columns)
+            matrix = pd.DataFrame(matrix, columns=columns, index=columns)
 
         if return_dict:
-            est = self.matrix2dict(est, **drop_none(threshold=threshold))
-        elif threshold is not None:
-            est[np.abs(est) < threshold] = 0
+            matrix = self.matrix2dict(matrix)
 
-        return est
+        return matrix
+
+    @staticmethod
+    def _to_dag(matrix):
+        for i in range(matrix.shape[0]):
+            for c in range(i + 1, matrix.shape[0]):
+                if abs(matrix[i, c]) < abs(matrix[c, i]):
+                    matrix[i, c] = 0.
+                else:
+                    matrix[c, i] = 0.
+            matrix[i, i] = 0.
+
+        matrix = BaseDiscovery.trim_cycle(matrix)
+        return matrix
