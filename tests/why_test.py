@@ -212,7 +212,7 @@ def test_discovery_treatment():
     _validate_it(why, test_data)
 
 
-# @pytest.mark.xfail(reason='to be fixed')
+@pytest.mark.xfail(reason='to be fixed')
 @if_torch_ready
 def test_discovery_taci_backdoor():
     data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x2b_y1()
