@@ -203,7 +203,7 @@ class CausalDiscovery(BaseDiscovery):
             if h <= self.h_tol or rho >= self.rho_max or np.isnan(W_est).any():
                 break
 
-        matrix = model.get_W().T
+        matrix = model.get_W()
 
         logger.info(f'trim causal matrix to DAG, threshold={threshold}.')
         if threshold is not None:
