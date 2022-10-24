@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
+from tqdm.auto import tqdm
 
 from ylearn.utils import drop_none, set_random_state, logging
 from ._base import BaseDiscovery
@@ -98,6 +99,15 @@ class DagNet(nn.Module):
         W = W.cpu().detach().numpy()
         return W
 
+    @torch.no_grad()
+    def is_weight_nan(self):
+        # d = self.dims[0]
+        # a1_weight = self.a1.weight.view(d, -1, d)
+        # A = torch.sum(a1_weight ** 2, dim=1).t()
+        # W = torch.sqrt(A)
+        # W = W.cpu().detach().numpy()
+        return torch.isnan(self.a1.weight).any().cpu().detach().numpy()
+
 
 class CausalDiscovery(BaseDiscovery):
     def __init__(self, hidden_layer_dim=None,
@@ -162,7 +172,7 @@ class CausalDiscovery(BaseDiscovery):
 
     def __call__(self, data, *, return_dict=False, threshold=0.01,
                  # optimizer='lbfgs',
-                 epoch=100, lr=0.01, max_iter=1500,
+                 epoch=100, lr=0.01, max_iter=1500, verbose=False,
                  **kwargs):
         assert isinstance(data, (np.ndarray, pd.DataFrame))
 
@@ -184,7 +194,8 @@ class CausalDiscovery(BaseDiscovery):
 
         dtype = self.dtype
         if dtype is None:
-            dtype = torch.float32 if str(device) == 'cuda' else torch.float64
+            # dtype = torch.float32 if str(device) == 'cuda' else torch.float64
+            dtype = torch.float64
         hidden = self.hidden_layer_dim if self.hidden_layer_dim is not None else []
         dims = [data.shape[1]] + hidden + [1]
 
@@ -192,15 +203,22 @@ class CausalDiscovery(BaseDiscovery):
 
         model = DagNet(dims=dims, dtype=dtype, device=device)
         data_t = torch.tensor(data, dtype=dtype, device=device)
+
+        pbar = tqdm(total=epoch, leave=False, desc='learning..') if verbose else None
         rho, alpha, h = 1.0, 0.0, np.inf
-        for _ in range(epoch):
+        for i in range(epoch):
             optimizer = torch.optim.LBFGS(
                 model.parameters(),
                 **drop_none(lr=lr, max_iter=max_iter)
             )
             rho, alpha, h = self._rho_h_update(model, optimizer, data_t, rho, alpha, h)
-            W_est = model.get_W()
-            if h <= self.h_tol or rho >= self.rho_max or np.isnan(W_est).any():
+            if pbar is not None:
+                pbar.update(i)
+                pbar.desc = f'rho={rho}, alpha={alpha}, h={h}'
+            # W_est = model.get_W()
+            # if h <= self.h_tol or rho >= self.rho_max or np.isnan(W_est).any():
+            #     break
+            if h <= self.h_tol or rho >= self.rho_max or model.is_weight_nan():
                 break
 
         matrix = model.get_W()
