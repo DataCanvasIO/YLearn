@@ -261,6 +261,8 @@ class GrfTree(BaseEstModel):
     def _fit_with_array(self, x, y, w, v, sample_weight=None):
         # TODO: clarify the role of w and v, currently we treat all w as v
         """
+        Note that for this function, w is useless.
+
         Parameters
         ----------
         x : :py:class:`ndarray` of shape `(n, p)`
@@ -276,7 +278,6 @@ class GrfTree(BaseEstModel):
 
         random_state = check_random_state(self.random_state)
 
-        # TODO: care about the difference between covariates and adjustment sets
         # wv = get_wv(w, v)
         wv = v
         n_samples, self.n_features_in_ = wv.shape
@@ -334,7 +335,7 @@ class GrfTree(BaseEstModel):
 
         if len(y) != n_samples or len(x) != n_samples:
             raise ValueError(
-                f"Number of labels={len(y)} or treatments={len(x)} does not match number of samples={n_samples}"
+                f"The number of labels={len(y)} or treatments={len(x)} does not match number of samples={n_samples}"
             )
 
         if sample_weight is not None:
@@ -420,7 +421,7 @@ class GrfTree(BaseEstModel):
             wv = wv.reshape(-1, 1)
 
         self._check_dim(wv=wv)
-        return self.tree_.applyw(wv)
+        return self.tree_.apply(wv)
 
     def get_depth(self):
         assert self._is_fitted, "The model is not fitted yet"

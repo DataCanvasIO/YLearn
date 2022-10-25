@@ -8,6 +8,7 @@ from copy import deepcopy
 from sklearn.utils import check_random_state
 
 from . import CausalTree, DoubleML, BaseEstModel
+from .utils import get_tr_ctrl
 from ._generalized_forest._grf import GRForest
 
 
@@ -89,7 +90,26 @@ class CausalForest(DoubleML):
         yx_model._fit_with_array(y_prime, x_prime, v, v, sample_weight=sample_weight)
 
     def _cal_x_prime(self, x, x_hat, v):
-        return x - x_hat
+        x_prime = x - x_hat
+        if self.is_discrete_treatment:
+            if hasattr(self, "control") and self.control is not None:
+                ctrl = self.control
+                if not isinstance(ctrl, np.ndarray):
+                    self._is_fitted = True  # TODO: this line is for temp useage
+                    ctrl = get_tr_ctrl(
+                        ctrl,
+                        self.comp_transormer,
+                        treat=False,
+                        one_hot=False,
+                        discrete_treat=True,
+                    )
+                    self._is_fitted = False
+            else:
+                ctrl = 0
+
+            x_prime = np.delete(x_prime, ctrl, axis=1)
+
+        return x_prime
 
     def estimate(
         self, data=None, treat=None, control=None, quantity=None, target_outcome=None

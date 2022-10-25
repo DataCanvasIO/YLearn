@@ -97,7 +97,6 @@ class BaseForest:
 def _generate_sub_samples(random_state, all_idx, sub_samples):
     rd = check_random_state(random_state)
     z = rd.choice(all_idx, size=sub_samples, replace=False)
-    # print(z)
     return z
 
 
@@ -156,8 +155,6 @@ class BaseCausalForest(BaseEstModel, BaseForest):
         max_features=1.0,
         max_leaf_nodes=None,
         min_impurity_decrease=0.0,
-        # bootstrap=True,
-        # oob_score=False,
         n_jobs=None,
         random_state=None,
         verbose=0,
@@ -213,8 +210,6 @@ class BaseCausalForest(BaseEstModel, BaseForest):
 
         self.honest_sample = None
 
-    # TODO: the current implementation is a simple version
-    # TODO: add shuffle sample
     def fit(
         self,
         data,
@@ -240,24 +235,44 @@ class BaseCausalForest(BaseEstModel, BaseForest):
     def effect_nji(self, *args, **kwargs):
         return super().effect_nji(*args, **kwargs)
 
-    def apply(self):
-        pass
+    def apply(self, v):
+        """
+        Apply trees in the forest to X, return leaf indices.
+        Parameters
+        ----------
+        X : array-like of shape (n_samples, n_features)
+            The input samples. Internally, its dtype will be converted to
+            ``dtype=np.float32``.
 
-    def decision_path(
-        self,
-    ):
-        pass
+        Returns
+        -------
+        X_leaves : ndarray of shape (n_samples, n_estimators)
+            For each datapoint x in X and for each tree in the forest,
+            return the index of the leaf x ends up in.
+        """
+        results = Parallel(
+            n_jobs=self.n_jobs,
+            verbose=self.verbose,
+            prefer="threads",
+        )(delayed(tree.apply)(v, v, check_input=False) for tree in self.estimators_)
+
+        return np.array(results).T
 
     def feature_importances_(self):
-        pass
+        all_importances = Parallel(n_jobs=self.n_jobs, prefer="threads")(
+            delayed(getattr)(tree, "feature_importances_")
+            for tree in self.estimators_
+            if tree.tree_.node_count > 1
+        )
 
-    @property
-    def n_features_(self):
-        pass
+        if not all_importances:
+            return np.zeros(self.n_features_in_, dtype=np.float64)
+
+        all_importances = np.mean(all_importances, axis=0, dtype=np.float64)
+        return all_importances / np.sum(all_importances)
 
     # TODO: add check data
     def _fit_with_array(self, y, x, w, v, sample_weight):
-        n_train = y.shape[0]
         if y.ndim == 1:
             y = y.reshape(-1, 1)
         if x.ndim == 1:
@@ -267,18 +282,18 @@ class BaseCausalForest(BaseEstModel, BaseForest):
             setattr(self, "_" + k, value)
 
         # Determin treatment settings
-        if self.categories == "auto" or self.categories is None:
-            categories = "auto"
-        else:
-            categories = list(self.categories)
+        # if self.categories == "auto" or self.categories is None:
+        #     categories = "auto"
+        # else:
+        #     categories = list(self.categories)
 
-        if self.is_discrete_treatment:
-            # self.transformer = OrdinalEncoder(categories=categories)
-            # # self.transformer = OneHotEncoder(categories=categories)
-            # self.transformer.fit(x)
-            # x = self.transformer.transform(x)
-            # # x += np.ones_like(x)
-            pass
+        # if self.is_discrete_treatment:
+        #     # self.transformer = OrdinalEncoder(categories=categories)
+        #     # # self.transformer = OneHotEncoder(categories=categories)
+        #     # self.transformer.fit(x)
+        #     # x = self.transformer.transform(x)
+        #     # # x += np.ones_like(x)
+        #     pass
 
         self.n_outputs_ = y.shape[1]
 
