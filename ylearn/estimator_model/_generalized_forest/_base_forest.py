@@ -1,5 +1,4 @@
 # Some snippets of theses codes are from scikit-learn
-from curses import beep
 import numbers
 import numpy as np
 import threading
