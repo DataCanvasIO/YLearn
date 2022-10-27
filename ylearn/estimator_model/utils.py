@@ -3,6 +3,21 @@ import pandas as pd
 from sklearn.preprocessing import OneHotEncoder
 from numpy.linalg import inv
 
+from joblib import effective_n_jobs
+
+
+def _partition_estimators(n_estimators, n_jobs):
+    """Private function used to partition estimators between jobs."""
+    # Compute the number of jobs
+    n_jobs = min(effective_n_jobs(n_jobs), n_estimators)
+
+    # Partition estimators between jobs
+    n_estimators_per_job = np.full(n_jobs, n_estimators // n_jobs, dtype=int)
+    n_estimators_per_job[: n_estimators % n_jobs] += 1
+    starts = np.cumsum(n_estimators_per_job)
+
+    return n_jobs, n_estimators_per_job.tolist(), [0] + starts.tolist()
+
 
 def count_leaf_num(y_train):
     """y_train is the predicted outcome of the tree. Currently we assume it as 1-dimensional.

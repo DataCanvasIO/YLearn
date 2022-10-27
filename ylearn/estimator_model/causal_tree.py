@@ -1,6 +1,9 @@
 import numbers
+import threading
+
 from math import ceil
 from copy import deepcopy
+from joblib import Parallel, delayed
 
 import numpy as np
 import pandas
@@ -22,7 +25,7 @@ from ylearn.sklearn_ex.cloned.tree._tree import Tree
 from sklearn.tree import plot_tree
 
 from ..utils import logging
-from .utils import convert2array, get_wv, get_treat_control
+from .utils import convert2array, get_wv, get_treat_control, _partition_estimators
 from .base_models import BaseEstModel
 
 from ylearn.estimator_model._tree.tree_criterion import HonestCMSE
@@ -419,6 +422,9 @@ class CausalTree(BaseEstModel):
             np.mean(effect, axis=0)
         else:
             return effect
+
+    def predict(self, v):
+        return self.tree_.predict(v)
 
     def _assign_honest_values(self, tree, wv, y, x):
         wv = wv.astype(np.float32)
@@ -949,6 +955,7 @@ class CausalTree(BaseEstModel):
                 y,
                 sample_weight,
                 test_size=self.honest_sample,
+                random_state=random_state,
             )
             builder.build(self.tree_, wv_train, y_train, sample_weight_train + EPS)
             self._assign_honest_values(self.tree_, wv_test, y_test, sample_weight_test)
@@ -956,6 +963,21 @@ class CausalTree(BaseEstModel):
         self._is_fitted = True
 
         return self
+
+
+def _accumulate_prediction(predict, X, out, lock):
+    """
+    This is a utility function for joblib's Parallel.
+    It can't go locally in ForestClassifier or ForestRegressor, because joblib
+    complains that it cannot pickle it when placed there.
+    """
+    prediction = predict(X)
+    with lock:
+        if len(out) == 1:
+            out[0] += prediction
+        else:
+            for i in range(len(out)):
+                out[i] += prediction[i]
 
 
 class CTCausalForest(BaseCausalForest):
@@ -1066,6 +1088,57 @@ class CTCausalForest(BaseCausalForest):
 
     def _get_honest_samples_num(self, sub_samples):
         return self.base_estimator._get_honest_samples_num(sub_samples)
+
+    def _check_features(self, data=None):
+        """Validate the data for the model to estimate the causal effect.
+
+        Parameters
+        ----------
+        wv : ndarray
+            The test samples as an ndarray. If None, then the DataFrame data
+            will be used as the test samples.
+
+        data : pandas.DataFrame
+            The test samples.
+
+        Returns
+        -------
+        ndarray
+            Valid input to the causal tree.
+        """
+        if data is None:
+            w, v = self._w, self._v
+        else:
+            assert isinstance(data, pandas.DataFrame)
+
+            w, v = convert2array(data, self.adjustment, self.covariate)
+
+        wv = get_wv(w, v)
+        wv = wv.astype(np.float32)
+
+        return wv
+
+    def _prepare4est(self, data=None):
+        v = self._check_features(data=data)
+
+        n_jobs, _, _ = _partition_estimators(self.n_estimators, self.n_jobs)
+
+        # avoid storing the output of every estimator by summing them here
+        if self.n_outputs_ > 1:
+            y_hat = np.zeros((v.shape[0], self.n_outputs_), dtype=np.float64)
+        else:
+            y_hat = np.zeros((v.shape[0], 1), dtype=np.float64)
+
+        # Parallel loop
+        lock = threading.Lock()
+        Parallel(n_jobs=n_jobs, verbose=self.verbose, require="sharedmem")(
+            delayed(_accumulate_prediction)(e.predict, v, [y_hat], lock)
+            for e in self.estimators_
+        )
+
+        y_hat /= len(self.estimators_)
+
+        return y_hat
 
 
 # class _CausalTreeOld:
