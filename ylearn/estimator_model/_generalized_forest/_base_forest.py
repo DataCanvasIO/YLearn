@@ -227,16 +227,14 @@ class BaseCausalForest(BaseEstModel, BaseForest):
             For each datapoint x in X and for each tree in the forest,
             return the index of the leaf x ends up in.
         """
-        results = Parallel(
-            n_jobs=self.n_jobs,
-            verbose=self.verbose,
-            prefer="threads",
-        )(delayed(tree.apply)(v, v, check_input=False) for tree in self.estimators_)
+        results = Parallel(**self._job_options())(
+            delayed(tree.apply)(v, v, check_input=False) for tree in self.estimators_
+        )
 
         return np.array(results).T
 
     def feature_importances_(self):
-        all_importances = Parallel(n_jobs=self.n_jobs, prefer="threads")(
+        all_importances = Parallel(**self._job_options())(
             delayed(getattr)(tree, "feature_importances_")
             for tree in self.estimators_
             if tree.tree_.node_count > 1
@@ -326,11 +324,7 @@ class BaseCausalForest(BaseEstModel, BaseForest):
             # that case. However, for joblib 0.12+ we respect any
             # parallel_backend contexts set at a higher level,
             # since correctness does not rely on using threads.
-            trees = Parallel(
-                n_jobs=self.n_jobs,
-                verbose=self.verbose,
-                prefer="threads",
-            )(
+            trees = Parallel(**self._job_options())(
                 # delayed(t._fit_with_array)(x[s], y[s], w[s], v[s], i)
                 # for i, (t, s) in enumerate(zip(trees, self.sub_sample_idx))
                 delayed(self._fit)(
@@ -445,7 +439,7 @@ class BaseCausalForest(BaseEstModel, BaseForest):
         else:
             alpha = np.zeros((v.shape[0], self._v.shape[0]))
 
-        alpha_collection = Parallel(n_jobs=self.n_jobs, verbose=self.verbose,)(
+        alpha_collection = Parallel(**self._job_options())(
             delayed(_prediction)(e, w, v, self._v, lock, i)
             # for i, (e, s) in enumerate(zip(self.estimators_, self.sub_sample_idx))
             for i, e in enumerate(self.estimators_)
@@ -498,3 +492,6 @@ class BaseCausalForest(BaseEstModel, BaseForest):
         theta_ = ((alpha * y_dif).reshape(n_test, n_train, 1) * x_dif).sum(1)
 
         return inv_grad, theta_
+
+    def _job_options(self):
+        return dict(n_jobs=self.n_jobs, verbose=self.verbose, prefer="threads")

@@ -10,7 +10,7 @@ from ._common import if_torch_ready
 def test_ndarray():
     X1 = gen()
     # X1 = pd.DataFrame(X1, columns=[f'x{i}' for i in range(X1.shape[1])])
-    cd = CausalDiscovery(hidden_layer_dim=[3])
+    cd = CausalDiscovery(hidden_layer_dim=[3], device='cpu')
     est = cd(X1, threshold=0.01)
     print(est)
     assert isinstance(est, np.ndarray)
@@ -27,7 +27,7 @@ def test_ndarray():
 def test_dataframe():
     X1 = gen()
     X1 = pd.DataFrame(X1, columns=[f'x{i}' for i in range(X1.shape[1])])
-    cd = CausalDiscovery(hidden_layer_dim=[3])
+    cd = CausalDiscovery(hidden_layer_dim=[3], device='cpu')
     est = cd(X1, threshold=0.01)
     print(est)
     assert isinstance(est, pd.DataFrame)
@@ -39,7 +39,7 @@ def test_dataframe():
 def test_dataframe_disable_scale():
     X1 = gen()
     X1 = pd.DataFrame(X1, columns=[f'x{i}' for i in range(X1.shape[1])])
-    cd = CausalDiscovery(hidden_layer_dim=[3], scale=False)
+    cd = CausalDiscovery(hidden_layer_dim=[3], scale=False, device='cpu')
     est = cd(X1, threshold=0.01)
     print(est)
     assert isinstance(est, pd.DataFrame)
@@ -52,7 +52,7 @@ def test_dataframe_with_maxabs_sacler():
     from sklearn.preprocessing import MaxAbsScaler
     X1 = gen()
     X1 = pd.DataFrame(X1, columns=[f'x{i}' for i in range(X1.shape[1])])
-    cd = CausalDiscovery(hidden_layer_dim=[3], scale=MaxAbsScaler())
+    cd = CausalDiscovery(hidden_layer_dim=[3], scale=MaxAbsScaler(), device='cpu')
     est = cd(X1, threshold=0.01)
     print(est)
     assert isinstance(est, pd.DataFrame)
@@ -63,7 +63,7 @@ def test_dataframe_with_maxabs_sacler():
 @if_torch_ready
 def test_return_dict():
     X1 = gen()
-    cd = CausalDiscovery(hidden_layer_dim=[3])
+    cd = CausalDiscovery(hidden_layer_dim=[3], device='cpu')
     est = cd(X1, threshold=0.01, return_dict=True)
     print(est)
     assert isinstance(est, dict)
