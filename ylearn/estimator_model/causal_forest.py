@@ -1,21 +1,14 @@
-import numbers
-from typing_extensions import Self
 import numpy as np
 
-from abc import abstractmethod
-from copy import deepcopy
-
-from sklearn.utils import check_random_state
-
-from . import CausalTree, DoubleML, BaseEstModel
+from . import DoubleML
 from .utils import get_tr_ctrl
 from ._generalized_forest._grf import GRForest
 
 
 """
 Two different kinds of causal forest will be implemented, including
- 1. A causal forest directly serving as an average of a bunch of causal trees (honest or not)
- 3. A causal forest by growing generalized random forest tree (these trees may grow in a dfferent
+ 1. A causal forest directly serving as an average of a bunch of causal trees (honest or not, not implemented yet)
+ 2. A causal forest by growing generalized random forest tree (these trees may grow in a dfferent
     way when compared to the causal tree) combined with the local centering technique.
 """
 
@@ -111,9 +104,7 @@ class CausalForest(DoubleML):
 
         return x_prime
 
-    def estimate(
-        self, data=None, treat=None, control=None, quantity=None, target_outcome=None
-    ):
+    def estimate(self, data=None, **kwargs):
         return self.yx_model.estimate(data=data)
 
 

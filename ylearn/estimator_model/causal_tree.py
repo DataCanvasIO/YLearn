@@ -1,4 +1,3 @@
-import enum
 import numbers
 from math import ceil
 from copy import deepcopy
@@ -8,7 +7,6 @@ import pandas
 
 # from ctypes import memset, sizeof, c_double, memmove
 
-import sklearn
 from sklearn.utils import check_random_state
 from sklearn.utils import check_scalar
 from sklearn.model_selection import train_test_split
@@ -27,7 +25,8 @@ from ..utils import logging
 from .utils import convert2array, get_wv, get_treat_control
 from .base_models import BaseEstModel
 
-from ylearn.estimator_model._tree.tree_criterion import CMSE, MSE, HonestCMSE
+from ylearn.estimator_model._tree.tree_criterion import HonestCMSE
+from ylearn.estimator_model._generalized_forest._base_forest import BaseCausalForest
 
 # import pyximport
 # pyximport.install(setup_args={"script_args": ["--verbose"]})
@@ -379,9 +378,6 @@ class CausalTree(BaseEstModel):
             adjustment is not None or covariate is not None
         ), "Need adjustment or covariate to perform estimation."
 
-        # check random state
-        random_state = check_random_state(self.random_state)
-
         super().fit(
             data,
             outcome,
@@ -391,248 +387,7 @@ class CausalTree(BaseEstModel):
         )
 
         y, x, w, v = convert2array(data, outcome, treatment, adjustment, covariate)
-        wv = get_wv(w, v)
-
-        # Determin treatment settings
-        if self.categories == "auto" or self.categories is None:
-            categories = "auto"
-        else:
-            categories = list(self.categories)
-
-        self.transformer = OrdinalEncoder(categories=categories)
-        self.transformer.fit(x)
-        x = self.transformer.transform(x)
-        n_treatments = len(self.transformer.categories_)
-
-        # get new dataset with treat and controls
-        treat = get_treat_control(treat, self.transformer, True)
-        control = get_treat_control(control, self.transformer, treat=False)
-
-        self.treat = treat
-        self.control = control
-
-        # TODO: this should be much more simpler when considering single treat
-        _tr = np.all(treat == x, axis=1)
-        _crtl = np.all(control == x, axis=1)
-        label = np.any((_tr, _crtl), axis=0)
-        y = y[label]
-        wv = wv[label]
-        sample_weight = _tr[label].astype(int)
-
-        check_scalar(
-            self.ccp_alpha,
-            name="ccp_alpha",
-            target_type=numbers.Real,
-            min_val=0.0,
-        )
-
-        # Determine output settings
-        n_samples, self.n_features_in_ = wv.shape  # dimension of the input
-        self._wv = wv
-
-        if y.ndim == 1:
-            y = y.reshape(-1, 1)
-
-        self.n_outputs_ = y.shape[1]
-
-        self.honest_sample = self._get_honest_samples_num(sub_samples=n_samples)
-
-        # Check parameters
-        if self.max_depth is not None:
-            check_scalar(
-                self.max_depth,
-                name="max_depth",
-                target_type=numbers.Integral,
-                min_val=1,
-            )
-        max_depth = np.iinfo(np.int32).max if self.max_depth is None else self.max_depth
-
-        # check self.min_samples_leaf
-        if isinstance(self.min_samples_leaf, numbers.Integral):
-            check_scalar(
-                self.min_samples_leaf,
-                name="min_samples_leaf",
-                target_type=numbers.Integral,
-                min_val=1,
-            )
-            min_samples_leaf = self.min_samples_leaf
-        else:
-            check_scalar(
-                self.min_samples_leaf,
-                name="min_samples_leaf",
-                target_type=numbers.Real,
-                min_val=0.0,
-                include_boundaries="neither",
-            )
-            min_samples_leaf = int(ceil(self.min_samples_leaf * n_samples))
-
-        # check self.min_samples_split
-        if isinstance(self.min_samples_split, numbers.Integral):
-            check_scalar(
-                self.min_samples_split,
-                name="min_samples_split",
-                target_type=numbers.Integral,
-                min_val=2,
-            )
-            min_samples_split = self.min_samples_split
-        else:
-            check_scalar(
-                self.min_samples_split,
-                name="min_samples_split",
-                target_type=numbers.Real,
-                min_val=0.0,
-                max_val=1.0,
-                include_boundaries="right",
-            )
-            min_samples_split = int(ceil(self.min_samples_split * n_samples))
-            min_samples_split = max(2, min_samples_split)
-
-        min_samples_split = max(min_samples_split, 2 * min_samples_leaf)
-
-        # check self.max_leaf_nodes
-        if self.max_leaf_nodes is not None:
-            check_scalar(
-                self.max_leaf_nodes,
-                name="max_leaf_nodes",
-                target_type=numbers.Integral,
-                min_val=2,
-            )
-
-        max_leaf_nodes = -1 if self.max_leaf_nodes is None else self.max_leaf_nodes
-
-        # check min_weight_fraction_leaf
-        check_scalar(
-            self.min_weight_fraction_leaf,
-            name="min_weight_fraction_leaf",
-            target_type=numbers.Real,
-            min_val=0.0,
-            max_val=0.5,
-        )
-
-        # check max_features
-        if isinstance(self.max_features, str):
-            if self.max_features == "sqrt":
-                max_features = max(1, int(np.sqrt(self.n_features_in_)))
-            elif self.max_features == "log2":
-                max_features = max(1, int(np.log2(self.n_features_in_)))
-            else:
-                raise ValueError(
-                    "Invalid value for max_features. Allowed string values"
-                    f'Allowed string values are "sqrt" or "log2", but was given {self.max_features}.'
-                )
-        elif self.max_features is None:
-            max_features = self.n_features_in_
-        elif isinstance(self.max_features, numbers.Integral):
-            check_scalar(
-                self.max_features,
-                name="max_features",
-                target_type=numbers.Integral,
-                min_val=1,
-                include_boundaries="left",
-            )
-            max_features = self.max_features
-        else:
-            check_scalar(
-                self.max_features,
-                name="max_features",
-                target_type=numbers.Real,
-                min_val=0.0,
-                max_val=1.0,
-                include_boundaries="right",
-            )
-            if self.max_features > 0.0:
-                max_features = max(1, int(self.max_features * self.n_features_in_))
-            else:
-                max_features = 0
-
-        self.max_features_ = max_features
-
-        if len(y) != n_samples:
-            raise ValueError(
-                f"Number of labels {len(y)} does not match number of samples"
-            )
-
-        # set min_weight_leaf
-        if sample_weight is None:
-            min_weight_leaf = self.min_weight_fraction_leaf * n_samples
-        else:
-            min_weight_leaf = self.min_weight_fraction_leaf * np.sum(sample_weight)
-
-        # Build tree step 1. Set up criterion
-        # criterion = deepcopy(MSE(self.n_outputs_, n_samples))
-        # criterion = deepcopy(CMSE(self.n_outputs_, n_samples))
-        criterion = deepcopy(HonestCMSE(self.n_outputs_, n_samples))
-
-        logger.info(
-            f"Start building the causal tree with criterion {type(criterion).__name__}"
-        )
-
-        # Build tree step 2. Define splitter
-        splitter = self.splitter
-
-        if not isinstance(self.splitter, Splitter):
-            splitter = SPLITTERS[self.splitter](
-                criterion,
-                self.max_features_,
-                min_samples_leaf,
-                min_weight_leaf,
-                random_state,
-            )
-
-        logger.info(f"Building the causal tree with splitter {type(splitter).__name__}")
-
-        # Build tree step 3. Define the tree
-        self.tree_ = Tree(
-            self.n_features_in_,
-            np.array([1] * self.n_outputs_, dtype=np.intp),
-            self.n_outputs_,
-        )
-
-        # Build tree step 3. Build the tree
-        if max_leaf_nodes < 0:
-            builder = DepthFirstTreeBuilder(
-                splitter,
-                min_samples_split,
-                min_samples_leaf,
-                min_weight_leaf,
-                max_depth,
-                self.min_impurity_decrease,
-            )
-        else:
-            builder = BestFirstTreeBuilder(
-                splitter,
-                min_samples_split,
-                min_samples_leaf,
-                min_weight_leaf,
-                max_depth,
-                max_leaf_nodes,
-                self.min_impurity_decrease,
-            )
-
-        logger.info(f"Building the causal tree with builder {type(builder).__name__}")
-
-        if self.honest_sample is None:
-            builder.build(self.tree_, wv, y, sample_weight + EPS)
-        else:
-            (
-                wv_train,
-                wv_test,
-                y_train,
-                y_test,
-                sample_weight_train,
-                sample_weight_test,
-            ) = train_test_split(
-                wv,
-                y,
-                sample_weight,
-                test_size=self.honest_sample,
-            )
-            builder.build(self.tree_, wv_train, y_train, sample_weight_train + EPS)
-            self._assign_honest_values(self.tree_, wv_test, y_test, sample_weight_test)
-
-        self._is_fitted = True
-
-        return self
+        self._fit_with_array(y, x, w, v, treat, control)
 
     def estimate(self, data=None, quantity=None):
         """Estimate the causal effect of the treatment on the outcome in the data.
@@ -956,10 +711,361 @@ class CausalTree(BaseEstModel):
             fontsize=fontsize,
         )
 
-    def _fit_with_array(
+    def _fit_with_array(self, y, x, w, v, treat, control):
+        # check random state
+        random_state = check_random_state(self.random_state)
+        wv = get_wv(w, v)
+
+        # Determin treatment settings
+        if self.categories == "auto" or self.categories is None:
+            categories = "auto"
+        else:
+            categories = list(self.categories)
+
+        self.transformer = OrdinalEncoder(categories=categories)
+        self.transformer.fit(x)
+        x = self.transformer.transform(x)
+        n_treatments = len(self.transformer.categories_)
+
+        # get new dataset with treat and controls
+        treat = get_treat_control(treat, self.transformer, True)
+        control = get_treat_control(control, self.transformer, treat=False)
+
+        self.treat = treat
+        self.control = control
+
+        # TODO: this should be much more simpler when considering single treat
+        _tr = np.all(treat == x, axis=1)
+        _crtl = np.all(control == x, axis=1)
+        label = np.any((_tr, _crtl), axis=0)
+        y = y[label]
+        wv = wv[label]
+        sample_weight = _tr[label].astype(int)
+
+        check_scalar(
+            self.ccp_alpha,
+            name="ccp_alpha",
+            target_type=numbers.Real,
+            min_val=0.0,
+        )
+
+        # Determine output settings
+        n_samples, self.n_features_in_ = wv.shape  # dimension of the input
+        self._wv = wv
+
+        if y.ndim == 1:
+            y = y.reshape(-1, 1)
+
+        self.n_outputs_ = y.shape[1]
+
+        self.honest_sample = self._get_honest_samples_num(sub_samples=n_samples)
+
+        # Check parameters
+        if self.max_depth is not None:
+            check_scalar(
+                self.max_depth,
+                name="max_depth",
+                target_type=numbers.Integral,
+                min_val=1,
+            )
+        max_depth = np.iinfo(np.int32).max if self.max_depth is None else self.max_depth
+
+        # check self.min_samples_leaf
+        if isinstance(self.min_samples_leaf, numbers.Integral):
+            check_scalar(
+                self.min_samples_leaf,
+                name="min_samples_leaf",
+                target_type=numbers.Integral,
+                min_val=1,
+            )
+            min_samples_leaf = self.min_samples_leaf
+        else:
+            check_scalar(
+                self.min_samples_leaf,
+                name="min_samples_leaf",
+                target_type=numbers.Real,
+                min_val=0.0,
+                include_boundaries="neither",
+            )
+            min_samples_leaf = int(ceil(self.min_samples_leaf * n_samples))
+
+        # check self.min_samples_split
+        if isinstance(self.min_samples_split, numbers.Integral):
+            check_scalar(
+                self.min_samples_split,
+                name="min_samples_split",
+                target_type=numbers.Integral,
+                min_val=2,
+            )
+            min_samples_split = self.min_samples_split
+        else:
+            check_scalar(
+                self.min_samples_split,
+                name="min_samples_split",
+                target_type=numbers.Real,
+                min_val=0.0,
+                max_val=1.0,
+                include_boundaries="right",
+            )
+            min_samples_split = int(ceil(self.min_samples_split * n_samples))
+            min_samples_split = max(2, min_samples_split)
+
+        min_samples_split = max(min_samples_split, 2 * min_samples_leaf)
+
+        # check self.max_leaf_nodes
+        if self.max_leaf_nodes is not None:
+            check_scalar(
+                self.max_leaf_nodes,
+                name="max_leaf_nodes",
+                target_type=numbers.Integral,
+                min_val=2,
+            )
+
+        max_leaf_nodes = -1 if self.max_leaf_nodes is None else self.max_leaf_nodes
+
+        # check min_weight_fraction_leaf
+        check_scalar(
+            self.min_weight_fraction_leaf,
+            name="min_weight_fraction_leaf",
+            target_type=numbers.Real,
+            min_val=0.0,
+            max_val=0.5,
+        )
+
+        # check max_features
+        if isinstance(self.max_features, str):
+            if self.max_features == "sqrt":
+                max_features = max(1, int(np.sqrt(self.n_features_in_)))
+            elif self.max_features == "log2":
+                max_features = max(1, int(np.log2(self.n_features_in_)))
+            else:
+                raise ValueError(
+                    "Invalid value for max_features. Allowed string values"
+                    f'Allowed string values are "sqrt" or "log2", but was given {self.max_features}.'
+                )
+        elif self.max_features is None:
+            max_features = self.n_features_in_
+        elif isinstance(self.max_features, numbers.Integral):
+            check_scalar(
+                self.max_features,
+                name="max_features",
+                target_type=numbers.Integral,
+                min_val=1,
+                include_boundaries="left",
+            )
+            max_features = self.max_features
+        else:
+            check_scalar(
+                self.max_features,
+                name="max_features",
+                target_type=numbers.Real,
+                min_val=0.0,
+                max_val=1.0,
+                include_boundaries="right",
+            )
+            if self.max_features > 0.0:
+                max_features = max(1, int(self.max_features * self.n_features_in_))
+            else:
+                max_features = 0
+
+        self.max_features_ = max_features
+
+        if len(y) != n_samples:
+            raise ValueError(
+                f"Number of labels {len(y)} does not match number of samples"
+            )
+
+        # set min_weight_leaf
+        if sample_weight is None:
+            min_weight_leaf = self.min_weight_fraction_leaf * n_samples
+        else:
+            min_weight_leaf = self.min_weight_fraction_leaf * np.sum(sample_weight)
+
+        # Build tree step 1. Set up criterion
+        # criterion = deepcopy(MSE(self.n_outputs_, n_samples))
+        # criterion = deepcopy(CMSE(self.n_outputs_, n_samples))
+        criterion = deepcopy(HonestCMSE(self.n_outputs_, n_samples))
+
+        logger.info(
+            f"Start building the causal tree with criterion {type(criterion).__name__}"
+        )
+
+        # Build tree step 2. Define splitter
+        splitter = self.splitter
+
+        if not isinstance(self.splitter, Splitter):
+            splitter = SPLITTERS[self.splitter](
+                criterion,
+                self.max_features_,
+                min_samples_leaf,
+                min_weight_leaf,
+                random_state,
+            )
+
+        logger.info(f"Building the causal tree with splitter {type(splitter).__name__}")
+
+        # Build tree step 3. Define the tree
+        self.tree_ = Tree(
+            self.n_features_in_,
+            np.array([1] * self.n_outputs_, dtype=np.intp),
+            self.n_outputs_,
+        )
+
+        # Build tree step 3. Build the tree
+        if max_leaf_nodes < 0:
+            builder = DepthFirstTreeBuilder(
+                splitter,
+                min_samples_split,
+                min_samples_leaf,
+                min_weight_leaf,
+                max_depth,
+                self.min_impurity_decrease,
+            )
+        else:
+            builder = BestFirstTreeBuilder(
+                splitter,
+                min_samples_split,
+                min_samples_leaf,
+                min_weight_leaf,
+                max_depth,
+                max_leaf_nodes,
+                self.min_impurity_decrease,
+            )
+
+        logger.info(f"Building the causal tree with builder {type(builder).__name__}")
+
+        if self.honest_sample is None:
+            builder.build(self.tree_, wv, y, sample_weight + EPS)
+        else:
+            (
+                wv_train,
+                wv_test,
+                y_train,
+                y_test,
+                sample_weight_train,
+                sample_weight_test,
+            ) = train_test_split(
+                wv,
+                y,
+                sample_weight,
+                test_size=self.honest_sample,
+            )
+            builder.build(self.tree_, wv_train, y_train, sample_weight_train + EPS)
+            self._assign_honest_values(self.tree_, wv_test, y_test, sample_weight_test)
+
+        self._is_fitted = True
+
+        return self
+
+
+class CTCausalForest(BaseCausalForest):
+    def __init__(
         self,
+        n_estimators=100,
+        *,
+        sub_sample_num=None,
+        max_depth=None,
+        min_samples_split=2,
+        min_samples_leaf=1,
+        min_weight_fraction_leaf=0.0,
+        max_features=1.0,
+        max_leaf_nodes=None,
+        min_impurity_decrease=0.0,
+        n_jobs=None,
+        random_state=None,
+        # categories="auto",
+        ccp_alpha=0.0,
+        is_discrete_treatment=True,
+        is_discrete_outcome=False,
+        verbose=0,
+        warm_start=False,
+        honest_subsample_num=None,
     ):
-        pass
+        base_estimator = CausalTree()
+
+        super().__init__(
+            base_estimator=base_estimator,
+            n_estimators=n_estimators,
+            estimator_params=(
+                "max_depth",
+                "min_samples_split",
+                "min_samples_leaf",
+                "min_weight_fraction_leaf",
+                "max_features",
+                "max_leaf_nodes",
+                "min_impurity_decrease",
+                "random_state",
+                "ccp_alpha",
+                "honest_subsample_num",
+            ),
+            n_jobs=n_jobs,
+            # categories=categories,
+            random_state=random_state,
+            sub_sample_num=sub_sample_num,
+            max_depth=max_depth,
+            min_samples_split=min_samples_split,
+            min_samples_leaf=min_samples_leaf,
+            min_weight_fraction_leaf=min_weight_fraction_leaf,
+            max_features=max_features,
+            max_leaf_nodes=max_leaf_nodes,
+            min_impurity_decrease=min_impurity_decrease,
+            ccp_alpha=ccp_alpha,
+            is_discrete_treatment=is_discrete_treatment,
+            is_discrete_outcome=is_discrete_outcome,
+            verbose=verbose,
+            warm_start=warm_start,
+            honest_subsample_num=honest_subsample_num,
+        )
+
+    def fit(
+        self,
+        data,
+        outcome,
+        treatment,
+        adjustment=None,
+        covariate=None,
+        treat=None,
+        control=None,
+    ):
+        return super().fit(
+            data=data,
+            outcome=outcome,
+            treatment=treatment,
+            covariate=covariate,
+            adjustment=adjustment,
+            treat=treat,
+            control=control,
+        )
+
+    def _fit(
+        self,
+        t,
+        x,
+        y,
+        w,
+        v,
+        s,
+        i,
+        honest_sample_num,
+        sample_weight=None,
+        verbose=0,
+        **kwargs,
+    ):
+        if verbose != 0:
+            print(f"Fit the {i + 1} tree")
+
+        treat = kwargs.get("treat", None)
+        control = kwargs.get("control", None)
+
+        # TODO: Note that this step can be improved by updating the procedure of making treat and control
+        w = w[s] if w is not None else None
+        v = v[s] if v is not None else None
+        t._fit_with_array(y[s], x[s], w, v, treat=treat, control=control)
+
+        return t
+
+    def _get_honest_samples_num(self, sub_samples):
+        return self.base_estimator._get_honest_samples_num(sub_samples)
 
 
 # class _CausalTreeOld:

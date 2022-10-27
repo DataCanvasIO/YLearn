@@ -103,7 +103,7 @@ class _GrfTree:
         w, v = self.check_data(data, self.covariate)
         return self._predict_with_array(w, v)
 
-    def _fit_with_array(self, x, y, w, v, **kwargs):
+    def _fit_with_array(self, x, y, w, v, sample_weight=None, **kwargs):
         """
         Parameters
         ----------

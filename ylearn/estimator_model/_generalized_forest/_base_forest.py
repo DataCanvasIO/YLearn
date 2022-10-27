@@ -1,4 +1,5 @@
 # Some snippets of theses codes are from scikit-learn
+from curses import beep
 import numbers
 import numpy as np
 import threading
@@ -100,31 +101,6 @@ def _generate_sub_samples(random_state, all_idx, sub_samples):
     return z
 
 
-def _fit(t, x, y, w, v, s, i, honest_sample_num, sample_weight=None, verbose=0):
-    if verbose != 0:
-        print(f"Fit the {i + 1} tree")
-
-    sample_weight_honest = None
-
-    if sample_weight is not None:
-        sample_weight = sample_weight[s]
-        sample_weight_honest = sample_weight[honest_sample_num:]
-
-    if honest_sample_num is None:
-        t._fit_with_array(x[s], y[s], w[s], v[s], sample_weight)
-    else:
-        t._fit_with_array(
-            x[s][honest_sample_num:],
-            y[s][honest_sample_num:],
-            w[s][honest_sample_num:],
-            v[s][honest_sample_num:],
-            sample_weight_honest,
-        )
-        t.leaf_record = t._predict_with_array(w, v[s][:honest_sample_num])
-
-    return t
-
-
 def _prediction(e, w, v, v_train, lock, i):
     pred = e._predict_with_array(w, v).reshape(-1, 1)
     y_pred = e.leaf_record.reshape(1, -1)
@@ -218,6 +194,7 @@ class BaseCausalForest(BaseEstModel, BaseForest):
         sample_weight=None,
         adjustment=None,
         covariate=None,
+        **kwargs,
     ):
 
         super().fit(
@@ -226,7 +203,7 @@ class BaseCausalForest(BaseEstModel, BaseForest):
 
         y, x, w, v = convert2array(data, outcome, treatment, adjustment, covariate)
 
-        self._fit_with_array(y, x, w, v, sample_weight=sample_weight)
+        self._fit_with_array(y, x, w, v, sample_weight=sample_weight, **kwargs)
 
     def estimate(self, data=None, **kwargs):
         effect_ = self._prepare4est(data=data)
@@ -272,7 +249,7 @@ class BaseCausalForest(BaseEstModel, BaseForest):
         return all_importances / np.sum(all_importances)
 
     # TODO: add check data
-    def _fit_with_array(self, y, x, w, v, sample_weight):
+    def _fit_with_array(self, y, x, w, v, sample_weight=None, **kwargs):
         if y.ndim == 1:
             y = y.reshape(-1, 1)
         if x.ndim == 1:
@@ -356,7 +333,7 @@ class BaseCausalForest(BaseEstModel, BaseForest):
             )(
                 # delayed(t._fit_with_array)(x[s], y[s], w[s], v[s], i)
                 # for i, (t, s) in enumerate(zip(trees, self.sub_sample_idx))
-                delayed(_fit)(
+                delayed(self._fit)(
                     t,
                     x,
                     y,
@@ -367,6 +344,7 @@ class BaseCausalForest(BaseEstModel, BaseForest):
                     self.honest_sample,
                     sample_weight,
                     self.verbose,
+                    **kwargs,
                 )
                 for i, (t, s) in enumerate(zip(trees, self.sub_sample_idx))
             )
@@ -418,6 +396,43 @@ class BaseCausalForest(BaseEstModel, BaseForest):
         inv_grad_, theta_ = self._compute_aug(self._y, self._x, alpha)
         theta = np.einsum("njk,nk->nj", inv_grad_, theta_)
         return theta
+
+    def _fit(
+        self,
+        t,
+        x,
+        y,
+        w,
+        v,
+        s,
+        i,
+        honest_sample_num,
+        sample_weight=None,
+        verbose=0,
+        **kwargs,
+    ):
+        if verbose != 0:
+            print(f"Fit the {i + 1} tree")
+
+        sample_weight_honest = None
+
+        if sample_weight is not None:
+            sample_weight = sample_weight[s]
+            sample_weight_honest = sample_weight[honest_sample_num:]
+
+        if honest_sample_num is None:
+            t._fit_with_array(x[s], y[s], w[s], v[s], sample_weight)
+        else:
+            t._fit_with_array(
+                x[s][honest_sample_num:],
+                y[s][honest_sample_num:],
+                w[s][honest_sample_num:],
+                v[s][honest_sample_num:],
+                sample_weight_honest,
+            )
+            t.leaf_record = t._predict_with_array(w, v[s][:honest_sample_num])
+
+        return t
 
     def _compute_alpha(self, v):
         # first implement a version which only take one example as its input

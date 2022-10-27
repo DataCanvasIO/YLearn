@@ -48,16 +48,14 @@ class NaiveGrf(BaseCausalForest):
             random_state=random_state,
         )
 
-    def fit(
-        self,
-        data,
-        outcome,
-        treatment,
-        adjustment=None,
-        covariate=None,
-    ):
+    def fit(self, data, outcome, treatment, adjustment=None, covariate=None, **kwargs):
         super().fit(
-            data, outcome, treatment, adjustment=adjustment, covariate=covariate
+            data,
+            outcome,
+            treatment,
+            adjustment=adjustment,
+            covariate=covariate,
+            sample_weight=None,
         )
 
     def _compute_alpha(self, v):
