@@ -1,3 +1,4 @@
+import enum
 import numbers
 from math import ceil
 from copy import deepcopy
@@ -10,6 +11,7 @@ import pandas
 import sklearn
 from sklearn.utils import check_random_state
 from sklearn.utils import check_scalar
+from sklearn.model_selection import train_test_split
 
 from sklearn.preprocessing import OrdinalEncoder
 
@@ -304,6 +306,7 @@ class CausalTree(BaseEstModel):
         min_impurity_decrease=0.0,
         min_weight_fraction_leaf=0.0,
         ccp_alpha=0.0,
+        honest_subsample_num=None,
         categories="auto",
     ):
         self.splitter = splitter
@@ -316,6 +319,7 @@ class CausalTree(BaseEstModel):
         self.min_weight_fraction_leaf = min_weight_fraction_leaf
         self.min_impurity_decrease = min_impurity_decrease
         self.ccp_alpha = ccp_alpha
+        self.honest_subsample_num = honest_subsample_num
 
         super().__init__(
             random_state=random_state,
@@ -430,6 +434,8 @@ class CausalTree(BaseEstModel):
             y = y.reshape(-1, 1)
 
         self.n_outputs_ = y.shape[1]
+
+        self.honest_sample = self._get_honest_samples_num(sub_samples=n_samples)
 
         # Check parameters
         if self.max_depth is not None:
@@ -605,7 +611,24 @@ class CausalTree(BaseEstModel):
 
         logger.info(f"Building the causal tree with builder {type(builder).__name__}")
 
-        builder.build(self.tree_, wv, y, sample_weight + EPS)
+        if self.honest_sample is None:
+            builder.build(self.tree_, wv, y, sample_weight + EPS)
+        else:
+            (
+                wv_train,
+                wv_test,
+                y_train,
+                y_test,
+                sample_weight_train,
+                sample_weight_test,
+            ) = train_test_split(
+                wv,
+                y,
+                sample_weight,
+                test_size=self.honest_sample,
+            )
+            builder.build(self.tree_, wv_train, y_train, sample_weight_train + EPS)
+            self._assign_honest_values(self.tree_, wv_test, y_test, sample_weight_test)
 
         self._is_fitted = True
 
@@ -641,6 +664,22 @@ class CausalTree(BaseEstModel):
             np.mean(effect, axis=0)
         else:
             return effect
+
+    def _assign_honest_values(self, tree, wv, y, x):
+        wv = wv.astype(np.float32)
+        leafs = tree.apply(wv)
+        leaf_collection, leaf_idx = np.unique(leafs, return_index=True)
+        for i, leaf_node in enumerate(leaf_collection):
+            ar = leafs == leaf_node
+            y_sub, x_sub = y[ar], x[ar]
+            y_sub_tr, y_sub_ctrl = y_sub[x_sub == 1], y_sub[x_sub == 0]
+            if y_sub_tr.size == 0 or y_sub_ctrl.size == 0:
+                pass
+            else:
+                ef = (y_sub_tr.mean(axis=0) - y_sub_ctrl.mean(axis=0)).reshape(
+                    tree.value.shape[1:]
+                )
+                tree.value[leafs[leaf_idx[i]]] = ef
 
     def _check_features(self, *, wv=None, data=None):
         """Validate the data for the model to estimate the causal effect.
@@ -691,6 +730,24 @@ class CausalTree(BaseEstModel):
         effect = self.tree_.predict(wv)
 
         return effect
+
+    def _get_honest_samples_num(self, sub_samples):
+        if self.honest_subsample_num is None:
+            return None
+
+        if isinstance(self.honest_subsample_num, numbers.Integral):
+            if self.honest_subsample > sub_samples:
+                raise ValueError(
+                    f"honest_subsample must be <= sub_samples={sub_samples} but was given {self.honest_subsample}"
+                )
+            return self.honest_subsample_num / sub_samples
+
+        if isinstance(self.honest_subsample_num, numbers.Real):
+            if self.honest_subsample_num >= 1 or self.honest_subsample_num < 0:
+                raise ValueError(
+                    f"honest_subsample should be in the range [0, 1), but was given {self.honest_subsample_num}"
+                )
+            return self.honest_subsample_num
 
     def _prune_tree(self):
         pass
