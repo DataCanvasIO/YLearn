@@ -303,22 +303,27 @@ class CausalTree(BaseEstModel):
         min_samples_split=2,
         min_samples_leaf=1,
         random_state=2022,
-        max_leaf_nodes=None,
+        # max_leaf_nodes=None,
         max_features=None,
         min_impurity_decrease=0.0,
-        min_weight_fraction_leaf=0.0,
+        # min_weight_fraction_leaf=0.0,
         ccp_alpha=0.0,
         honest_subsample_num=None,
         categories="auto",
+        # **kwargs,
     ):
         self.splitter = splitter
         self.max_depth = max_depth
         self.min_samples_split = min_samples_split
         self.min_samples_leaf = min_samples_leaf
         self.max_features = max_features
-        self.max_leaf_nodes = max_leaf_nodes
+
+        # TODO: note that currently only set max_leaf_nodes as None works. That means
+        # only depth-first tree-builder will work. Needs to be fixed
+        # self.max_leaf_nodes = max_leaf_nodes
+        self.max_leaf_nodes = None
         self.random_state = random_state
-        self.min_weight_fraction_leaf = min_weight_fraction_leaf
+        self.min_weight_fraction_leaf = 0.0
         self.min_impurity_decrease = min_impurity_decrease
         self.ccp_alpha = ccp_alpha
         self.honest_subsample_num = honest_subsample_num
@@ -882,10 +887,11 @@ class CausalTree(BaseEstModel):
             )
 
         # set min_weight_leaf
-        if sample_weight is None:
-            min_weight_leaf = self.min_weight_fraction_leaf * n_samples
-        else:
-            min_weight_leaf = self.min_weight_fraction_leaf * np.sum(sample_weight)
+        # if sample_weight is None:
+        #     min_weight_leaf = self.min_weight_fraction_leaf * n_samples
+        # else:
+        #     min_weight_leaf = self.min_weight_fraction_leaf * np.sum(sample_weight)
+        min_weight_leaf = self.min_weight_fraction_leaf * n_samples
 
         # Build tree step 1. Set up criterion
         # criterion = deepcopy(MSE(self.n_outputs_, n_samples))
@@ -989,9 +995,9 @@ class CTCausalForest(BaseCausalForest):
         max_depth=None,
         min_samples_split=2,
         min_samples_leaf=1,
-        min_weight_fraction_leaf=0.0,
+        # min_weight_fraction_leaf=0.0,
         max_features=1.0,
-        max_leaf_nodes=None,
+        # max_leaf_nodes=None,
         min_impurity_decrease=0.0,
         n_jobs=None,
         random_state=None,
@@ -1012,9 +1018,9 @@ class CTCausalForest(BaseCausalForest):
                 "max_depth",
                 "min_samples_split",
                 "min_samples_leaf",
-                "min_weight_fraction_leaf",
+                # "min_weight_fraction_leaf",
                 "max_features",
-                "max_leaf_nodes",
+                # "max_leaf_nodes",
                 "min_impurity_decrease",
                 "random_state",
                 "ccp_alpha",
@@ -1027,9 +1033,9 @@ class CTCausalForest(BaseCausalForest):
             max_depth=max_depth,
             min_samples_split=min_samples_split,
             min_samples_leaf=min_samples_leaf,
-            min_weight_fraction_leaf=min_weight_fraction_leaf,
+            min_weight_fraction_leaf=None,
             max_features=max_features,
-            max_leaf_nodes=max_leaf_nodes,
+            max_leaf_nodes=None,
             min_impurity_decrease=min_impurity_decrease,
             ccp_alpha=ccp_alpha,
             is_discrete_treatment=is_discrete_treatment,
