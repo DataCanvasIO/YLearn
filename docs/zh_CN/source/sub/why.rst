@@ -135,7 +135,7 @@ Why: 一个一体化的因果学习API
     :param str, default='effect' effect_name: 在基于成本对因果效应进行调整时，传递给fn_cost的因果效应在DataFrame中的列名。仅当fn_cost不为None时生效。
     :param int, optional, default=None random_state: 随机种子
 
-    .. py:attribute:: `feature_names_in_`
+    .. py:attribute:: feature_names_in_
         
         在 `fit` 时看到的特征的名字的列表
     

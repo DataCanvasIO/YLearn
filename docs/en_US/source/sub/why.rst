@@ -144,7 +144,7 @@ Class Structures
         Effective when fn_cost is not None.
     :param int, optional, default=None random_state: Random state seed
     
-    .. py:attribute:: `feature_names_in_`
+    .. py:attribute:: feature_names_in_
         
         list of feature names seen during `fit` 
     
