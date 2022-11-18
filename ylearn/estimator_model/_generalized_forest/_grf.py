@@ -72,8 +72,10 @@ class GRForest(BaseCausalForest):
 
         sub_sample_num: int or float, default=None 
             The number of samples to train each individual tree.
-            - If a float is given, then the number of ``sub_sample_num*n_samples`` samples will be sampled to train a single tree
-            - If an int is given, then the number of ``sub_sample_num`` samples will be sampled to train a single tree
+            - If a float is given, then the number of ``sub_sample_num*n_samples`` samples will be 
+                sampled to train a single tree
+            - If an int is given, then the number of ``sub_sample_num`` samples will be sampled to 
+                train a single tree
 
         max_depth: int, default=None
             The max depth that a single tree can reach. If ``None`` is given, then there is no limit of
@@ -94,7 +96,8 @@ class GRForest(BaseCausalForest):
             especially in regression.
                 
                 - If int, then consider `min_samples_leaf` as the minimum number.
-                - If float, then `min_samples_leaf` is a fraction and `ceil(min_samples_leaf * n_samples)` are the minimum number of samples for each node.
+                - If float, then `min_samples_leaf` is a fraction and `ceil(min_samples_leaf * n_samples)`
+                    are the minimum number of samples for each node.
 
         min_weight_fraction_leaf: float, default=0.0 
             The minimum weighted fraction of the sum total of weights (of all
@@ -133,9 +136,15 @@ class GRForest(BaseCausalForest):
             Controls the verbosity when fitting and predicting
 
         honest_subsample_num: int or float, default=None 
-            The number of samples to train each individual tree in an honest manner. Typically set this value will have better performance. Use all ``sub_sample_num`` if ``None`` is given.
-            - If a float is given, then the number of ``honest_subsample_num*sub_sample_num`` samples will be used to train a single tree while the rest ``(1 - honest_subsample_num)*sub_sample_num`` samples will be used to label the trained tree.
-            - If an int is given, then the number of ``honest_subsample_num`` samples will be sampled to train a single tree while the rest ``sub_sample_num - honest_subsample_num`` samples will be used to label the trained tree.
+            The number of samples to train each individual tree in an honest manner. Typically 
+            set this value will have better performance. Use all ``sub_sample_num`` if ``None`` 
+            is given.
+            - If a float is given, then the number of ``honest_subsample_num*sub_sample_num`` samples
+                will be used to train a single tree while the rest ``(1 - honest_subsample_num)*sub_sample_num``
+                samples will be used to label the trained tree.
+            - If an int is given, then the number of ``honest_subsample_num`` samples will be sampled 
+                to train a single tree while the rest ``sub_sample_num - honest_subsample_num`` samples will 
+                be used to label the trained tree.
         """
 
     def fit(
