@@ -140,6 +140,80 @@ class BaseCausalForest(BaseEstModel, BaseForest):
         ccp_alpha=0.0,
         honest_subsample_num=None,
     ):
+        """
+        A base class of forest based estimator models for estimating the causal effect.
+
+        Parameters
+        ----------
+        n_estimators : int, default=100
+            The number of trees for growing the GRF.
+
+        sub_sample_num: int or float, default=None
+            The number of samples to train each individual tree.
+            - If a float is given, then the number of ``sub_sample_num*n_samples`` samples will be sampled to train a single tree
+            - If an int is given, then the number of ``sub_sample_num`` samples will be sampled to train a single tree
+
+        max_depth: int, default=None
+            The max depth that a single tree can reach. If ``None`` is given, then there is no limit of
+            the depth of a single tree.
+
+        min_samples_split: int, default=2
+            The minimum number of samples required to split an internal node:
+            - If int, then consider `min_samples_split` as the minimum number.
+            - If float, then `min_samples_split` is a fraction and
+            `ceil(min_samples_split * n_samples)` are the minimum
+            number of samples for each split.
+
+        min_samples_leaf: int or float, default=1
+            The minimum number of samples required to be at a leaf node.
+            A split point at any depth will only be considered if it leaves at
+            least ``min_samples_leaf`` training samples in each of the left and
+            right branches.  This may have the effect of smoothing the model,
+            especially in regression.
+
+                - If int, then consider `min_samples_leaf` as the minimum number.
+                - If float, then `min_samples_leaf` is a fraction and `ceil(min_samples_leaf * n_samples)` are the minimum number of samples for each node.
+
+        min_weight_fraction_leaf: float, default=0.0
+            The minimum weighted fraction of the sum total of weights (of all
+            the input samples) required to be at a leaf node. Samples have
+            equal weight when sample_weight is not provided.
+
+        max_features: int, float or {"sqrt", "log2"}, default=None
+            The number of features to consider when looking for the best split:
+
+                - If int, then consider `max_features` features at each split.
+                - If float, then `max_features` is a fraction and `int(max_features * n_features)` features are considered at each split.
+                - If "sqrt", then `max_features=sqrt(n_features)`.
+                - If "log2", then `max_features=log2(n_features)`.
+                - If None, then `max_features=n_features`.
+
+        random_state: int
+            Controls the randomness of the estimator.
+
+        max_leaf_nodes: int, default=None
+            Grow a tree with ``max_leaf_nodes`` in best-first fashion.
+            Best nodes are defined as relative reduction in impurity.
+            If None then unlimited number of leaf nodes.
+
+        min_impurity_decrease: float, default=0.0
+            A node will be split if this split induces a decrease of the impurity
+            greater than or equal to this value.
+
+        n_jobs: int, default=None
+            The number of jobs to run in parallel. :meth:`fit`, :meth:`estimate`, and :meth:`apply` are all parallelized over the
+            trees. ``None`` means 1 unless in a :obj:`joblib.parallel_backend`
+            context. ``-1`` means using all processors. See :term:`Glossary
+            <n_jobs>` for more details.
+
+        verbose: int, default=0
+            Controls the verbosity when fitting and predicting
+
+        honest_subsample_num: int or float, default=None
+            The number of samples to train each individual tree in an honest manner. Typically set this value will have better performance. Use all ``sub_sample_num`` if ``None`` is given.
+            - If a float is given, then the number of ``honest_subsample_num*sub_sample_num`` samples will be used to train a single tree while the rest ``(1 - honest_subsample_num)*sub_sample_num`` samples will be used to label the trained tree.
+            - If an int is given, then the number of ``honest_subsample_num`` samples will be sampled to train a single tree while the rest ``sub_sample_num - honest_subsample_num`` samples will be used to label the trained tree.
+        """
         if estimator_params is None:
             estimator_params = (
                 "max_depth",
@@ -195,7 +269,28 @@ class BaseCausalForest(BaseEstModel, BaseForest):
         covariate=None,
         **kwargs,
     ):
+        """Fit the model.
 
+        Parameters
+        ----------
+        data: pandas.DataFrame
+            The input samples for the est_model to estimate the causal effects
+            and for the CEInterpreter to fit.
+        outcome: list of str, optional
+            Names of the outcomes.
+        treatment: list of str, optional
+            Names of the treatments.
+        covariate: list of str, optional, default=None
+            Names of the covariate vectors.
+        adjustment: list of str, optional, default=None
+            This will be the same as the covariate.
+        sample_weight:  ndarray, optional, default=None
+            Weight of each sample of the training set.
+
+        Returns
+        ----------
+            An instance of GRForest.
+        """
         super().fit(
             data, outcome, treatment, adjustment=adjustment, covariate=covariate
         )
@@ -205,6 +300,19 @@ class BaseCausalForest(BaseEstModel, BaseForest):
         self._fit_with_array(y, x, w, v, sample_weight=sample_weight, **kwargs)
 
     def estimate(self, data=None, **kwargs):
+        """Estimate the causal effect of the treatment on the outcome in data.
+
+
+        Parameters
+        ----------
+        data : pandas.DataFrame, optional, default=None
+            If None, data will be set as the training data.
+
+        Returns
+        -------
+        ndarray or float, optional
+            The estimated causal effect.
+        """
         effect_ = self._prepare4est(data=data)
         return effect_
 
@@ -214,23 +322,28 @@ class BaseCausalForest(BaseEstModel, BaseForest):
     def apply(self, v):
         """
         Apply trees in the forest to X, return leaf indices.
+
         Parameters
         ----------
-        X : array-like of shape (n_samples, n_features)
+        v : array-like of shape (n_samples, n_features)
             The input samples. Internally, its dtype will be converted to
             ``dtype=np.float32``.
 
         Returns
         -------
-        X_leaves : ndarray of shape (n_samples, n_estimators)
-            For each datapoint x in X and for each tree in the forest,
-            return the index of the leaf x ends up in.
+        v_leaves : ndarray of shape (n_samples, n_estimators)
+            For each datapoint v_i in v and for each tree in the forest,
+            return the index of the leaf v ends up in.
         """
         results = Parallel(**self._job_options())(
             delayed(tree.apply)(v, v, check_input=False) for tree in self.estimators_
         )
 
         return np.array(results).T
+
+    @property
+    def feature_importance(self):
+        return self.feature_importances_()
 
     def feature_importances_(self):
         all_importances = Parallel(**self._job_options())(

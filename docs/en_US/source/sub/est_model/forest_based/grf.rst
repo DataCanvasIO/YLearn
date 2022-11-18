@@ -33,17 +33,23 @@ The formal version of GRF is summarized as follows.
 Class Structures
 ================
 
-.. py:class:: ylearn.estimator_model.GRForest(*, splitter='best', max_depth=None, min_samples_split=2, min_samples_leaf=1, random_state=2022, max_leaf_nodes=None, max_features=None, min_impurity_decrease=0.0, min_weight_fraction_leaf=0.0, ccp_alpha=0.0, categories='auto')
+.. py:class:: ylearn.estimator_model.GRForest(n_estimators=100, *, sub_sample_num=None, max_depth=None, min_samples_split=2, min_samples_leaf=1, min_weight_fraction_leaf=0.0, max_features=1.0, max_leaf_nodes=None, min_impurity_decrease=0.0, n_jobs=None, random_state=None, ccp_alpha=0.0, is_discrete_treatment=True, is_discrete_outcome=False, verbose=0, warm_start=False, honest_subsample_num=None,)
 
-    :param {"best", "random"}, default="best" splitter: The strategy used to choose the split at each node. Supported
-        strategies are "best" to choose the best split and "random" to choose
-        the best random split.
-    :param int, default=None max_depth: The maximum depth of the tree. If None, then nodes are expanded until
-        all leaves are pure or until all leaves contain less than
-        min_samples_split samples.
-    :param int or float, default=2 min_samples_split: The minimum number of samples required to split an internal node:
+    :param int, default=100 n_estimators: The number of trees for growing the GRF.
+
+    :param int or float, default=None sub_sample_num: The number of samples to train each individual tree.
+        - If a float is given, then the number of ``sub_sample_num*n_samples`` samples will be sampled to train a single tree
+        - If an int is given, then the number of ``sub_sample_num`` samples will be sampled to train a single tree
+
+    :param int, default=None max_depth: The max depth that a single tree can reach. If ``None`` is given, then there is no limit of
+        the depth of a single tree.
+    
+    :param int, default=2 min_samples_split: The minimum number of samples required to split an internal node:
         - If int, then consider `min_samples_split` as the minimum number.
-        - If float, then `min_samples_split` is a fraction and `ceil(min_samples_split * n_samples)` are the minimum number of samples for each split.
+        - If float, then `min_samples_split` is a fraction and
+          `ceil(min_samples_split * n_samples)` are the minimum
+          number of samples for each split.
+
     :param int or float, default=1 min_samples_leaf: The minimum number of samples required to be at a leaf node.
         A split point at any depth will only be considered if it leaves at
         least ``min_samples_leaf`` training samples in each of the left and
@@ -52,10 +58,11 @@ Class Structures
             
             - If int, then consider `min_samples_leaf` as the minimum number.
             - If float, then `min_samples_leaf` is a fraction and `ceil(min_samples_leaf * n_samples)` are the minimum number of samples for each node.
-    
+
     :param float, default=0.0 min_weight_fraction_leaf: The minimum weighted fraction of the sum total of weights (of all
         the input samples) required to be at a leaf node. Samples have
         equal weight when sample_weight is not provided.
+    
     :param int, float or {"sqrt", "log2"}, default=None max_features: The number of features to consider when looking for the best split:
         
             - If int, then consider `max_features` features at each split.
@@ -65,24 +72,27 @@ Class Structures
             - If None, then `max_features=n_features`.
 
     :param int random_state: Controls the randomness of the estimator.
-    :param int, default to None max_leaf_nodes: Grow a tree with ``max_leaf_nodes`` in best-first fashion.
+    
+    :param int, default=None max_leaf_nodes: Grow a tree with ``max_leaf_nodes`` in best-first fashion.
         Best nodes are defined as relative reduction in impurity.
         If None then unlimited number of leaf nodes.
+
     :param float, default=0.0 min_impurity_decrease: A node will be split if this split induces a decrease of the impurity
         greater than or equal to this value.
-        The weighted impurity decrease equation is the following
-            
-            N_t / N * (impurity - N_t_R / N_t * right_impurity - N_t_L / N_t * left_impurity)
-        
-        where ``N`` is the total number of samples, ``N_t`` is the number of
-        samples at the current node, ``N_t_L`` is the number of samples in the
-        left child, and ``N_t_R`` is the number of samples in the right child.
-        ``N``, ``N_t``, ``N_t_R`` and ``N_t_L`` all refer to the weighted sum,
-        if ``sample_weight`` is passed.
+    
+    :param int, default=None n_jobs: The number of jobs to run in parallel. :meth:`fit`, :meth:`estimate`, 
+        and :meth:`apply` are all parallelized over the
+        trees. ``None`` means 1 unless in a :obj:`joblib.parallel_backend`
+        context. ``-1`` means using all processors. See :term:`Glossary
+        <n_jobs>` for more details.
 
-    :param str, optional, default='auto' categories: 
+    :param int, default=0 verbose: Controls the verbosity when fitting and predicting
 
-    .. py:method:: fit(data, outcome, treatment, adjustment=None, covariate=None, treat=None, control=None)
+    :param int or float, default=None honest_subsample_num: The number of samples to train each individual tree in an honest manner. Typically set this value will have better performance. Use all ``sub_sample_num`` if ``None`` is given.
+        - If a float is given, then the number of ``honest_subsample_num*sub_sample_num`` samples will be used to train a single tree while the rest ``(1 - honest_subsample_num)*sub_sample_num`` samples will be used to label the trained tree.
+        - If an int is given, then the number of ``honest_subsample_num`` samples will be sampled to train a single tree while the rest ``sub_sample_num - honest_subsample_num`` samples will be used to label the trained tree.
+
+    .. py:method:: fit(data, outcome, treatment, adjustment=None, covariate=None)
         
         Fit the model on data to estimate the causal effect.
 
@@ -91,78 +101,45 @@ Class Structures
         :param list of str, optional outcome: Names of the outcomes.
         :param list of str, optional treatment: Names of the treatments.
         :param list of str, optional, default=None covariate: Names of the covariate vectors.
-        :param list of str, optional, default=None adjustment: Names of the covariate vectors. Note that we may only need the covariate
-            set, which usually is a subset of the adjustment set.
-        :param int or list, optional, default=None treat: If there is only one discrete treatment, then treat indicates the
-            treatment group. If there are multiple treatment groups, then treat
-            should be a list of str with length equal to the number of treatments. 
-            For example, when there are multiple discrete treatments,
-                
-                array(['run', 'read'])
-            
-            means the treat value of the first treatment is taken as 'run' and
-            that of the second treatment is taken as 'read'.
-        :param int or list, optional, default=None control: See treat.
+        :param list of str, optional, default=None adjustment: This will be the same as the covariate.
+        :param ndarray, optional, default=None sample_weight: Weight of each sample of the training set.
         
-        :returns: Fitted CausalTree
-        :rtype: instance of CausalTree
+        :returns: Fitted GRForest
+        :rtype: instance of GRForest
 
-    .. py:method:: estimate(data=None, quantity=None)
+    .. py:method:: estimate(data=None)
 
         Estimate the causal effect of the treatment on the outcome in data.
 
         :param pandas.DataFrame, optional, default=None data: If None, data will be set as the training data.
-        :param str, optional, default=None quantity: Option for returned estimation result. The possible values of quantity include:
-                
-                1. *'CATE'* : the estimator will evaluate the CATE;
-                
-                2. *'ATE'* : the estimator will evaluate the ATE;
-                
-                3. *None* : the estimator will evaluate the ITE or CITE.
 
-        :returns: The estimated causal effect with the type of the quantity.
+        :returns: The estimated causal effect.
         :rtype: ndarray or float, optional
 
-    .. py:method:: plot_causal_tree(feature_names=None, max_depth=None, class_names=None, label='all', filled=False, node_ids=False, proportion=False, rounded=False, precision=3, ax=None, fontsize=None)
 
-        Plot a policy tree.
-        The sample counts that are shown are weighted with any sample_weights that
-        might be present.
-        The visualization is fit automatically to the size of the axis.
-        Use the ``figsize`` or ``dpi`` arguments of ``plt.figure``  to control
-        the size of the rendering.
+    .. .. py:method:: decision_path(*, data=None, wv=None)
 
-        :returns: List containing the artists for the annotation boxes making up the
-            tree.
-        :rtype: annotations : list of artists
-    
-    .. py:method:: decision_path(*, data=None, wv=None)
+    ..     Return the decision path.
 
-        Return the decision path.
+    ..     :param numpy.ndarray, default=None wv: The input samples as an ndarray. If None, then the DataFrame data
+    ..         will be used as the input samples.
+    ..     :param pandas.DataFrame, default=None data: The input samples. The data must contains columns of the covariates
+    ..         used for training the model. If None, the training data will be
+    ..         passed as input samples.
 
-        :param numpy.ndarray, default=None wv: The input samples as an ndarray. If None, then the DataFrame data
-            will be used as the input samples.
-        :param pandas.DataFrame, default=None data: The input samples. The data must contains columns of the covariates
-            used for training the model. If None, the training data will be
-            passed as input samples.
+    ..     :returns: Return a node indicator CSR matrix where non zero elements
+    ..         indicates that the samples goes through the nodes.
+    ..     :rtype: indicator : sparse matrix of shape (n_samples, n_nodes)
 
-        :returns: Return a node indicator CSR matrix where non zero elements
-            indicates that the samples goes through the nodes.
-        :rtype: indicator : sparse matrix of shape (n_samples, n_nodes)
+    .. py:method:: apply(*, v)
 
-    .. py:method:: apply(*, data=None, wv=None)
-
-        Return the index of the leaf that each sample is predicted as.
+        Apply trees in the forest to X, return leaf indices.
         
-        :param numpy.ndarray, default=None wv: The input samples as an ndarray. If None, then the DataFrame data
-            will be used as the input samples.
-        :param pandas.DataFrame, default=None data: The input samples. The data must contains columns of the covariates
-            used for training the model. If None, the training data will be
-            passed as input samples.
+        :param numpy.ndarray, v: The input samples. Internally, its dtype will be converted to
+            ``dtype=np.float32``.
 
-        :returns: For each datapoint v_i in v, return the index of the leaf v_i
-            ends up in. Leaves are numbered within ``[0; self.tree_.node_count)``, possibly with gaps in the
-            numbering.
+        :returns: For each datapoint v_i in v and for each tree in the forest,
+            return the index of the leaf v ends up in.
         :rtype: v_leaves : array-like of shape (n_samples, )
 
     .. py:property:: feature_importance
