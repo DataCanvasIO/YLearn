@@ -1,6 +1,9 @@
-******************************************************
-Generalized Random Forest for Causal Effect Estimation 
-******************************************************
+.. _grf:
+
+
+*************************
+Generalized Random Forest
+*************************
 
 To adpat random forest to causal effect estimation, [Athey2018]_ proposed a generalized version of it, named as Generalized Random Forest (GRF), by altering the criterion
 when building a single tree and designing a new kind of ensemble method to combine these trained trees. GRF can be used in, for example, quantile regression while in YLearn,
@@ -23,6 +26,63 @@ causal effect can be expressed by
     \left( \sum_{i=1}^n \alpha_i(x)(X_i - \bar{X}_\alpha)(X_i - \bar{X}_\alpha)^T\right)^{-1} \sum_{i = 1}^n \alpha_i(v) (X_i - \bar{X}_\alpha)(Y_i - \bar{Y}_\alpha)
 
 where :math:`\bar{X}_\alpha = \sum \alpha_i X_i` and :math:`\bar{Y}_\alpha = \sum \alpha_i Y_i`.
+
+We now provide an example useage of applying the ``GRForest``.
+
+.. topic:: Example
+    
+    We first build a dataset and define the names of treatment, outcome, and covariate separately.
+
+    .. code-block:: python
+
+        import numpy as np
+        import matplotlib.pyplot as plt
+
+        from ylearn.estimator_model import GRForest
+        from ylearn.exp_dataset.exp_data import sq_data
+        from ylearn.utils._common import to_df
+
+
+        # build dataset
+        n = 2000
+        d = 10     
+        n_x = 1
+        y, x, v = sq_data(n, d, n_x)
+        true_te = lambda X: np.hstack([X[:, [0]]**2 + 1, np.ones((X.shape[0], n_x - 1))])
+        data = to_df(treatment=x, outcome=y, v=v)
+        outcome = 'outcome'
+        treatment = 'treatment'
+        adjustment = data.columns[2:]
+
+        # build test data
+        v_test = v[:min(100, n)].copy()
+        v_test[:, 0] = np.linspace(np.percentile(v[:, 0], 1), np.percentile(v[:, 0], 99), min(100, n))
+        test_data = to_df(v=v_test)
+    
+    We now train the `GRForest` and use it in the test data. To have better performance, it is also recommended to set the ``honest_subsample_num``
+    as not ``None``.
+
+    .. code-block:: python
+
+        from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+        from sklearn.linear_model import LogisticRegressionCV
+
+        grf = GRForest(
+            n_jobs=1, 
+            honest_subsample_num=None,
+            min_samples_split=10, 
+            sub_sample_num=0.5, 
+            n_estimators=100, 
+            random_state=2022, 
+            min_impurity_decrease=1e-10, 
+            max_depth=100, 
+            max_leaf_nodes=100, 
+            verbose=0,
+        )
+        grf.fit(
+            data=data, outcome=outcome, treatment=treatment, adjustment=adjustment, covariate=adjustment
+        )
+        effect = grf.estimate(test_data)
 
 Besides the GRF, YLearn also implements a naive version of GRF with pure python in an easy to understand manner to help users get some insights on how GRF works in code level.
 It is worth to mention that, however, this naive version of GRF is super slow (~5mins for fitting 100 trees in a dataset with 2000 samples and 10 features). One can find this naive
