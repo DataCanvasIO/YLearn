@@ -95,6 +95,7 @@ YLearn implements several estimator models for the estimation of causal effects:
     est_model/dml
     est_model/dr
     est_model/causal_tree
+    est_model/forest
     est_model/iv
     est_model/score
     

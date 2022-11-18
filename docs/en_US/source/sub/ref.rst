@@ -57,3 +57,7 @@ References
 .. [Zheng2018]
 
     X. Zheng, et al. DAGs with NO TEARS: Continuous Optimization for Structure Learning. *arXiv: 1803.01422.*
+
+.. [Athey2018]
+
+    S. Authey, et al. Generalized Random Forests. *arXiv: 1610.01271*

@@ -13,22 +13,23 @@ from .ensemble import EnsembleEstModels
 from .iv import NP2SLS
 from .meta_learner import SLearner, TLearner, XLearner
 from .propensity_score import InversePbWeighting, PropensityScore
+from ._generalized_forest._grf import GRForest
+from .causal_forest import CausalForest
 
 try:
     from .deepiv import DeepIV
 except ImportError as e:
-    msg = f'{e}'
-
+    msg = f"{e}"
 
     class DeepIV:
         def __init__(self, *args, **kwargs):
             raise ImportError(msg)
 
+
 try:
     from .causal_tree import CausalTree
 except ImportError as e:
-    msg = f'{e}'
-
+    msg = f"{e}"
 
     class CausalTree:
         def __init__(self, *args, **kwargs):
