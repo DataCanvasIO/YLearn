@@ -173,7 +173,38 @@ We present several necessary example usages of YLearn in this section, which cov
         cm.identify(treatment={'X'}, outcome={'Y'}, identify_method=('backdoor', 'simple'))
    ```
 
-    where we use the *backdoor-adjustment* method here. YLearn also supports front-door adjustment, finding instrumental variables, and, most importantly, the general identification method developed in [1] which is able to identify any causal effect if it is identifiable.
+    where we use the *backdoor-adjustment* method here. YLearn also supports front-door adjustment, finding instrumental variables, and, most importantly, the general identification method developed in [1] which is able to identify any causal effect if it is identifiable. For an example, given the following causal graph,
+    
+    <img src="./fig/id_fig.png" width="300">
+
+    if we want to identify `P(Y1, Y2|do(X))`, racalling that black dotted lines with two directions are latent confounding arcs (i.e. there is an unobserved confounder pointing to the two end nodes of each black dotted lines), we can apply YLearn as follows
+
+    ```python
+        causation = {
+            'W1': [],
+            'W2': [],
+            'X': ['W1'],
+            'Y1': ['X'],
+            'Y2': ['W2']
+        }
+        arcs = [('W1', 'Y1'), ('W1', 'W2'), ('W1', 'Y2'), ('W1', 'Y1')]
+        cg = graph.CausalGraph(causation, latent_confounding_arcs=arcs)
+        cm = model.CausalModel(cg)
+        p = cm.id({'Y1', 'Y2'}, {'X'})
+        p.show_latex_expression()
+    ```
+
+    which will give us the identified causal effect `P(Y1, Y2|X)` as follows
+
+    <img src="./fig/latex_exp.png" width="400">
+
+    and calling the method `p.parse()` will give us the latex expression
+
+    ```
+    \sum_{W2}\left[\left[P(Y2|W2)\right]\right]\left[\sum_{W1}\left[P(W1)\right]\left[P(Y1|X, W1)\right]\right]\left[P(W2)\right]
+    ```
+
+
 
 3. **Instrumental variables**
 

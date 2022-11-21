@@ -42,7 +42,7 @@ We provide below an example of it.
         test_data = to_df(v=v_test)
     
     We now train the `CTCausalForest` and use it in the test data. To have better performance, it is also recommended to set the ``honest_subsample_num``
-    as not ``None``. 
+    as not ``None``.
 
     .. code-block:: python
 
