@@ -98,6 +98,7 @@ Class Structures
     :param int, default=100 n_estimators: The number of trees for growing the GRF.
 
     :param int or float, default=None sub_sample_num: The number of samples to train each individual tree.
+        
         - If a float is given, then the number of ``sub_sample_num*n_samples`` samples will be sampled to train a single tree
         - If an int is given, then the number of ``sub_sample_num`` samples will be sampled to train a single tree
 
@@ -105,6 +106,7 @@ Class Structures
         the depth of a single tree.
     
     :param int, default=2 min_samples_split: The minimum number of samples required to split an internal node:
+        
         - If int, then consider `min_samples_split` as the minimum number.
         - If float, then `min_samples_split` is a fraction and
           `ceil(min_samples_split * n_samples)` are the minimum
@@ -148,7 +150,9 @@ Class Structures
 
     :param int, default=0 verbose: Controls the verbosity when fitting and predicting
 
-    :param int or float, default=None honest_subsample_num: The number of samples to train each individual tree in an honest manner. Typically set this value will have better performance. Use all ``sub_sample_num`` if ``None`` is given.
+    :param int or float, default=None honest_subsample_num: The number of samples to train each individual tree in an honest manner. Typically setting this value will have better performance. 
+        
+        - Use all ``sub_sample_num`` if ``None`` is given.
         - If a float is given, then the number of ``honest_subsample_num*sub_sample_num`` samples will be used to train a single tree while the rest ``(1 - honest_subsample_num)*sub_sample_num`` samples will be used to label the trained tree.
         - If an int is given, then the number of ``honest_subsample_num`` samples will be sampled to train a single tree while the rest ``sub_sample_num - honest_subsample_num`` samples will be used to label the trained tree.
 

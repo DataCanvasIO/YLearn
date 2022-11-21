@@ -348,7 +348,7 @@ Class Structures
         :returns: The fitted instance of :py:class:`PolicyInterpreter`.
         :rtype: instance of :py:class:`PolicyInterpreter`
 
-   .. py:method:: uplift_model(test_data, treatment=None, treat=None, control=None, target_outcome=None,  name=None, random=None)
+    .. py:method:: uplift_model(test_data, treatment=None, treat=None, control=None, target_outcome=None,  name=None, random=None)
 
         Get uplift model over one treatment.
 

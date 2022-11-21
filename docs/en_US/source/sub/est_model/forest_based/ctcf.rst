@@ -6,6 +6,9 @@ An efficient and useful technique for growing a random forest is by simply avera
 individual tree. Consequently, we can also apply this technique to grow a causal forest by combining many single causal tree.
 In YLearn, we implement this idea in the class :py:class:`CTCausalForest` (refering to Causal Tree Causal Forest).
 
+Since it is an ensemble of a bunch of CausalTree, currently it only supports binary treatment. One may need specify the treat and control groups
+before applying the CTCausalForest. This will be improved in the future version.
+
 We provide below an example of it.
 
 .. topic:: Example
@@ -39,7 +42,7 @@ We provide below an example of it.
         test_data = to_df(v=v_test)
     
     We now train the `CTCausalForest` and use it in the test data. To have better performance, it is also recommended to set the ``honest_subsample_num``
-    as not ``None``.
+    as not ``None``. 
 
     .. code-block:: python
 
@@ -67,6 +70,7 @@ Class Structures
     :param int, default=100 n_estimators: The number of trees for growing the CTCausalForest.
 
     :param int or float, default=None sub_sample_num: The number of samples to train each individual tree.
+        
         - If a float is given, then the number of ``sub_sample_num*n_samples`` samples will be sampled to train a single tree
         - If an int is given, then the number of ``sub_sample_num`` samples will be sampled to train a single tree
 
@@ -74,6 +78,7 @@ Class Structures
         the depth of a single tree.
     
     :param int, default=2 min_samples_split: The minimum number of samples required to split an internal node:
+        
         - If int, then consider `min_samples_split` as the minimum number.
         - If float, then `min_samples_split` is a fraction and
           `ceil(min_samples_split * n_samples)` are the minimum
@@ -104,18 +109,20 @@ Class Structures
     :param int, default=None n_jobs: The number of jobs to run in parallel. :meth:`fit`, :meth:`estimate`, 
         and :meth:`apply` are all parallelized over the
         trees. ``None`` means 1 unless in a :obj:`joblib.parallel_backend`
-        context. ``-1`` means using all processors. See :term:`Glossary
-        <n_jobs>` for more details.
+        context. ``-1`` means using all processors.
 
     :param int, default=0 verbose: Controls the verbosity when fitting and predicting
 
-    :param int or float, default=None honest_subsample_num: The number of samples to train each individual tree in an honest manner. Typically set this value will have better performance. Use all ``sub_sample_num`` if ``None`` is given.
+    :param int or float, default=None honest_subsample_num: The number of samples to train each individual tree in an honest manner. Typically setting this value will have better performance. 
+    
+        - Use all ``sub_sample_num`` if ``None`` is given.
         - If a float is given, then the number of ``honest_subsample_num*sub_sample_num`` samples will be used to train a single tree while the rest ``(1 - honest_subsample_num)*sub_sample_num`` samples will be used to label the trained tree.
         - If an int is given, then the number of ``honest_subsample_num`` samples will be sampled to train a single tree while the rest ``sub_sample_num - honest_subsample_num`` samples will be used to label the trained tree.
 
-    .. py:method:: fit(data, outcome, treatment, adjustment=None, covariate=None)
+    .. py:method:: fit(data, outcome, treatment, adjustment=None, covariate=None, treat=None, control=None)
         
-        Fit the model on data to estimate the causal effect.
+        Fit the model on data to estimate the causal effect. Note that similar to CausalTree, currently CTCausalForest assumes a binary treatment where the values
+        of ``treat`` and ``control`` are controled by the corresponding parameters.
 
         :param pandas.DataFrame data: The input samples for the est_model to estimate the causal effects
             and for the CEInterpreter to fit.
@@ -124,6 +131,16 @@ Class Structures
         :param list of str, optional, default=None covariate: Names of the covariate vectors.
         :param list of str, optional, default=None adjustment: This will be the same as the covariate.
         :param ndarray, optional, default=None sample_weight: Weight of each sample of the training set.
+        :param int or list, optional, default=None treat: If there is only one discrete treatment, then treat indicates the
+            treatment group. If there are multiple treatment groups, then treat
+            should be a list of str with length equal to the number of treatments. 
+            For example, when there are multiple discrete treatments,
+                
+                array(['run', 'read'])
+            
+            means the treat value of the first treatment is taken as 'run' and
+            that of the second treatment is taken as 'read'.
+        :param int or list, optional, default=None control: See treat.
         
         :returns: Fitted CTCausalForest
         :rtype: instance of CTCausalForest

@@ -69,12 +69,16 @@ Class Structures
     :param {"best", "random"}, default="best" splitter: The strategy used to choose the split at each node. Supported
         strategies are "best" to choose the best split and "random" to choose
         the best random split.
+    
     :param int, default=None max_depth: The maximum depth of the tree. If None, then nodes are expanded until
         all leaves are pure or until all leaves contain less than
         min_samples_split samples.
+    
     :param int or float, default=2 min_samples_split: The minimum number of samples required to split an internal node:
+        
         - If int, then consider `min_samples_split` as the minimum number.
         - If float, then `min_samples_split` is a fraction and `ceil(min_samples_split * n_samples)` are the minimum number of samples for each split.
+    
     :param int or float, default=1 min_samples_leaf: The minimum number of samples required to be at a leaf node.
         A split point at any depth will only be considered if it leaves at
         least ``min_samples_leaf`` training samples in each of the left and
@@ -87,6 +91,7 @@ Class Structures
     :param float, default=0.0 min_weight_fraction_leaf: The minimum weighted fraction of the sum total of weights (of all
         the input samples) required to be at a leaf node. Samples have
         equal weight when sample_weight is not provided.
+    
     :param int, float or {"sqrt", "log2"}, default=None max_features: The number of features to consider when looking for the best split:
         
             - If int, then consider `max_features` features at each split.
@@ -96,9 +101,11 @@ Class Structures
             - If None, then `max_features=n_features`.
 
     :param int random_state: Controls the randomness of the estimator.
+    
     :param int, default to None max_leaf_nodes: Grow a tree with ``max_leaf_nodes`` in best-first fashion.
         Best nodes are defined as relative reduction in impurity.
         If None then unlimited number of leaf nodes.
+    
     :param float, default=0.0 min_impurity_decrease: A node will be split if this split induces a decrease of the impurity
         greater than or equal to this value.
         The weighted impurity decrease equation is the following

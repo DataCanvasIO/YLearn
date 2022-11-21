@@ -38,7 +38,7 @@ to support such technique. We illustrate its useage in the following example.
     
     Now it leaves us to train the `CausalForest` and use it in the test data. Typically, we should first specify two models which regressing out the treatment and outcome
     respectively on the covariate. In this example, we use the ``RandomForestRegressor`` from ``sklearn`` to be such models. Note that if we use a regression model for the
-    treamtment, then the parameter ``is_discrete_treatment`` must be set as ``False``. To have better performance, it is also recommended to set the ``honest_subsample_num``
+    treatment, then the parameter ``is_discrete_treatment`` must be set as ``False``. To have better performance, it is also recommended to set the ``honest_subsample_num``
     as not ``None``.
 
     .. code-block:: python
@@ -70,7 +70,7 @@ Class Structures
 ================
 
 
-.. py:class:: ylearn.estimator_model.CausalForest(x_model, y_model, n_estimators=100, *, cf_fold=1, sub_sample_num=None, max_depth=None, min_samples_split=2, min_samples_leaf=1, min_weight_fraction_leaf=0.0, max_features=1.0, max_leaf_nodes=None, min_impurity_decrease=0.0, n_jobs=None, random_state=None, ccp_alpha=0.0, is_discrete_treatment=True, is_discrete_outcome=False, verbose=0, warm_start=False, honest_subsample_num=None,)
+.. py:class:: ylearn.estimator_model.CausalForest(x_model, y_model, n_estimators=100, *, cf_fold=1, sub_sample_num=None, max_depth=None, min_samples_split=2, min_samples_leaf=1, min_weight_fraction_leaf=0.0, max_features=1.0, max_leaf_nodes=None, min_impurity_decrease=0.0, n_jobs=None, random_state=None, ccp_alpha=0.0, is_discrete_treatment=True, is_discrete_outcome=False, verbose=0, warm_start=False, honest_subsample_num=None, adjustment_transformer=None, covariate_transformer=None, proba_output=False)
    
     :param estimator, optional x_model: Machine learning models for fitting x. Any such models should implement
             the :py:func:`fit` and :py:func:`predict`` (also :py:func:`predict_proba` if x is discrete) methods.
@@ -82,6 +82,7 @@ Class Structures
     :param int, default=100 n_estimators: The number of trees for growing the GRF.
 
     :param int or float, default=None sub_sample_num: The number of samples to train each individual tree.
+        
         - If a float is given, then the number of ``sub_sample_num*n_samples`` samples will be sampled to train a single tree
         - If an int is given, then the number of ``sub_sample_num`` samples will be sampled to train a single tree
 
@@ -89,6 +90,7 @@ Class Structures
         the depth of a single tree.
     
     :param int, default=2 min_samples_split: The minimum number of samples required to split an internal node:
+        
         - If int, then consider `min_samples_split` as the minimum number.
         - If float, then `min_samples_split` is a fraction and
           `ceil(min_samples_split * n_samples)` are the minimum
@@ -127,18 +129,27 @@ Class Structures
     :param int, default=None n_jobs: The number of jobs to run in parallel. :meth:`fit`, :meth:`estimate`, 
         and :meth:`apply` are all parallelized over the
         trees. ``None`` means 1 unless in a :obj:`joblib.parallel_backend`
-        context. ``-1`` means using all processors. See :term:`Glossary
-        <n_jobs>` for more details.
+        context. ``-1`` means using all processors.
 
     :param int, default=0 verbose: Controls the verbosity when fitting and predicting
 
-    :param int or float, default=None honest_subsample_num: The number of samples to train each individual tree in an honest manner. Typically set this value will have better performance. Use all ``sub_sample_num`` if ``None`` is given.
+    :param int or float, default=None honest_subsample_num: The number of samples to train each individual tree in an honest manner. Typically setting this value will have better performance.
+        
+        - Use all ``sub_sample_num`` if ``None`` is given.
         - If a float is given, then the number of ``honest_subsample_num*sub_sample_num`` samples will be used to train a single tree while the rest ``(1 - honest_subsample_num)*sub_sample_num`` samples will be used to label the trained tree.
         - If an int is given, then the number of ``honest_subsample_num`` samples will be sampled to train a single tree while the rest ``sub_sample_num - honest_subsample_num`` samples will be used to label the trained tree.
 
-    .. py:method:: fit(data, outcome, treatment, adjustment=None, covariate=None)
+    :param transformer, default=None adjustment_transformer: Transfomer of adjustment variables. This can be used to generate new features.
+
+    :param transformer, default=None covariate_transformer: Transfomer of covariate variables. This can be used to generate new features.
+
+    :param bool, default=False proba_output: Whether to estimate probability of the outcome if it is a discrete one. If True, then the given
+        ``y_model`` must have the method :py:func:`predict_proba()`.
+
+    .. py:method:: fit(data, outcome, treatment, adjustment=None, covariate=None, control=None)
         
-        Fit the model on data to estimate the causal effect.
+        Fit the model on data to estimate the causal effect. Note that when a discrete treatment is given, then the first column will be automatically 
+        assumed as the control while other columns different treat assignments if ``control`` is not specified explicitly.
 
         :param pandas.DataFrame data: The input samples for the est_model to estimate the causal effects
             and for the CEInterpreter to fit.
@@ -147,6 +158,8 @@ Class Structures
         :param list of str, optional, default=None covariate: Names of the covariate vectors.
         :param list of str, optional, default=None adjustment: This will be the same as the covariate.
         :param ndarray, optional, default=None sample_weight: Weight of each sample of the training set.
+        :param str, optional, default=None control: The value of the parameter ``treatment`` whcih will be the control group to estimate the causal effect.
+            If ``None`` is given, then the first column of the ``treatment`` will be the ``control``.
         
         :returns: Fitted GRForest
         :rtype: instance of GRForest

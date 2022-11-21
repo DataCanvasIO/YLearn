@@ -129,14 +129,19 @@ class CausalForest(DoubleML):
 
         honest_subsample_num: int or float, default=None
             The number of samples to train each individual tree in an honest manner. Typically
-            set this value will have better performance. Use all ``sub_sample_num`` if ``None``
+            setting this value will have better performance. Use all ``sub_sample_num`` if ``None``
             is given.
+
             - If a float is given, then the number of ``honest_subsample_num*sub_sample_num`` samples
                 will be used to train a single tree while the rest ``(1 - honest_subsample_num)*sub_sample_num``
                 samples will be used to label the trained tree.
             - If an int is given, then the number of ``honest_subsample_num`` samples will be sampled
                 to train a single tree while the rest ``sub_sample_num - honest_subsample_num`` samples will
                 be used to label the trained tree.
+
+        proba_output : bool, default=False
+            Whether to estimate probability of the outcome if it is a discrete one. If True, then the given
+            y_model must have the method ``predict_proba``.
         """
         yx_model = GRForest(
             n_estimators=n_estimators,
@@ -170,6 +175,18 @@ class CausalForest(DoubleML):
             is_discrete_treatment=is_discrete_treatment,
             categories=categories,
             proba_output=proba_output,
+        )
+
+    def fit(
+        self, data, outcome, treatment, adjustment=None, covariate=None, control=None
+    ):
+        return super().fit(
+            data=data,
+            outcome=outcome,
+            treatment=treatment,
+            adjustment=adjustment,
+            covariate=covariate,
+            control=control,
         )
 
     def _fit_2nd_stage(self, yx_model, x_prime, y_prime, v, **kwargs):

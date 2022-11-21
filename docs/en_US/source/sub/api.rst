@@ -33,6 +33,12 @@ API: Interacting with YLearn
 
     * - Class Name
       - Description
+    * - :py:class:`GRForest`
+      - A highly flexible nonparametric estimator (Generalized Random Forest, GRF) model which supports both discrete and continuous treatment. The unconfoundedness condition is required.
+    * - :py:class:`CausalForest`
+      - A generalized random forest combined with the local centering technique (i.e. double machine learning framework). The unconfoundedness condition is required.
+    * - :py:class:`CTCausalForest`
+      - A causal forest as an ensemble of a bunch of :py:class:`CausalTree`. Similar to the :py:class:`CausalTree`, the treatment should be binary. The unconfoundedness condition is required.
     * - :py:class:`ApproxBound`
       - A model used for estimating the upper and lower bounds of the causal effects. This model does not need the unconfoundedness condition.
     * - :py:class:`CausalTree`
