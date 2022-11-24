@@ -10,6 +10,8 @@ import numpy
 from setuptools import setup, Extension, find_packages
 
 my_name = 'ylearn'
+home_url = 'https://github.com/DataCanvasIO/YLearn'
+
 excludes_on_windows = ['torch', ]
 
 
@@ -46,6 +48,30 @@ def read_extra_requirements():
         extra['all'] = sorted({v for req in extra.values() for v in req})
 
     return extra
+
+
+def read_description(file_path='README.md', image_root=f'{home_url}/raw/main', ):
+    import os
+    import re
+
+    def _encode_image(m):
+        assert len(m.groups()) == 3
+
+        pre, src, post = m.groups()
+        src = src.rstrip().lstrip()
+
+        remote_src = os.path.join(image_root, os.path.relpath(src))
+        return f'{pre}{remote_src}{post}'
+
+    desc = open(file_path, encoding='utf-8').read()
+
+    # substitute html image
+    desc = re.sub(r'(<img\s+src\s*=\s*\")(./fig/[^"]+)(\")', _encode_image, desc)
+
+    # substitute markdown image
+    desc = re.sub(r'(\!\[.*\]\()(./fig/.+)(\))', _encode_image, desc)
+
+    return desc
 
 
 def find_extensions(*base_dirs):
@@ -97,12 +123,14 @@ def prepare_eigen3(ver='3.4.0', target_path='./downloads'):
         tarball = f'eigen-{ver}'
         eigen3_path = f'{target_path}/{tarball}'
         if (not os.path.exists(eigen3_path)) or len(dir(f'{eigen3_path}/*')) == 0:
-            url = f'https://gitlab.com/libeigen/eigen/-/archive/{ver}/{tarball}.tar.gz'
-            tarball_file = f'{target_path}/{tarball}.tar.gz'
             os.makedirs(target_path, exist_ok=True)
 
-            print(f'download {tarball} ...')
-            download(url, tarball_file)
+            tarball_file = f'{target_path}/{tarball}.tar.gz'
+            if (not os.path.exists(tarball_file)) or os.path.getsize(tarball_file) < 1:
+                print(f'download {tarball} ...')
+                url = f'https://gitlab.com/libeigen/eigen/-/archive/{ver}/{tarball}.tar.gz'
+                download(url, tarball_file)
+
             print(f'extract {tarball} ...')
             extract(tarball_file, target_path)
 
@@ -172,7 +200,8 @@ if pyx_modules:
 
 MIN_PYTHON_VERSION = '>=3.6.*'
 
-long_description = open('README.md', encoding='utf-8').read()
+# long_description = open('README.md', encoding='utf-8').read()
+long_description = read_description('README.md')
 
 requires = read_requirements()
 extras_require = read_extra_requirements()
@@ -184,7 +213,7 @@ setup(
     description='A python package for causal inference',
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url='https://github.com/DataCanvasIO/YLearn',
+    url=home_url,
     author='DataCanvas Community',
     author_email='yangjian@zetyun.com',
     license='Apache License 2.0',
