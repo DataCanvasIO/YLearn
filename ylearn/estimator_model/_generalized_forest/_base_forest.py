@@ -527,13 +527,16 @@ class BaseCausalForest(BaseEstModel, BaseForest):
             sample_weight_honest = sample_weight[honest_sample_num:]
 
         if honest_sample_num is None:
-            t._fit_with_array(x[s], y[s], w[s], v[s], sample_weight)
+            t._fit_with_array(x[s], y[s],
+                              w[s] if w is not None else None,
+                              v[s] if v is not None else None,
+                              sample_weight)
         else:
             t._fit_with_array(
                 x[s][honest_sample_num:],
                 y[s][honest_sample_num:],
-                w[s][honest_sample_num:],
-                v[s][honest_sample_num:],
+                w[s][honest_sample_num:] if w is not None else None,
+                v[s][honest_sample_num:] if v is not None else None,
                 sample_weight_honest,
             )
             t.leaf_record = t._predict_with_array(w, v[s][:honest_sample_num])

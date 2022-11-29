@@ -52,7 +52,7 @@ We now provide an example useage of applying the ``GRForest``.
         data = to_df(treatment=x, outcome=y, v=v)
         outcome = 'outcome'
         treatment = 'treatment'
-        adjustment = data.columns[2:]
+        covariate = data.columns[2:]
 
         # build test data
         v_test = v[:min(100, n)].copy()
@@ -80,7 +80,7 @@ We now provide an example useage of applying the ``GRForest``.
             verbose=0,
         )
         grf.fit(
-            data=data, outcome=outcome, treatment=treatment, adjustment=adjustment, covariate=adjustment
+            data=data, outcome=outcome, treatment=treatment, covariate=covariate
         )
         effect = grf.estimate(test_data)
 
