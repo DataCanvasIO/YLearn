@@ -100,19 +100,19 @@ def _generate_sub_samples(random_state, all_idx, sub_samples):
     return z
 
 
-def _prediction(e, w, v, v_train, lock, i):
-    pred = e._predict_with_array(w, v).reshape(-1, 1)
+def _prediction(e, v):
+    pred = e._predict_with_array(None, v).reshape(-1, 1)
     y_pred = e.leaf_record.reshape(1, -1)
-    with lock:
-        temp = (
-            y_pred == pred
-        )  # compute the leaf value to which every test sample belongs
-        # TODO: note that this line actually calculates counts multiple times so it could be improved
-        num = np.count_nonzero(temp, axis=1).reshape(
-            -1, 1
-        )  # compute the number of samples in that leaf
-        with np.errstate(divide="ignore", invalid="ignore"):
-            return np.nan_to_num(temp / num)
+
+    # compute the leaf value to which every test sample belongs
+    temp = (y_pred == pred)
+
+    # compute the number of samples in that leaf
+    num = np.count_nonzero(temp, axis=1).reshape(-1, 1)
+
+    with np.errstate(divide="ignore", invalid="ignore"):
+        alpha = np.where(num > 0, temp / num, 0)
+        return alpha
 
 
 class BaseCausalForest(BaseEstModel, BaseForest):
@@ -495,10 +495,14 @@ class BaseCausalForest(BaseEstModel, BaseForest):
         v = self._v if data is None else convert2array(data, self.covariate)[0]
         return v
 
-    def _prepare4est(self, data=None):
+    def _prepare4est(self, data=None, batch_size=100):
         assert self._is_fitted, "The model is not fitted yet."
         v = self._check_features(data=data)
-        alpha = self._compute_alpha(v)
+        a = [self.__do_prepare4est(v[i:i + batch_size]) for i in range(0, len(v), batch_size)]
+        return np.concatenate(a, axis=0)
+
+    def __do_prepare4est(self, data):
+        alpha = self._compute_alpha(data)
         inv_grad_, theta_ = self._compute_aug(self._y, self._x, alpha)
         theta = np.einsum("njk,nk->nj", inv_grad_, theta_)
         return theta
@@ -529,41 +533,41 @@ class BaseCausalForest(BaseEstModel, BaseForest):
         if honest_sample_num is None:
             t._fit_with_array(x[s], y[s],
                               w[s] if w is not None else None,
-                              v[s] if v is not None else None,
+                              v[s],
                               sample_weight)
+            v_pred = t._predict_with_array(None, v[s])
+            idx = s
         else:
             t._fit_with_array(
                 x[s][honest_sample_num:],
                 y[s][honest_sample_num:],
                 w[s][honest_sample_num:] if w is not None else None,
-                v[s][honest_sample_num:] if v is not None else None,
+                v[s][honest_sample_num:],
                 sample_weight_honest,
             )
-            t.leaf_record = t._predict_with_array(w, v[s][:honest_sample_num])
+            v_pred = t._predict_with_array(None, v[s][:honest_sample_num])
+            idx = s[:honest_sample_num]
+
+        leaf_record = np.zeros(v.shape[0])
+        leaf_record[idx] = v_pred
+        t.leaf_record = leaf_record.reshape(1, -1)
 
         return t
 
     def _compute_alpha(self, v):
-        # first implement a version which only take one example as its input
-        lock = threading.Lock()
-        w = v.copy()
         if self.n_outputs_ > 1:
             raise ValueError(
                 "Currently do not support the number of output which is larger than 1"
             )
-        else:
-            alpha = np.zeros((v.shape[0], self._v.shape[0]))
 
         alpha_collection = Parallel(**self._job_options())(
-            delayed(_prediction)(e, w, v, self._v, lock, i)
-            # for i, (e, s) in enumerate(zip(self.estimators_, self.sub_sample_idx))
+            # delayed(_prediction)(e, w, v, self._v, lock, s)
+            # for i, (e, s) in enumerate(zip(self.estimators_, sub_sample_idx))
+            delayed(_prediction)(e, v, )
             for i, e in enumerate(self.estimators_)
         )
-        for alpha_, s in zip(alpha_collection, self.sub_sample_idx):
-            if self.honest_sample is not None:
-                s = s[: self.honest_sample]
-            alpha[:, s] += alpha_
-        return alpha / self.n_estimators
+        alpha = np.mean(alpha_collection, axis=0)
+        return alpha
 
     def _compute_aug(self, y, x, alpha):
         r"""Formula:
