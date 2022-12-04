@@ -50,24 +50,24 @@ cdef class HonestCMSE(RegressionCriterion):
         self.n_samples = n_samples
         self.n_node_samples = 0
 
-        #-----------------        
+        #-----------------
         #
         self.weighted_n_node_samples = 0.0 # nn
         #
-        self.nt_total = 0.0
-        self.n0_total = 0.0
+        self.nt_total = 0
+        self.n0_total = 0
 
         #
         #self.weighted_n_left = 0.0 
         #
-        self.nt_left = 0.0
-        self.n0_left = 0.0
+        self.nt_left = 0
+        self.n0_left = 0
         
         #
         #self.weighted_n_right = 0.0
         #
-        self.nt_right = 0.0
-        self.n0_right = 0.0
+        self.nt_right = 0
+        self.n0_right = 0
 
 
         #
@@ -79,20 +79,20 @@ cdef class HonestCMSE(RegressionCriterion):
         #
         ## self.sum_total = np.zeros(n_outputs, dtype=np.float64)
         #
-        self.yt_sum_total = np.zeros(n_outputs, dtype=np.float64)
-        self.y0_sum_total = np.zeros(n_outputs, dtype=np.float64)
+        self.yt_sum_total = 0.0
+        self.y0_sum_total = 0.0
 
         #
         ## self.sum_left = np.zeros(n_outputs, dtype=np.float64)
         #
-        self.yt_sum_left = np.zeros(n_outputs, dtype=np.float64)
-        self.y0_sum_left = np.zeros(n_outputs, dtype=np.float64)
+        self.yt_sum_left = 0.0
+        self.y0_sum_left = 0.0
 
         #
         ## self.sum_right = np.zeros(n_outputs, dtype=np.float64)
         #
-        self.yt_sum_right = np.zeros(n_outputs, dtype=np.float64)
-        self.y0_sum_right = np.zeros(n_outputs, dtype=np.float64)
+        self.yt_sum_right = 0.0
+        self.y0_sum_right = 0.0
     
     def __reduce__(self):
         return (type(self), (self.n_outputs, self.n_samples), self.__getstate__())
@@ -112,10 +112,10 @@ cdef class HonestCMSE(RegressionCriterion):
         self.end = end
         self.n_node_samples = end - start
         self.weighted_n_samples = weighted_n_samples
-        self.weighted_n_node_samples = 0.
-        #
-        self.nt_total = 0.
-        self.n0_total = 0.
+        # self.weighted_n_node_samples = 0.
+        # #
+        # self.nt_total = 0.
+        # self.n0_total = 0.
 
         cdef SIZE_t i
         cdef SIZE_t p
@@ -124,50 +124,40 @@ cdef class HonestCMSE(RegressionCriterion):
         cdef DOUBLE_t wt_y_ik
         cdef DOUBLE_t w0_y_ik
         #
-        cdef DOUBLE_t w
+        cdef DOUBLE_t w = 1.0
 
-        #
-        #self.sq_sum_total = 0.0
-        #
-        self.yt_sq_sum_total = 0.0
-        self.y0_sq_sum_total = 0.0
-
-        #
-        #memset(&self.sum_total[0], 0, self.n_outputs * sizeof(double))
-        #
-        memset(&self.yt_sum_total[0], 0, self.n_outputs * sizeof(double))
-        memset(&self.y0_sum_total[0], 0, self.n_outputs * sizeof(double))
+        cdef DOUBLE_t yt_sq_sum_total=0., y0_sq_sum_total=0.
+        cdef DOUBLE_t yt_sum_total=0., y0_sum_total=0.
+        cdef int nt_total=0, n0_total=0
+        cdef DOUBLE_t weighted_n_node_samples=0.
 
 
         for p in range(start, end):
             i = samples[p]
 
             if sample_weight != NULL:
-                w = sample_weight[i] - eps
+                w = sample_weight[i]
 
             y_ik = self.y[i, 0]
+            if w>0:
+                yt_sum_total += y_ik
+                yt_sq_sum_total += y_ik * y_ik
+                nt_total += 1
+            else:
+                y0_sum_total += y_ik
+                y0_sq_sum_total += y_ik * y_ik
+                n0_total +=1
+            #
+            weighted_n_node_samples += w
+            #
 
-            #
-            wt_y_ik = w * y_ik
-            w0_y_ik = (1. - w) * y_ik
-
-            #
-            #self.sum_total[0] += wt_y_ik
-            #
-            self.yt_sum_total[0] += wt_y_ik
-            self.y0_sum_total[0] += w0_y_ik
-
-            #
-            #self.sq_sum_total += wt_y_ik * y_ik
-            #
-            self.yt_sq_sum_total += wt_y_ik * y_ik
-            self.y0_sq_sum_total += w0_y_ik * y_ik
-
-            #
-            self.weighted_n_node_samples += w
-            #
-            self.nt_total += w
-            self.n0_total += (1. - w)
+        self.nt_total = nt_total
+        self.n0_total = n0_total
+        self.yt_sum_total = yt_sum_total
+        self.y0_sum_total = y0_sum_total
+        self.yt_sq_sum_total = yt_sq_sum_total
+        self.y0_sq_sum_total = y0_sq_sum_total
+        self.weighted_n_node_samples =weighted_n_node_samples
 
         # Reset to pos=start
         self.reset()
@@ -175,24 +165,18 @@ cdef class HonestCMSE(RegressionCriterion):
 
     cdef int reset(self) nogil except -1:
         """Reset the criterion at pos=start."""
-        cdef SIZE_t n_bytes = self.n_outputs * sizeof(double)
-        #
-        #memset(&self.sum_left[0], 0, n_bytes)
-        #
-        memset(&self.yt_sum_left[0], 0, n_bytes)
-        memset(&self.y0_sum_left[0], 0, n_bytes)
+        self.yt_sum_left = 0
+        self.y0_sum_left = 0
 
         #
-        #memcpy(&self.sum_right[0], &self.sum_total, n_bytes)
-        #
-        memcpy(&self.yt_sum_right[0], &self.yt_sum_total[0], n_bytes)
-        memcpy(&self.y0_sum_right[0], &self.y0_sum_total[0], n_bytes)
+        self.yt_sum_right = self.yt_sum_total
+        self.y0_sum_right = self.y0_sum_total
 
         #
         #self.weighted_n_left = 0.0
         #
-        self.nt_left = 0.0
-        self.n0_left = 0.0
+        self.nt_left = 0
+        self.n0_left = 0
 
         #
         #self.weighted_n_right = self.weighted_n_node_samples
@@ -205,24 +189,18 @@ cdef class HonestCMSE(RegressionCriterion):
 
     cdef int reverse_reset(self) nogil except -1:
         """Reset the criterion at pos=end."""
-        cdef SIZE_t n_bytes = self.n_outputs * sizeof(double)
-        #
-        #memset(&self.sum_right[0], 0, n_bytes)
-        #
-        memset(&self.yt_sum_right[0], 0, n_bytes)
-        memset(&self.y0_sum_right[0], 0, n_bytes)
+        self.yt_sum_right = 0
+        self.y0_sum_right = 0
 
         #
-        #memcpy(&self.sum_left[0], &self.sum_total[0], n_bytes)
-        #
-        memcpy(&self.yt_sum_left[0], &self.yt_sum_total[0], n_bytes)
-        memcpy(&self.y0_sum_left[0], &self.y0_sum_total[0], n_bytes)
+        self.yt_sum_left = self.yt_sum_total
+        self.y0_sum_left = self.y0_sum_total
 
         #
         #self.weighted_n_right = 0.0
         #
-        self.nt_right = 0.0
-        self.n0_right = 0.0
+        self.nt_right = 0
+        self.n0_right = 0
 
         #
         #self.weighted_n_left = self.weighted_n_node_samples
@@ -245,6 +223,13 @@ cdef class HonestCMSE(RegressionCriterion):
         cdef SIZE_t k
         cdef DOUBLE_t w = 1.0
 
+        cdef double yt_sum_left =0.0
+        cdef double y0_sum_left =0.0
+        cdef int nt_left =0
+        cdef int n0_left =0
+        cdef double yi
+
+        # printf('>>update pos/new_pos/end=%ld//%ld/%ld\n', pos,new_pos,end)
         # Update statistics up to new_pos
         #
         # Given that
@@ -257,19 +242,18 @@ cdef class HonestCMSE(RegressionCriterion):
                 i = samples[p]
 
                 if sample_weight != NULL:
-                    w = sample_weight[i] - eps
+                    w = sample_weight[i]
 
                 #
                 #self.sum_left[0] += w * self.y[i, 0]
                 #
-                self.yt_sum_left[0] += w * self.y[i, 0]
-                self.y0_sum_left[0] += (1.0 - w) * self.y[i, 0]
-
-                #
-                #self.weighted_n_left += w
-                #
-                self.nt_left += w
-                self.n0_left += (1.0 - w)
+                yi = self.y[i, 0]
+                if w>0:
+                    yt_sum_left += yi
+                    nt_left += 1
+                else:
+                    y0_sum_left += yi
+                    n0_left += 1
         else:
             self.reverse_reset()
 
@@ -277,20 +261,19 @@ cdef class HonestCMSE(RegressionCriterion):
                 i = samples[p]
 
                 if sample_weight != NULL:
-                    w = sample_weight[i] - eps
+                    w = sample_weight[i]
+                yi = self.y[i, 0]
+                if w>0:
+                    yt_sum_left -= yi
+                    nt_left -= 1
+                else:
+                    y0_sum_left -= yi
+                    n0_left -= 1
 
-                #
-                #self.sum_left[0] -= w * self.y[i, 0]
-                #
-                self.yt_sum_left[0] -= w * self.y[i, 0]
-                self.y0_sum_left[0] -= (1.0 - w) * self.y[i, 0]
-
-                #
-                #self.weighted_n_left -= w
-                #
-                self.nt_left -= w
-                self.n0_left -= (1.0 - w)
-
+        self.yt_sum_left += yt_sum_left
+        self.y0_sum_left += y0_sum_left
+        self.nt_left += nt_left
+        self.n0_left += n0_left
         #
         #self.weighted_n_right = (self.weighted_n_node_samples -
         #                         self.weighted_n_left)
@@ -298,11 +281,12 @@ cdef class HonestCMSE(RegressionCriterion):
         self.nt_right = (self.nt_total - self.nt_left)
         self.n0_right = (self.n0_total - self.n0_left)
 
+        # printf('>>>>n0(%f,%f), nt(%f,%f)\n', self.n0_left, self.n0_right, self.nt_left, self.nt_right)
         #
         ##  self.sum_right[0] = self.sum_total - self.sum_left[0]
         #
-        self.yt_sum_right[0] = self.yt_sum_total[0] - self.yt_sum_left[0]
-        self.y0_sum_right[0] = self.y0_sum_total[0] - self.y0_sum_left[0]
+        self.yt_sum_right = self.yt_sum_total - self.yt_sum_left
+        self.y0_sum_right = self.y0_sum_total - self.y0_sum_left
 
         self.pos = new_pos
         return 0
@@ -312,10 +296,12 @@ cdef class HonestCMSE(RegressionCriterion):
         #### FIXME
         # Note: the reason we initiate impurity as alpha is to prevent node_impurity
         # being negative, which whill then make the training of the tree stop immediately
+        cdef DOUBLE_t nt_total = self.nt_total + eps
+        cdef DOUBLE_t n0_total = self.n0_total + eps
         impurity = alpha
-        impurity += 2 * (self.yt_sq_sum_total / (self.nt_total + eps) - (self.yt_sum_total[0] / (self.nt_total + eps))**2.0) / (self.nt_total + eps)
-        impurity += 2 * (self.y0_sq_sum_total / (self.n0_total + eps) - (self.y0_sum_total[0] / (self.n0_total + eps))**2.0) / (self.n0_total + eps)
-        impurity -= (self.yt_sum_total[0] / (self.nt_total + eps) - self.y0_sum_total[0] / (self.n0_total + eps))**2.0
+        impurity += 2 * (self.yt_sq_sum_total /nt_total - (self.yt_sum_total / nt_total )**2.0) / nt_total
+        impurity += 2 * (self.y0_sq_sum_total /n0_total - (self.y0_sum_total / n0_total )**2.0) / n0_total
+        impurity -= (self.yt_sum_total / nt_total - self.y0_sum_total /n0_total )**2.0
         return impurity
 
     cdef void children_impurity(self, double* impurity_left,
@@ -346,15 +332,13 @@ cdef class HonestCMSE(RegressionCriterion):
             i = samples[p]
 
             if sample_weight != NULL:
-                w = sample_weight[i] - eps
+                w = sample_weight[i]
 
             y_ik = self.y[i, 0]
-            
-            #
-            #sq_sum_left += w * y_ik * y_ik
-            #
-            yt_sq_sum_left += w * y_ik * y_ik
-            y0_sq_sum_left += (1. - w) * y_ik * y_ik
+            if w>0:
+                yt_sq_sum_left += y_ik * y_ik
+            else:
+                y0_sq_sum_left += y_ik * y_ik
 
         #
         #sq_sum_right = self.sq_sum_total - sq_sum_left
@@ -365,26 +349,31 @@ cdef class HonestCMSE(RegressionCriterion):
         #
         #impurity_left[0] = sq_sum_left / self.weighted_n_left
         #
+        cdef DOUBLE_t nt_left = self.nt_left + eps
+        cdef DOUBLE_t n0_left = self.n0_left + eps
+        cdef DOUBLE_t nt_right = self.nt_right + eps
+        cdef DOUBLE_t n0_right = self.n0_right + eps
+
         impurity_left[0] = alpha
-        impurity_left[0] += 2 * (yt_sq_sum_left / (self.nt_left + eps) - (self.yt_sum_left[0] / (self.nt_left + eps))**2.0) / (self.nt_left + eps)
-        impurity_left[0] += 2 * (y0_sq_sum_left / (self.n0_left + eps) - (self.y0_sum_left[0] / (self.n0_left + eps))**2.0) / (self.n0_left + eps)
+        impurity_left[0] += 2 * (yt_sq_sum_left / nt_left - (self.yt_sum_left / nt_left)**2.0) / nt_left
+        impurity_left[0] += 2 * (y0_sq_sum_left / n0_left - (self.y0_sum_left / n0_left)**2.0) / n0_left
         
         #
         #impurity_right[0] = sq_sum_right / self.weighted_n_right
         #
         impurity_right[0] = alpha
-        impurity_right[0] += 2 * (yt_sq_sum_right / (self.nt_right + eps) - (self.yt_sum_right[0] / (self.nt_right + eps))**2.0) / (self.nt_right + eps)
-        impurity_right[0] += 2 * (y0_sq_sum_right / (self.n0_right + eps) - (self.y0_sum_right[0] / (self.n0_right + eps))**2.0) / (self.n0_right + eps)
+        impurity_right[0] += 2 * (yt_sq_sum_right / nt_right - (self.yt_sum_right / nt_right)**2.0) / nt_right
+        impurity_right[0] += 2 * (y0_sq_sum_right / n0_right - (self.y0_sum_right / n0_right)**2.0) / n0_right
         
         #impurity_left[0] /= self.n_outputs
         #impurity_right[0] /= self.n_outputs
-        impurity_left[0] -= (self.yt_sum_left[0] / (self.nt_left + eps) - self.y0_sum_left[0] / (self.n0_left + eps)) ** 2.0
-        impurity_right[0] -= (self.yt_sum_right[0] / (self.nt_right + eps) - self.y0_sum_right[0] / (self.n0_right + eps)) ** 2.0 
+        impurity_left[0] -= (self.yt_sum_left / nt_left - self.y0_sum_left / n0_left) ** 2.0
+        impurity_right[0] -= (self.yt_sum_right / nt_right - self.y0_sum_right / n0_right) ** 2.0
     
     cdef void node_value(self, double* dest) nogil:
         """Compute the node value of samples[start:end] into dest."""
         #### FIXME
-        dest[0] = self.yt_sum_total[0] / (self.nt_total + eps) - self.y0_sum_total[0] /  (self.n0_total + eps)
+        dest[0] = self.yt_sum_total / (self.nt_total + eps) - self.y0_sum_total /  (self.n0_total + eps)
         #dest[0] = 0.0
 
     cdef double proxy_impurity_improvement(self) nogil:
@@ -399,8 +388,8 @@ cdef class HonestCMSE(RegressionCriterion):
     cdef double impurity_improvement(self, double impurity_parent,
                                      double impurity_left,
                                      double impurity_right) nogil:
-        return (impurity_parent - ((self.nt_right + self.n0_right) / (self.nt_total + self.n0_total) * impurity_right)
-                                - ((self.nt_left + self.n0_left) / (self.nt_total + self.n0_total) * impurity_left))
+        return (impurity_parent - ((self.nt_right + self.n0_right) / (self.nt_total + self.n0_total + eps) * impurity_right)
+                                - ((self.nt_left + self.n0_left) / (self.nt_total + self.n0_total + eps) * impurity_left))
 
 
 cdef class CMSE(HonestCMSE):
@@ -410,7 +399,7 @@ cdef class CMSE(HonestCMSE):
         #impurity = log(1 + exp(- (self.yt_sum_total[0] / (self.nt_total + eps) - self.y0_sum_total[0] / (self.n0_total + eps))**2.0))
         #impurity = (self.yt_sq_sum_total + self.y0_sq_sum_total) / (self.nt_total + self.n0_total)
         impurity = alpha
-        impurity -= (self.yt_sum_total[0] / (self.nt_total + eps) - self.y0_sum_total[0] / (self.n0_total + eps))**2.0
+        impurity -= (self.yt_sum_total / (self.nt_total + eps) - self.y0_sum_total / (self.n0_total + eps))**2.0
         return impurity
 
     cdef void children_impurity(self, double* impurity_left,
@@ -420,13 +409,13 @@ cdef class CMSE(HonestCMSE):
         
         impurity_left[0] = alpha
         impurity_right[0] = alpha
-        impurity_left[0] -= (self.yt_sum_left[0] / (self.nt_left + eps) - self.y0_sum_left[0] / (self.n0_left + eps)) ** 2.0
-        impurity_right[0] -= (self.yt_sum_right[0] / (self.nt_right + eps) - self.y0_sum_right[0] / (self.n0_right + eps)) ** 2.0
+        impurity_left[0] -= (self.yt_sum_left / (self.nt_left + eps) - self.y0_sum_left / (self.n0_left + eps)) ** 2.0
+        impurity_right[0] -= (self.yt_sum_right / (self.nt_right + eps) - self.y0_sum_right / (self.n0_right + eps)) ** 2.0
 
     cdef void node_value(self, double* dest) nogil:
         """Compute the node value of samples[start:end] into dest."""
         #### FIXME
-        dest[0] = self.yt_sum_total[0] / (self.nt_total + eps) - self.y0_sum_total[0] /  (self.n0_total + eps)
+        dest[0] = self.yt_sum_total / (self.nt_total + eps) - self.y0_sum_total /  (self.n0_total + eps)
         #dest[0] = 0.0
 
     cdef double proxy_impurity_improvement(self) nogil:

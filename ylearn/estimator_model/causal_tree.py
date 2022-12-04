@@ -947,7 +947,7 @@ class CausalTree(BaseEstModel):
         logger.info(f"Building the causal tree with builder {type(builder).__name__}")
 
         if self.honest_sample is None:
-            builder.build(self.tree_, wv, y, sample_weight + EPS)
+            builder.build(self.tree_, wv, y, sample_weight)
         else:
             (
                 wv_train,
