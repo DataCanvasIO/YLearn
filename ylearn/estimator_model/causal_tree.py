@@ -963,12 +963,16 @@ class CausalTree(BaseEstModel):
                 test_size=self.honest_sample,
                 random_state=random_state,
             )
-            builder.build(self.tree_, wv_train, y_train, sample_weight_train + EPS)
+            builder.build(self.tree_, wv_train, y_train, sample_weight_train)
             self._assign_honest_values(self.tree_, wv_test, y_test, sample_weight_test)
 
         self._is_fitted = True
 
         return self
+
+    @property
+    def criterion(self):
+        return HonestCMSE.__name__.lower()
 
 
 def _accumulate_prediction(predict, X, out, lock):

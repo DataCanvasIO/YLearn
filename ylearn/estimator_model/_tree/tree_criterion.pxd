@@ -8,6 +8,11 @@ cdef class HonestCMSE(RegressionCriterion):
     cdef double yt_sum_total
     cdef double y0_sum_total
 
+    cdef double yt_sq_sum_left
+    cdef double y0_sq_sum_left
+    cdef double yt_sq_sum_right
+    cdef double y0_sq_sum_right
+
     cdef double yt_sum_left
     cdef double y0_sum_left
     cdef double yt_sum_right

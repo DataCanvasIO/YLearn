@@ -27,6 +27,15 @@ from libc.stdio cimport printf
 cdef double eps = 1e-5
 cdef double alpha = 1e10
 
+cdef extern from "tree_criterion_lib.cpp":
+    int on_update( ##* inputs
+            const double* y, const long * samples, const double* sample_weight,
+            int start, int end, int pos, int new_pos,
+            ## outputs
+            double *yt_sum_left_, double* y0_sum_left_,
+            double *yt_sq_sum_left_, double* y0_sq_sum_left_,
+            int *nt_left_, int *n0_left_
+        ) nogil except -1
 
 cdef class HonestCMSE(RegressionCriterion):
     def __cinit__(self, SIZE_t n_outputs, SIZE_t n_samples):
@@ -85,12 +94,16 @@ cdef class HonestCMSE(RegressionCriterion):
         #
         ## self.sum_left = np.zeros(n_outputs, dtype=np.float64)
         #
+        self.yt_sq_sum_left = 0.0
+        self.y0_sq_sum_left = 0.0
         self.yt_sum_left = 0.0
         self.y0_sum_left = 0.0
 
         #
         ## self.sum_right = np.zeros(n_outputs, dtype=np.float64)
         #
+        self.yt_sq_sum_right = 0.0
+        self.y0_sq_sum_right = 0.0
         self.yt_sum_right = 0.0
         self.y0_sum_right = 0.0
     
@@ -165,10 +178,14 @@ cdef class HonestCMSE(RegressionCriterion):
 
     cdef int reset(self) nogil except -1:
         """Reset the criterion at pos=start."""
+        self.yt_sq_sum_left = 0
+        self.y0_sq_sum_left = 0
         self.yt_sum_left = 0
         self.y0_sum_left = 0
 
         #
+        self.yt_sq_sum_right = self.yt_sq_sum_total
+        self.y0_sq_sum_right = self.y0_sq_sum_total
         self.yt_sum_right = self.yt_sum_total
         self.y0_sum_right = self.y0_sum_total
 
@@ -189,10 +206,14 @@ cdef class HonestCMSE(RegressionCriterion):
 
     cdef int reverse_reset(self) nogil except -1:
         """Reset the criterion at pos=end."""
+        self.yt_sq_sum_right = 0
+        self.y0_sq_sum_right = 0
         self.yt_sum_right = 0
         self.y0_sum_right = 0
 
         #
+        self.yt_sq_sum_left = self.yt_sq_sum_total
+        self.y0_sq_sum_left = self.y0_sq_sum_total
         self.yt_sum_left = self.yt_sum_total
         self.y0_sum_left = self.y0_sum_total
 
@@ -217,59 +238,77 @@ cdef class HonestCMSE(RegressionCriterion):
         cdef SIZE_t* samples = self.samples
 
         cdef SIZE_t pos = self.pos
+        cdef SIZE_t start = self.start
         cdef SIZE_t end = self.end
-        cdef SIZE_t i
-        cdef SIZE_t p
-        cdef SIZE_t k
-        cdef DOUBLE_t w = 1.0
 
-        cdef double yt_sum_left =0.0
-        cdef double y0_sum_left =0.0
+        cdef double yt_sum_left = 0.0
+        cdef double y0_sum_left = 0.0
+        cdef double yt_sq_sum_left = 0.0
+        cdef double y0_sq_sum_left = 0.0
         cdef int nt_left =0
         cdef int n0_left =0
-        cdef double yi
 
-        # printf('>>update pos/new_pos/end=%ld//%ld/%ld\n', pos,new_pos,end)
-        # Update statistics up to new_pos
+        # cdef SIZE_t i
+        # cdef SIZE_t p
+        # cdef SIZE_t k
+        # cdef DOUBLE_t w = 1.0
         #
-        # Given that
-        #           sum_left[x] +  sum_right[x] = sum_total[x]
-        # and that sum_total is known, we are going to update
-        # sum_left from the direction that require the least amount
-        # of computations, i.e. from pos to new_pos or from end to new_pos.
-        if (new_pos - pos) <= (end - new_pos):
-            for p in range(pos, new_pos):
-                i = samples[p]
+        #
+        # cdef double yi
+        #
+        # # printf('>>update pos/new_pos/end=%ld//%ld/%ld\n', pos,new_pos,end)
+        # # Update statistics up to new_pos
+        # #
+        # # Given that
+        # #           sum_left[x] +  sum_right[x] = sum_total[x]
+        # # and that sum_total is known, we are going to update
+        # # sum_left from the direction that require the least amount
+        # # of computations, i.e. from pos to new_pos or from end to new_pos.
+        # if (new_pos - pos) <= (end - new_pos):
+        #     for p in range(pos, new_pos):
+        #         i = samples[p]
+        #
+        #         if sample_weight != NULL:
+        #             w = sample_weight[i]
+        #
+        #         #
+        #         #self.sum_left[0] += w * self.y[i, 0]
+        #         #
+        #         yi = self.y[i, 0]
+        #         if w>0:
+        #             yt_sum_left += yi
+        #             nt_left += 1
+        #         else:
+        #             y0_sum_left += yi
+        #             n0_left += 1
+        # else:
+        #     self.reverse_reset()
+        #
+        #     for p in range(end - 1, new_pos - 1, -1):
+        #         i = samples[p]
+        #
+        #         if sample_weight != NULL:
+        #             w = sample_weight[i]
+        #         yi = self.y[i, 0]
+        #         if w>0:
+        #             yt_sum_left -= yi
+        #             nt_left -= 1
+        #         else:
+        #             y0_sum_left -= yi
+        #             n0_left -= 1
 
-                if sample_weight != NULL:
-                    w = sample_weight[i]
-
-                #
-                #self.sum_left[0] += w * self.y[i, 0]
-                #
-                yi = self.y[i, 0]
-                if w>0:
-                    yt_sum_left += yi
-                    nt_left += 1
-                else:
-                    y0_sum_left += yi
-                    n0_left += 1
-        else:
+        if not ((new_pos - pos) <= (end - new_pos)):
             self.reverse_reset()
 
-            for p in range(end - 1, new_pos - 1, -1):
-                i = samples[p]
+        on_update(&self.y[0, 0], <const long*>samples, sample_weight,
+                start, end, pos, new_pos,
+                &yt_sum_left, &y0_sum_left,
+                &yt_sq_sum_left, &y0_sq_sum_left,
+                &nt_left, &n0_left
+                )
 
-                if sample_weight != NULL:
-                    w = sample_weight[i]
-                yi = self.y[i, 0]
-                if w>0:
-                    yt_sum_left -= yi
-                    nt_left -= 1
-                else:
-                    y0_sum_left -= yi
-                    n0_left -= 1
-
+        self.yt_sq_sum_left += yt_sq_sum_left
+        self.y0_sq_sum_left += y0_sq_sum_left
         self.yt_sum_left += yt_sum_left
         self.y0_sum_left += y0_sum_left
         self.nt_left += nt_left
@@ -306,46 +345,50 @@ cdef class HonestCMSE(RegressionCriterion):
 
     cdef void children_impurity(self, double* impurity_left,
                                 double* impurity_right) nogil:
-        cdef DOUBLE_t* sample_weight = self.sample_weight
-        cdef SIZE_t* samples = self.samples
-        cdef SIZE_t pos = self.pos
-        cdef SIZE_t start = self.start
-
-        cdef DOUBLE_t y_ik
+        # cdef DOUBLE_t* sample_weight = self.sample_weight
+        # cdef SIZE_t* samples = self.samples
+        # cdef SIZE_t pos = self.pos
+        # cdef SIZE_t start = self.start
         #
-        #cdef double sq_sum_left = 0.0
+        # cdef DOUBLE_t y_ik
+        # #
+        # #cdef double sq_sum_left = 0.0
+        # #
+        # cdef double yt_sq_sum_left = 0.0
+        # cdef double y0_sq_sum_left = 0.0
         #
-        cdef double yt_sq_sum_left = 0.0
-        cdef double y0_sq_sum_left = 0.0
-
+        # #
+        # #cdef double sq_sum_right
+        # #
+        # cdef double yt_sq_sum_right
+        # cdef double y0_sq_sum_right
         #
-        #cdef double sq_sum_right
+        # cdef SIZE_t i
+        # cdef SIZE_t p
+        # cdef DOUBLE_t w = 1.0
         #
-        cdef double yt_sq_sum_right
-        cdef double y0_sq_sum_right
-
-        cdef SIZE_t i
-        cdef SIZE_t p
-        cdef DOUBLE_t w = 1.0
-
-        for p in range(start, pos):
-            i = samples[p]
-
-            if sample_weight != NULL:
-                w = sample_weight[i]
-
-            y_ik = self.y[i, 0]
-            if w>0:
-                yt_sq_sum_left += y_ik * y_ik
-            else:
-                y0_sq_sum_left += y_ik * y_ik
-
+        # for p in range(start, pos):
+        #     i = samples[p]
         #
-        #sq_sum_right = self.sq_sum_total - sq_sum_left
+        #     if sample_weight != NULL:
+        #         w = sample_weight[i]
         #
-        yt_sq_sum_right = self.yt_sq_sum_total - yt_sq_sum_left
-        y0_sq_sum_right = self.y0_sq_sum_total - y0_sq_sum_left
+        #     y_ik = self.y[i, 0]
+        #     if w>0:
+        #         yt_sq_sum_left += y_ik * y_ik
+        #     else:
+        #         y0_sq_sum_left += y_ik * y_ik
+        #
+        # #
+        # #sq_sum_right = self.sq_sum_total - sq_sum_left
+        # #
+        # yt_sq_sum_right = self.yt_sq_sum_total - yt_sq_sum_left
+        # y0_sq_sum_right = self.y0_sq_sum_total - y0_sq_sum_left
 
+        cdef double yt_sq_sum_left = self.yt_sq_sum_left
+        cdef double y0_sq_sum_left = self.y0_sq_sum_left
+        cdef double yt_sq_sum_right = self.yt_sq_sum_total - yt_sq_sum_left
+        cdef double y0_sq_sum_right = self.y0_sq_sum_total - y0_sq_sum_left
         #
         #impurity_left[0] = sq_sum_left / self.weighted_n_left
         #
@@ -388,8 +431,9 @@ cdef class HonestCMSE(RegressionCriterion):
     cdef double impurity_improvement(self, double impurity_parent,
                                      double impurity_left,
                                      double impurity_right) nogil:
-        return (impurity_parent - ((self.nt_right + self.n0_right) / (self.nt_total + self.n0_total + eps) * impurity_right)
-                                - ((self.nt_left + self.n0_left) / (self.nt_total + self.n0_total + eps) * impurity_left))
+        cdef DOUBLE_t n_total = self.nt_total + self.n0_total + eps
+        return (impurity_parent - ((self.nt_right + self.n0_right) / n_total * impurity_right)
+                                - ((self.nt_left + self.n0_left) / n_total * impurity_left))
 
 
 cdef class CMSE(HonestCMSE):
