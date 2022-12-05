@@ -327,6 +327,7 @@ class CausalTree(BaseEstModel):
         self.min_impurity_decrease = min_impurity_decrease
         self.ccp_alpha = ccp_alpha
         self.honest_subsample_num = honest_subsample_num
+        self.criterion = HonestCMSE.__name__.lower()
 
         super().__init__(
             random_state=random_state,
@@ -970,9 +971,6 @@ class CausalTree(BaseEstModel):
 
         return self
 
-    @property
-    def criterion(self):
-        return HonestCMSE.__name__.lower()
 
 
 def _accumulate_prediction(predict, X, out, lock):
