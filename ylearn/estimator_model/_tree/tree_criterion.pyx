@@ -324,6 +324,8 @@ cdef class HonestCMSE(RegressionCriterion):
         #
         ##  self.sum_right[0] = self.sum_total - self.sum_left[0]
         #
+        self.yt_sq_sum_right = self.yt_sq_sum_total - self.yt_sq_sum_left
+        self.y0_sq_sum_right = self.y0_sq_sum_total - self.y0_sq_sum_left
         self.yt_sum_right = self.yt_sum_total - self.yt_sum_left
         self.y0_sum_right = self.y0_sum_total - self.y0_sum_left
 
@@ -385,28 +387,24 @@ cdef class HonestCMSE(RegressionCriterion):
         # yt_sq_sum_right = self.yt_sq_sum_total - yt_sq_sum_left
         # y0_sq_sum_right = self.y0_sq_sum_total - y0_sq_sum_left
 
-        cdef double yt_sq_sum_left = self.yt_sq_sum_left
-        cdef double y0_sq_sum_left = self.y0_sq_sum_left
-        cdef double yt_sq_sum_right = self.yt_sq_sum_total - yt_sq_sum_left
-        cdef double y0_sq_sum_right = self.y0_sq_sum_total - y0_sq_sum_left
-        #
-        #impurity_left[0] = sq_sum_left / self.weighted_n_left
-        #
         cdef DOUBLE_t nt_left = self.nt_left + eps
         cdef DOUBLE_t n0_left = self.n0_left + eps
         cdef DOUBLE_t nt_right = self.nt_right + eps
         cdef DOUBLE_t n0_right = self.n0_right + eps
 
+        #
+        #impurity_left[0] = sq_sum_left / self.weighted_n_left
+        #
         impurity_left[0] = alpha
-        impurity_left[0] += 2 * (yt_sq_sum_left / nt_left - (self.yt_sum_left / nt_left)**2.0) / nt_left
-        impurity_left[0] += 2 * (y0_sq_sum_left / n0_left - (self.y0_sum_left / n0_left)**2.0) / n0_left
+        impurity_left[0] += 2 * (self.yt_sq_sum_left / nt_left - (self.yt_sum_left / nt_left)**2.0) / nt_left
+        impurity_left[0] += 2 * (self.y0_sq_sum_left / n0_left - (self.y0_sum_left / n0_left)**2.0) / n0_left
         
         #
         #impurity_right[0] = sq_sum_right / self.weighted_n_right
         #
         impurity_right[0] = alpha
-        impurity_right[0] += 2 * (yt_sq_sum_right / nt_right - (self.yt_sum_right / nt_right)**2.0) / nt_right
-        impurity_right[0] += 2 * (y0_sq_sum_right / n0_right - (self.y0_sum_right / n0_right)**2.0) / n0_right
+        impurity_right[0] += 2 * (self.yt_sq_sum_right / nt_right - (self.yt_sum_right / nt_right)**2.0) / nt_right
+        impurity_right[0] += 2 * (self.y0_sq_sum_right / n0_right - (self.y0_sum_right / n0_right)**2.0) / n0_right
         
         #impurity_left[0] /= self.n_outputs
         #impurity_right[0] /= self.n_outputs
