@@ -17,7 +17,7 @@ is the outcome, :math:`X` is the treatment and :math:`V` is the covariate which 
     \alpha_i^b(v) = \frac{\mathbb{I}\left( \left\{ V_i \in L^b(v) \right\} \right)}{|L^b(v)|},\\
     \alpha_i(v) = \frac{1}{B} \sum_{b = 1}^B \alpha_i^b(v),
 
-where the subscript :math:`b` refers to the :math:`b`-th tree with a total number of :math:`B` such trees, :math:`L^b(v)` is the leaf that the sample with covariate :math:`v`
+where the subscript :math:`b` refers to the :math:`b`-th tree with a total number of :math:`B` such trees, :math:`L^b(v)` is the leaf that the sample which covariate :math:`v`
 belongs to, and :math:`|L^b(v)|` denotes the total number of training samples which fall into the samel leaf as the sample :math:`v` for the :math:`b`-th tree. Then the estimated
 causal effect can be expressed by
 
@@ -84,7 +84,7 @@ We now provide an example useage of applying the ``GRForest``.
         )
         effect = grf.estimate(test_data)
 
-Besides the GRF, YLearn also implements a naive version of GRF with pure python in an easy to understand manner to help users get some insights on how GRF works in code level.
+Besides this ``GRForest``, YLearn also implements a naive version of GRF with pure python in an easy to understand manner to help users get some insights on how GRF works in code level.
 It is worth to mention that, however, this naive version of GRF is super slow (~5mins for fitting 100 trees in a dataset with 2000 samples and 10 features). One can find this naive
 GRF in the folder ylearn/estimator_model/_naive_forest/. 
 
