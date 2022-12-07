@@ -66,7 +66,7 @@ jobs:
       matrix:
         # os: [windows-latest, macos-latest]
         os: [windows-latest, macos-latest]
-        python-version: [ "3.6", "3.7", "3.8", "3.9", "3.10" ]
+        python-version: [ "3.6", "3.7", "3.8", "3.9", "3.10", "3.11" ]
         # python-version: [ "3.6", "3.7", "3.8", "3.9", ]
         exclude:
           - os: windows-latest
@@ -105,8 +105,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # python-name: [ cp310-cp310,  cp311-cp311,  cp36-cp36m,  cp37-cp37m,  cp38-cp38,  cp39-cp39 ]
-        python-name: [ cp310-cp310,  cp36-cp36m,  cp37-cp37m,  cp38-cp38,  cp39-cp39 ]
+         python-name: [ cp310-cp310,  cp311-cp311,  cp36-cp36m,  cp37-cp37m,  cp38-cp38,  cp39-cp39 ]
+        # python-name: [ cp310-cp310,  cp36-cp36m,  cp37-cp37m,  cp38-cp38,  cp39-cp39 ]
         # python-name: [ cp38-cp38 ]
 
     steps:
