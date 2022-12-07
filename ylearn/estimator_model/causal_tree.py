@@ -327,6 +327,7 @@ class CausalTree(BaseEstModel):
         self.min_impurity_decrease = min_impurity_decrease
         self.ccp_alpha = ccp_alpha
         self.honest_subsample_num = honest_subsample_num
+        self.criterion = HonestCMSE.__name__.lower()
 
         super().__init__(
             random_state=random_state,
@@ -947,7 +948,7 @@ class CausalTree(BaseEstModel):
         logger.info(f"Building the causal tree with builder {type(builder).__name__}")
 
         if self.honest_sample is None:
-            builder.build(self.tree_, wv, y, sample_weight + EPS)
+            builder.build(self.tree_, wv, y, sample_weight)
         else:
             (
                 wv_train,
@@ -963,12 +964,13 @@ class CausalTree(BaseEstModel):
                 test_size=self.honest_sample,
                 random_state=random_state,
             )
-            builder.build(self.tree_, wv_train, y_train, sample_weight_train + EPS)
+            builder.build(self.tree_, wv_train, y_train, sample_weight_train)
             self._assign_honest_values(self.tree_, wv_test, y_test, sample_weight_test)
 
         self._is_fitted = True
 
         return self
+
 
 
 def _accumulate_prediction(predict, X, out, lock):

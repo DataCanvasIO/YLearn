@@ -17,34 +17,34 @@ from .propensity_score import InversePbWeighting, PropensityScore
 try:
     from .deepiv import DeepIV
 except ImportError as e:  # torch not ready
-    msg = f"{e}"
+    _msg_deep_iv = f"{e}"
 
     class DeepIV:
         def __init__(self, *args, **kwargs):
-            raise ImportError(msg)
+            raise ImportError(_msg_deep_iv)
 
 try:
     from .causal_tree import CausalTree
 except ImportError as e:  # cython extension not ready
-    msg = f"{e}"
+    _msg_causal_tree = f"{e}"
 
     class CausalTree:
         def __init__(self, *args, **kwargs):
-            raise ImportError(msg)
+            raise ImportError(_msg_causal_tree)
 
 try:
     from ._generalized_forest._grf import GRForest
 except ImportError as e:  # cython extension not ready
-    msg = f"{e}"
+    _msg_grf = f"{e}"
 
     class GRForest:
         def __init__(self, *args, **kwargs):
-            raise ImportError(msg)
+            raise ImportError(_msg_grf)
 try:
     from .causal_forest import CausalForest
 except ImportError as e:  # cython extension not ready
-    msg = f"{e}"
+    _msg_causal_forest = f"{e}"
 
     class CausalForest:
         def __init__(self, *args, **kwargs):
-            raise ImportError(msg)
+            raise ImportError(_msg_causal_forest)

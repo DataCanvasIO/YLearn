@@ -13,12 +13,12 @@ from .meta_learner import SLearner, TLearner, XLearner
 try:
     from .causal_tree import CausalTree
 except ImportError as e:
-    msg = f'{e}'
+    _msg_causal_tree = f'{e}'
 
 
     class CausalTree:
         def __init__(self, *args, **kwargs):
-            raise ImportError(msg)
+            raise ImportError(_msg_causal_tree)
 
 
 def _default_estimate_options(learner, effect_nji=False):

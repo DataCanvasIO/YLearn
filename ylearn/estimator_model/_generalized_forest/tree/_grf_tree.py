@@ -374,8 +374,8 @@ class GrfTree(BaseEstModel):
 
         self._is_fitted = True
 
-        if not self.honest:
-            self.leaf_record = self._predict_with_array(w, wv)
+        # if not self.honest:
+        #     self.leaf_record = self._predict_with_array(w, wv)
 
         return self
 
