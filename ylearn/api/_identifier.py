@@ -227,7 +227,10 @@ class IdentifierWithDiscovery(DefaultIdentifier):
 
         ng = nx.from_pandas_adjacency(self.causal_matrix_, create_using=nx.DiGraph)
         ng.remove_nodes_from(list(nx.isolates(ng)))
-        options = dict(with_labels=True, **kwargs)
+        options = dict(with_labels=True)
+        options.update(**kwargs)
+        if 'pos' not in options.keys():
+            options['pos'] = nx.nx_pydot.pydot_layout(ng)
         nx.draw(ng, **options)
         return ng
 
