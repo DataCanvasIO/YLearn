@@ -617,6 +617,9 @@ class Why:
         else:
             fn = self._causal_effect_continuous
 
+        if self.discrete_outcome and target_outcome is None:
+            target_outcome = self.y_encoder_.classes_[-1]
+
         options = dict(treatment=treatment, treat=treat, control=control,
                        target_outcome=target_outcome,
                        quantity=quantity, combine_treatment=combine_treatment,
@@ -1162,7 +1165,8 @@ class Why:
             itr = self._permute_treat_control_sequential(treatment, treat, control, encode=True)
 
         if target_outcome is not None:
-            target_outcome = self.y_encoder_.inverse_transform([target_outcome]).tolist()[0]
+            # target_outcome = self.y_encoder_.inverse_transform([target_outcome]).tolist()[0]
+            target_outcome = self.y_encoder_.transform([target_outcome]).tolist()[0]
 
         result = []
         for x, t, c in itr:
