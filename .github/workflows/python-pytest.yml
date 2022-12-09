@@ -32,7 +32,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -q -r requirements.txt gcastle pgmpy cython urllib3 igraph pytest-cov==2.4.0  python-coveralls  codacy-coverage
+        pip install -q -r requirements.txt scikit-learn!=1.2.0 gcastle pgmpy cython urllib3 igraph pytest-cov==2.4.0  python-coveralls  codacy-coverage
         pip list
     - name: Build extensions
       run: |
@@ -65,7 +65,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -q -r requirements.txt igraph pytest-cov==2.4.0  python-coveralls  codacy-coverage
+        pip install -q -r requirements.txt scikit-learn!=1.2.0 igraph pytest-cov==2.4.0  python-coveralls  codacy-coverage
         pip list
 #    - name: Build extensions
 #      run: |
@@ -94,7 +94,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -q "numpy>=1.16.5" "pandas>=0.25.3" "scikit-learn>=0.22.1" scipy networkx ipython joblib pydot cython urllib3 igraph pytest-cov==2.4.0  python-coveralls  codacy-coverage
+        pip install -q "numpy>=1.16.5" "pandas>=0.25.3" "scikit-learn>=0.22.1,!=1.2.0" scipy networkx ipython joblib pydot cython urllib3 igraph pytest-cov==2.4.0  python-coveralls  codacy-coverage
         pip list
     - name: Build extensions
       run: |
@@ -123,7 +123,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -q -r requirements.txt lightgbm cython urllib3 igraph pytest-cov==2.4.0  python-coveralls  codacy-coverage
+        pip install -q -r requirements.txt scikit-learn!=1.2.0 lightgbm cython urllib3 igraph pytest-cov==2.4.0  python-coveralls  codacy-coverage
         pip list
     - name: Build extensions
       run: |
@@ -152,7 +152,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -q -r requirements.txt xgboost cython urllib3 igraph pytest-cov==2.4.0  python-coveralls  codacy-coverage
+        pip install -q -r requirements.txt scikit-learn!=1.2.0 xgboost cython urllib3 igraph pytest-cov==2.4.0  python-coveralls  codacy-coverage
         pip list
     - name: Build extensions
       run: |
