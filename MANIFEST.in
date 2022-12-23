@@ -1,4 +1,4 @@
 include requirements*.txt
 include downloads/eigen-3.4.0.tar.gz
-recursive-include example_usages/ *
-include ylearn/sklearn_ex/cloned/**/*.h
+recursive-include example_usages *
+recursive-include ylearn *.cpp *.h
