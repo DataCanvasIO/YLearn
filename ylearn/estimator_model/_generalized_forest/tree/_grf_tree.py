@@ -281,6 +281,7 @@ class GrfTree(BaseEstModel):
         # wv = get_wv(w, v)
         wv = v
         n_samples, self.n_features_in_ = wv.shape
+        # self._n_samples_ = n_samples
 
         if x.ndim == 1:
             x = x.reshape(-1, 1)
@@ -420,6 +421,7 @@ class GrfTree(BaseEstModel):
         if wv.ndim == 1:
             wv = wv.reshape(-1, 1)
 
+        wv = wv.astype(np.float32)
         self._check_dim(wv=wv)
         return self.tree_.apply(wv)
 

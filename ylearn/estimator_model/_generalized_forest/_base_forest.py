@@ -6,6 +6,7 @@ import threading
 from abc import abstractmethod
 from copy import deepcopy
 from joblib import Parallel, delayed
+from collections import defaultdict
 
 from sklearn.utils import check_random_state
 from sklearn.utils.validation import _check_sample_weight
@@ -100,19 +101,37 @@ def _generate_sub_samples(random_state, all_idx, sub_samples):
     return z
 
 
-def _prediction(e, v):
-    pred = e._predict_with_array(None, v).reshape(-1, 1)
-    y_pred = e.leaf_record.reshape(1, -1)
+# #####: I modify this line
 
-    # compute the leaf value to which every test sample belongs
-    temp = (y_pred == pred)
+# def _prediction(e, v):
+#     pred = e._predict_with_array(None, v).reshape(-1, 1)
+#     y_pred = e.leaf_record.reshape(1, -1)
 
-    # compute the number of samples in that leaf
-    num = np.count_nonzero(temp, axis=1).reshape(-1, 1)
+#     # compute the leaf value to which every test sample belongs
+#     temp = y_pred == pred
 
-    with np.errstate(divide="ignore", invalid="ignore"):
-        alpha = np.where(num > 0, temp / num, 0)
-        return alpha
+#     # compute the number of samples in that leaf
+#     num = np.count_nonzero(temp, axis=1).reshape(-1, 1)
+
+#     with np.errstate(divide="ignore", invalid="ignore"):
+#         alpha = np.where(num > 0, temp / num, 0)
+#         return alpha
+
+
+def _prediction(e, v, n_training_samples):
+    pred = e.apply(None, v)
+    # leaf_record is a dict where its key is the leaf id while its value include the indices of training samples falling into that leaf
+    leaf_record = e.leaf_record
+    n, i = v.shape[0], n_training_samples
+
+    # create alpha
+    alpha = np.zeros(shape=(n, i))
+    for leaf, row in zip(pred, alpha):
+        index = leaf_record[leaf]
+        if len(index) != 0:
+            row[np.array(index)] = 1 / len(index)
+
+    return alpha
 
 
 class BaseCausalForest(BaseEstModel, BaseForest):
@@ -498,7 +517,10 @@ class BaseCausalForest(BaseEstModel, BaseForest):
     def _prepare4est(self, data=None, batch_size=100):
         assert self._is_fitted, "The model is not fitted yet."
         v = self._check_features(data=data)
-        a = [self.__do_prepare4est(v[i:i + batch_size]) for i in range(0, len(v), batch_size)]
+        a = [
+            self.__do_prepare4est(v[i : i + batch_size])
+            for i in range(0, len(v), batch_size)
+        ]
         return np.concatenate(a, axis=0)
 
     def __do_prepare4est(self, data):
@@ -531,11 +553,12 @@ class BaseCausalForest(BaseEstModel, BaseForest):
             sample_weight_honest = sample_weight[honest_sample_num:]
 
         if honest_sample_num is None:
-            t._fit_with_array(x[s], y[s],
-                              w[s] if w is not None else None,
-                              v[s],
-                              sample_weight)
-            v_pred = t._predict_with_array(None, v[s])
+            t._fit_with_array(
+                x[s], y[s], w[s] if w is not None else None, v[s], sample_weight
+            )
+            # v_pred = t._predict_with_array(None, v[s])
+            v_pred = t.apply(None, v[s])
+            # TODO: idx may not be necessary
             idx = s
         else:
             t._fit_with_array(
@@ -545,12 +568,21 @@ class BaseCausalForest(BaseEstModel, BaseForest):
                 v[s][honest_sample_num:],
                 sample_weight_honest,
             )
-            v_pred = t._predict_with_array(None, v[s][:honest_sample_num])
+            # v_pred = t._predict_with_array(None, v[s][:honest_sample_num])
+            v_pred = t.apply(None, v[s][:honest_sample_num])
             idx = s[:honest_sample_num]
 
+        # TODO: note that if a predict value is 0 this line may cause some unexpected result, so it may be more approriate to create an nan array instead
         leaf_record = np.zeros(v.shape[0])
         leaf_record[idx] = v_pred
-        t.leaf_record = leaf_record.reshape(1, -1)
+
+        # #####: I modify this line
+        collect_all = defaultdict(list)
+        for i, node_id in enumerate(leaf_record):
+            collect_all[node_id].append(i)
+
+        # t.leaf_record = leaf_record.reshape(1, -1)
+        t.leaf_record = collect_all
 
         return t
 
@@ -559,11 +591,16 @@ class BaseCausalForest(BaseEstModel, BaseForest):
             raise ValueError(
                 "Currently do not support the number of output which is larger than 1"
             )
+        n_training_samples = self._y.shape[0]
 
         alpha_collection = Parallel(**self._job_options())(
             # delayed(_prediction)(e, w, v, self._v, lock, s)
             # for i, (e, s) in enumerate(zip(self.estimators_, sub_sample_idx))
-            delayed(_prediction)(e, v, )
+            delayed(_prediction)(
+                e,
+                v,
+                n_training_samples,
+            )
             for i, e in enumerate(self.estimators_)
         )
         alpha = np.mean(alpha_collection, axis=0)
