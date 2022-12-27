@@ -2,6 +2,7 @@ import contextlib as _contextlib
 import inspect
 import warnings
 from collections import OrderedDict
+from functools import partial
 
 import numpy as np
 import pandas as pd
@@ -262,3 +263,34 @@ def convert2array(data, *S):
     S = map(_get_array, S)
 
     return tuple(S)
+
+
+def check_fitted(fn, attr_name='_is_fitted', check=None, msg=None):
+    assert callable(fn)
+
+    sig = inspect.signature(fn)
+    assert 'self' in sig.parameters.keys()
+
+    def check_and_call(obj, *args, **kwargs):
+        if callable(check):
+            fitted = check(obj)
+        else:
+            fitted_tag = getattr(obj, attr_name, None)
+            if check is not None:
+                fitted = not (fitted_tag is check)
+            else:
+                fitted = fitted_tag
+
+        if not fitted:
+            if msg is not None:
+                raise ValueError(msg)
+            else:
+                raise ValueError(f'{type(obj).__name__} is not fitted.')
+
+        return fn(obj, *args, **kwargs)
+
+    return check_and_call
+
+
+def check_fitted_(attr_name='_is_fitted', check=None, msg=None):
+    return partial(check_fitted, attr_name=attr_name, check=check, msg=msg)
