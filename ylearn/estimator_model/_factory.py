@@ -157,6 +157,8 @@ class SLearnerFactory(BaseEstimatorFactory):
         is_discrete_treatment = x_task if isinstance(x_task, bool) else x_task != const.TASK_REGRESSION
         is_discrete_outcome = y_task if isinstance(y_task, bool) else y_task != const.TASK_REGRESSION
 
+        assert is_discrete_treatment, 'SLearner support discrete treatment only.'
+
         return PermutedSLearner(
             model=self._model(data, task=y_task, estimator=self.model, random_state=random_state),
             is_discrete_outcome=is_discrete_outcome,
@@ -178,6 +180,8 @@ class TLearnerFactory(BaseEstimatorFactory):
 
         is_discrete_treatment = x_task if isinstance(x_task, bool) else x_task != const.TASK_REGRESSION
         is_discrete_outcome = y_task if isinstance(y_task, bool) else y_task != const.TASK_REGRESSION
+
+        assert is_discrete_treatment, 'TLearner support discrete treatment only.'
 
         return PermutedTLearner(
             model=self._model(data, task=y_task, estimator=self.model, random_state=random_state),
@@ -201,6 +205,8 @@ class XLearnerFactory(BaseEstimatorFactory):
 
         is_discrete_treatment = x_task if isinstance(x_task, bool) else x_task != const.TASK_REGRESSION
         is_discrete_outcome = y_task if isinstance(y_task, bool) else y_task != const.TASK_REGRESSION
+
+        assert is_discrete_treatment, 'XLearner support discrete treatment only.'
 
         if is_discrete_outcome:
             final_proba_model = self._model(
@@ -229,10 +235,39 @@ class CausalTreeFactory(BaseEstimatorFactory):
                  adjustment=None, covariate=None, instrument=None, random_state=None):
         from ylearn.estimator_model._permuted import PermutedCausalTree
 
+        is_discrete_treatment = x_task if isinstance(x_task, bool) else x_task != const.TASK_REGRESSION
+        is_discrete_outcome = y_task if isinstance(y_task, bool) else y_task != const.TASK_REGRESSION
+
+        assert is_discrete_treatment, 'CausalTree support discrete treatment only.'
+
         options = self.options.copy()
         if random_state is not None:
             options['random_state'] = random_state
+        # options['is_discrete_outcome'] = is_discrete_outcome
+        # options['is_discrete_treatment'] = is_discrete_treatment
+
         return PermutedCausalTree(**options)
+
+
+@register()
+class GrfFactory(BaseEstimatorFactory):
+    def __init__(self, **kwargs):
+        self.options = kwargs.copy()
+
+    def __call__(self, data, outcome, treatment, y_task, x_task,
+                 adjustment=None, covariate=None, instrument=None, random_state=None):
+        from ylearn.estimator_model._generalized_forest import GRForest
+
+        is_discrete_treatment = x_task if isinstance(x_task, bool) else x_task != const.TASK_REGRESSION
+        is_discrete_outcome = y_task if isinstance(y_task, bool) else y_task != const.TASK_REGRESSION
+
+        options = self.options.copy()
+        if random_state is not None:
+            options['random_state'] = random_state
+        options['is_discrete_outcome'] = is_discrete_outcome
+        options['is_discrete_treatment'] = is_discrete_treatment
+
+        return GRForest(**options)
 
 
 @register()

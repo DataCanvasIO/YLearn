@@ -1,3 +1,5 @@
+import inspect
+
 import pytest
 
 from ylearn.estimator_model import ESTIMATOR_FACTORIES
@@ -33,7 +35,7 @@ def test_Xb_Yc(key):
 
 
 @if_policy_tree_ready
-@pytest.mark.parametrize('key', ['tree', ])
+@pytest.mark.parametrize('key', ['tree', 'grf'])
 def test_Xb_Yc_tree(key):
     data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x1b_y1()
 
@@ -42,7 +44,12 @@ def test_Xb_Yc_tree(key):
                   adjustment=adjustment, covariate=covariate, random_state=123)
     assert est is not None
 
-    est.fit(data, outcome, treatment, adjustment=adjustment, covariate=covariate, n_jobs=1)
+    fit_options = {}
+    sig = inspect.signature(est.fit)
+    if 'n_jobs' in sig.parameters.keys():
+        fit_options['n_jobs'] = 1
+
+    est.fit(data, outcome, treatment, adjustment=adjustment, covariate=covariate, **fit_options)
     effect = est.estimate(test_data)
     assert effect.shape[0] == len(test_data)
 
@@ -60,5 +67,23 @@ def test_Xb_Yb(key):
     assert est is not None
 
     est.fit(data, outcome, treatment, adjustment=adjustment, covariate=covariate, n_jobs=1)
+    effect = est.estimate(test_data)
+    assert effect.shape[0] == len(test_data)
+
+
+@if_policy_tree_ready
+@pytest.mark.parametrize('key', ['tree',  'grf', ])
+def test_Xb_Yb_tree(key):
+    data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x1b_y1()
+    m = data[outcome].values.mean()
+    data[outcome] = (data[outcome] > m).astype('int')
+    test_data[outcome] = (test_data[outcome] > m).astype('int')
+
+    factory = ESTIMATOR_FACTORIES[key]()
+    est = factory(data, outcome[0], treatment, 'binary', 'binary',
+                  adjustment=adjustment, covariate=covariate, random_state=123)
+    assert est is not None
+
+    est.fit(data, outcome, treatment, adjustment=adjustment, covariate=covariate)
     effect = est.estimate(test_data)
     assert effect.shape[0] == len(test_data)
