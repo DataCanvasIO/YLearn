@@ -422,7 +422,7 @@ class CausalTree(BaseEstModel):
 
         effect = self._prepare4est(data)
 
-        logger.info(f"Start estimating the causal effect with the type of {quantity}.")
+        logger.debug(f"Start estimating the causal effect with the type of {quantity}.")
 
         if quantity == "ATE" or quantity == "CATE":
             np.mean(effect, axis=0)
@@ -899,7 +899,7 @@ class CausalTree(BaseEstModel):
         # criterion = deepcopy(CMSE(self.n_outputs_, n_samples))
         criterion = deepcopy(HonestCMSE(self.n_outputs_, n_samples))
 
-        logger.info(
+        logger.debug(
             f"Start building the causal tree with criterion {type(criterion).__name__}"
         )
 
@@ -915,7 +915,7 @@ class CausalTree(BaseEstModel):
                 random_state,
             )
 
-        logger.info(f"Building the causal tree with splitter {type(splitter).__name__}")
+        logger.debug(f"Building the causal tree with splitter {type(splitter).__name__}")
 
         # Build tree step 3. Define the tree
         self.tree_ = Tree(
@@ -945,7 +945,7 @@ class CausalTree(BaseEstModel):
                 self.min_impurity_decrease,
             )
 
-        logger.info(f"Building the causal tree with builder {type(builder).__name__}")
+        logger.debug(f"Building the causal tree with builder {type(builder).__name__}")
 
         if self.honest_sample is None:
             builder.build(self.tree_, wv, y, sample_weight)
