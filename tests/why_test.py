@@ -42,6 +42,11 @@ def _validate_it(why, test_data, check_score=True):
         print("rloss:", score)
 
 
+def test_smoke():
+    from ylearn.api.smoke import smoke
+    smoke()
+
+
 def test_basis():
     data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x1b_y1()
     why = Why()
