@@ -14,3 +14,4 @@ from ._common import to_df, context, is_notebook, view_pydot
 from ._common import to_list, join_list
 from ._common import to_snake_case, to_camel_case, drop_none
 from ._common import check_fitted, check_fitted_
+from ._tic_tok import tit, tic_toc, report_as_dataframe as tit_report
