@@ -73,7 +73,7 @@ def _tic_toc_decorate(log_level, name, details, fn):
             _stat_call_counter[logger_name] += 1
             _stat_second_counter[logger_name] += elapsed
 
-    setattr(tic_toc_call, _TIC_TOC_TAG, True)
+    setattr(tic_toc_call, _TIC_TOC_TAG, fn)
 
     return tic_toc_call
 
@@ -154,7 +154,8 @@ def report():
     r = {}
     for k, count in _stat_call_counter.items():
         seconds = _stat_second_counter[k]
-        name = k.lstrip(_TIC_TOC_NAME_PREFIX).rstrip(_TIC_TOC_NAME_SUFFIX)
+        # name = k.lstrip(_TIC_TOC_NAME_PREFIX).rstrip(_TIC_TOC_NAME_SUFFIX)
+        name = k[len(_TIC_TOC_NAME_PREFIX):-len(_TIC_TOC_NAME_SUFFIX)]
         r[name] = (count, seconds, seconds / count)
 
     return r
@@ -172,12 +173,15 @@ def report_as_dataframe():
         total_seconds.append(v[1])
         average_seconds.append(v[2])
 
-    return pd.DataFrame({
+    df = pd.DataFrame({
         'name': names,
         'count': counts,
         'total_second': total_seconds,
         'average_second': average_seconds
     })
+    df.set_index('name', drop=True, inplace=True)
+    df.sort_index(inplace=True)
+    return df
 
 
 ###############################################################
