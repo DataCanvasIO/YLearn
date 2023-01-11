@@ -1,7 +1,6 @@
 import inspect
 import sys as _sys
 import time
-import traceback as _traceback
 from collections import defaultdict
 from functools import partial
 
@@ -17,6 +16,8 @@ _TIC_TOC_NAME_SUFFIX = '@'
 
 _stat_call_counter = defaultdict(int)
 _stat_second_counter = defaultdict(int)
+
+_logger_find_caller = partial(logging._logger_find_caller, caller_offset=logging._logger_caller_offset + 1)
 
 
 def tic_toc(log_level=_LOG_LEVEL, name=None, details=True):
@@ -61,14 +62,15 @@ def _tic_toc_decorate(log_level, name, details, fn):
             toc = time.time()
             elapsed = toc - tic
 
-            msg = f'elapsed {elapsed:.3f} seconds'
-            if details and (len(args) > 0 or len(kwargs) > 0):
-                ba = fn_sig.bind(*args, **kwargs)
-                args = [f'<{k}>' if k == 'self' else f'{k}={_format_value(v)}'
-                        for k, v in ba.arguments.items()]
-                msg += f', details:\t{", ".join(args)}'
+            if logger.is_enabled_for(log_level):
+                msg = f'elapsed {elapsed:.3f} seconds'
+                if details and (len(args) > 0 or len(kwargs) > 0):
+                    ba = fn_sig.bind(*args, **kwargs)
+                    args = [f'<{k}>' if k == 'self' else f'{k}={_format_value(v)}'
+                            for k, v in ba.arguments.items()]
+                    msg += f', details:\t{", ".join(args)}'
 
-            logger.log(log_level, msg)
+                logger.log(log_level, msg)
 
             _stat_call_counter[logger_name] += 1
             _stat_second_counter[logger_name] += elapsed
@@ -183,42 +185,6 @@ def report_as_dataframe():
     df.sort_index(inplace=True)
     return df
 
-
-###############################################################
-# adapted from logging
-
-
-# The definition of `findCaller` changed in Python 3.2,
-# and further changed in Python 3.8
-if _sys.version_info.major >= 3 and _sys.version_info.minor >= 8:
-
-    def _logger_find_caller(stack_info=False, stacklevel=1):  # pylint: disable=g-wrong-blank-lines
-        code, frame = logging._get_caller(6)
-        sinfo = None
-        if stack_info:
-            sinfo = '\n'.join(_traceback.format_stack())
-        if code:
-            return (code.co_filename, frame.f_lineno, code.co_name, sinfo)
-        else:
-            return '(unknown file)', 0, '(unknown function)', sinfo
-elif _sys.version_info.major >= 3 and _sys.version_info.minor >= 2:
-
-    def _logger_find_caller(stack_info=False):  # pylint: disable=g-wrong-blank-lines
-        code, frame = logging._get_caller(5)
-        sinfo = None
-        if stack_info:
-            sinfo = '\n'.join(_traceback.format_stack())
-        if code:
-            return (code.co_filename, frame.f_lineno, code.co_name, sinfo)
-        else:
-            return '(unknown file)', 0, '(unknown function)', sinfo
-else:
-    def _logger_find_caller():  # pylint: disable=g-wrong-blank-lines
-        code, frame = logging._get_caller(6)
-        if code:
-            return (code.co_filename, frame.f_lineno, code.co_name)
-        else:
-            return '(unknown file)', 0, '(unknown function)'
 
 ###############################################################
 
