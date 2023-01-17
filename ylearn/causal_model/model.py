@@ -1,6 +1,5 @@
 from copy import deepcopy
 from collections import defaultdict
-from turtle import clone
 
 import networkx as nx
 import numpy as np
@@ -505,7 +504,7 @@ class CausalModel:
         self._est_result_dict = defaultdict(list)
 
         for sub_adj_set in adj_set:
-            est_model = clone(estimator_model)
+            est_model = deepcopy(estimator_model)
 
             est_model.fit(
                 data=data,
