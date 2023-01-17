@@ -42,6 +42,11 @@ def _validate_it(why, test_data, check_score=True):
         print("rloss:", score)
 
 
+def test_smoke():
+    from ylearn.api.smoke import smoke
+    smoke()
+
+
 def test_basis():
     data, test_data, outcome, treatment, adjustment, covariate = _dgp.generate_data_x1b_y1()
     why = Why()
@@ -172,7 +177,8 @@ def test_policy_interpreter_discrete_x2_yb_tlearner():
     data[outcome] = (data[outcome] > m).astype('int')
     test_data[outcome] = (test_data[outcome] > m).astype('int')
     # why = Why()
-    why = Why(estimator='ml', estimator_options=dict(learner='t', model='lr'))
+    # why = Why(estimator='ml', estimator_options=dict(learner='t', model='lr'))
+    why = Why(estimator='tlearner', estimator_options=dict(model='lr'))
     why.fit(data, outcome[0], treatment=treatment, adjustment=adjustment, covariate=covariate)
 
     pi = why.policy_interpreter(test_data)
@@ -189,7 +195,6 @@ def test_policy_interpreter_discrete_x2_yb_dml():
     data[outcome] = (data[outcome] > m).astype('int')
     test_data[outcome] = (test_data[outcome] > m).astype('int')
     why = Why(estimator='dml')
-    # why = Why(estimator='ml', estimator_options=dict(learner='t', model='lr'))
     why.fit(data, outcome[0], treatment=treatment, adjustment=adjustment, covariate=covariate)
 
     pi = why.policy_interpreter(test_data)

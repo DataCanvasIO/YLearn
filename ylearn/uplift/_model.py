@@ -1,19 +1,9 @@
 import numpy as np
 import pandas as pd
 
+from ylearn.utils import check_fitted as _check_fitted
 from ._metric import get_gain, get_qini, get_cumlift, auuc_score, qini_score
 from ._plot import plot_gain, plot_qini, plot_cumlift
-
-
-def _check_fitted(fn):
-    def _exec(obj, *args, **kwargs):
-        assert isinstance(obj, UpliftModel)
-        if obj.lift_ is None:
-            raise ValueError(f'fit {type(obj).__name__} before call {fn.__name__}() please.')
-
-        return fn(obj, *args, **kwargs)
-
-    return _exec
 
 
 class UpliftModel(object):
@@ -57,6 +47,7 @@ class UpliftModel(object):
         )
         self.random_ = random
         self.lift_ = df_lift.copy()
+        self._is_fitted = True
 
         return self
 

@@ -16,7 +16,7 @@ class BaseDiscovery:
         assert isinstance(matrix, np.ndarray)
         assert matrix.ndim == 2 and matrix.shape[0] == matrix.shape[1]
 
-        g = nx.from_numpy_matrix(matrix, create_using=nx.DiGraph)  # .reverse()
+        g = nx.from_numpy_array(matrix, create_using=nx.DiGraph)  # .reverse()
 
         def trim_with_weight():
             edge_weights = nx.get_edge_attributes(g, 'weight')
@@ -56,7 +56,7 @@ class BaseDiscovery:
         if isinstance(matrix, pd.DataFrame):
             matrix = matrix.values
 
-        g = nx.from_numpy_matrix(matrix, create_using=nx.DiGraph).reverse()
+        g = nx.from_numpy_array(matrix, create_using=nx.DiGraph).reverse()
 
         d = OrderedDict()
         for i, name in enumerate(names):

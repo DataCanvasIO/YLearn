@@ -205,7 +205,7 @@ class IdentifierWithDiscovery(DefaultIdentifier):
         n = len(causal_matrix)
         names = causal_matrix.columns.tolist()
         matrix_values = np.where(causal_matrix.values > 0, 1, 0)
-        g = nx.from_numpy_matrix(matrix_values, create_using=nx.DiGraph).reverse()
+        g = nx.from_numpy_array(matrix_values, create_using=nx.DiGraph).reverse()
 
         yi = names.index(outcome)
         covariate = set(c[1] for c in nx.dfs_edges(g, yi, depth_limit=depth))

@@ -65,6 +65,9 @@ def read_description(file_path='README.md', image_root=f'{home_url}/raw/main', )
 
     desc = open(file_path, encoding='utf-8').read()
 
+    # remove QRCode
+    desc = '\n'.join([line for line in desc.splitlines() if line.find('QRcode') < 0])
+
     # substitute html image
     desc = re.sub(r'(<img\s+src\s*=\s*\")(./fig/[^"]+)(\")', _encode_image, desc)
 

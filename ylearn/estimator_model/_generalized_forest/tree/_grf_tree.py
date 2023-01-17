@@ -331,7 +331,7 @@ class GrfTree(BaseEstModel):
         self.max_features_ = max_features
 
         max_leaf_nodes = (
-            np.int(1e3) if self.max_leaf_nodes is None else self.max_leaf_nodes
+            1000 if self.max_leaf_nodes is None else self.max_leaf_nodes
         )
 
         if len(y) != n_samples or len(x) != n_samples:

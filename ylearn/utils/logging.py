@@ -211,6 +211,15 @@ class CustomizedLogger(_logging.Logger):
     def is_warning_enabled(self):
         return self.isEnabledFor(WARN)
 
+    def is_enabled_for(self, level):
+        return self.isEnabledFor(level)
+
+    def isEnabledFor(self, level):
+        if self.disabled:
+            return False
+
+        return level >= self.getEffectiveLevel()
+
 
 def get_logger(name):
     original_logger_class = _logging.getLoggerClass()
@@ -272,12 +281,13 @@ def _get_caller(offset=3):
     return None, None
 
 
+_logger_caller_offset = 4
+
 # The definition of `findCaller` changed in Python 3.2,
 # and further changed in Python 3.8
 if _sys.version_info.major >= 3 and _sys.version_info.minor >= 8:
-
-    def _logger_find_caller(stack_info=False, stacklevel=1):  # pylint: disable=g-wrong-blank-lines
-        code, frame = _get_caller(4)
+    def _logger_find_caller(stack_info=False, stacklevel=1, caller_offset=_logger_caller_offset):
+        code, frame = _get_caller(caller_offset)
         sinfo = None
         if stack_info:
             sinfo = '\n'.join(_traceback.format_stack())
@@ -287,8 +297,8 @@ if _sys.version_info.major >= 3 and _sys.version_info.minor >= 8:
             return '(unknown file)', 0, '(unknown function)', sinfo
 elif _sys.version_info.major >= 3 and _sys.version_info.minor >= 2:
 
-    def _logger_find_caller(stack_info=False):  # pylint: disable=g-wrong-blank-lines
-        code, frame = _get_caller(4)
+    def _logger_find_caller(stack_info=False, caller_offset=_logger_caller_offset):
+        code, frame = _get_caller(caller_offset)
         sinfo = None
         if stack_info:
             sinfo = '\n'.join(_traceback.format_stack())
@@ -297,8 +307,8 @@ elif _sys.version_info.major >= 3 and _sys.version_info.minor >= 2:
         else:
             return '(unknown file)', 0, '(unknown function)', sinfo
 else:
-    def _logger_find_caller():  # pylint: disable=g-wrong-blank-lines
-        code, frame = _get_caller(4)
+    def _logger_find_caller(caller_offset=_logger_caller_offset):
+        code, frame = _get_caller(caller_offset)
         if code:
             return (code.co_filename, frame.f_lineno, code.co_name)
         else:
