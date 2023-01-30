@@ -5,10 +5,11 @@ import numpy as np
 import pandas as pd
 
 from sklearn import clone
-from sklearn.preprocessing import OneHotEncoder, OrdinalEncoder
+from sklearn.preprocessing import OrdinalEncoder
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import KFold
 
+from ylearn.sklearn_ex import ArrayOneHotEncoder
 from .base_models import BaseEstModel
 from .utils import (
     check_classes,
@@ -412,7 +413,7 @@ class DoubleML(BaseEstModel):
         x_hat = self.x_hat_dict["paras"][0].reshape((x.shape))
         if self.proba_output:
             assert y.shape[1] == 1, "Currently only support one discrete outcome."
-            self._outcome_oh = OneHotEncoder(
+            self._outcome_oh = ArrayOneHotEncoder(
                 categories=[self.y_hat_dict["models"][0].classes_]
             )  # TODO: note that when the cfold is too large, the classes_ may not include all valid classes
             y = self._outcome_oh.fit_transform(y)
@@ -571,10 +572,10 @@ class DoubleML(BaseEstModel):
                 x[i] = self.label_dict[tuple(x_i)]
 
         if not self._is_fitted:
-            self.oh_transformer = OneHotEncoder(categories=categories)
+            self.oh_transformer = ArrayOneHotEncoder(categories=categories)
             self.oh_transformer.fit(x)
 
-        x = self.oh_transformer.transform(x).toarray()
+        x = self.oh_transformer.transform(x)
 
         return x
 

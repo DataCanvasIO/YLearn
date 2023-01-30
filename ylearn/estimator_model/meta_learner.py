@@ -1,14 +1,14 @@
-import numpy as np
-
-from sklearn import clone
-from sklearn.preprocessing import OrdinalEncoder, OneHotEncoder
 from collections import defaultdict
 
+import numpy as np
+from sklearn import clone
+from sklearn.preprocessing import OrdinalEncoder
+
+from ylearn.sklearn_ex import ArrayOneHotEncoder
 from .base_models import BaseEstModel
 from .utils import (
     convert2array,
     get_groups,
-    get_treat_control,
     get_wv,
     cartesian,
     get_tr_ctrl,
@@ -406,10 +406,10 @@ class SLearner(BaseEstModel):
                 x[i] = self.label_dict[tuple(x_i)]
 
         if not self._is_fitted:
-            self.oh_transformer = OneHotEncoder(categories=categories)
+            self.oh_transformer = ArrayOneHotEncoder(categories=categories)
             self.oh_transformer.fit(x)
 
-        x = self.oh_transformer.transform(x).toarray()
+        x = self.oh_transformer.transform(x)
 
         return x
 
@@ -434,9 +434,9 @@ class SLearner(BaseEstModel):
         -------
         instance of SLearner
         """
-        self.transformer = OneHotEncoder(categories=categories)
+        self.transformer = ArrayOneHotEncoder(categories=categories)
         self.transformer.fit(x)
-        x = self.transformer.transform(x).toarray()
+        x = self.transformer.transform(x)
         self._x_d = x.shape[1]
         x = np.concatenate((wv, x), axis=1)
         y = y.squeeze()
@@ -939,10 +939,10 @@ class TLearner(BaseEstModel):
                 x[i] = self.label_dict[tuple(x_i)]
 
         if not hasattr(self, "oh_transformer"):
-            self.oh_transformer = OneHotEncoder()
+            self.oh_transformer = ArrayOneHotEncoder()
             self.oh_transformer.fit(x)
 
-        x = self.oh_transformer.transform(x).toarray()
+        x = self.oh_transformer.transform(x)
 
         return x
 
@@ -1396,7 +1396,7 @@ class XLearner(BaseEstModel):
 
         # Step 2
         if self.proba_output:
-            self._outcome_oh = OneHotEncoder(categories=[self.ft_model.classes_])
+            self._outcome_oh = ArrayOneHotEncoder(categories=[self.ft_model.classes_])
             y_treat = self._outcome_oh.fit_transform(y_treat.reshape(-1, 1))
             y_control = self._outcome_oh.transform(y_control.reshape(-1, 1))
 
@@ -1453,10 +1453,10 @@ class XLearner(BaseEstModel):
                 x[i] = self.label_dict[tuple(x_i)]
 
         if not hasattr(self, "oh_transformer"):
-            self.oh_transformer = OneHotEncoder()
+            self.oh_transformer = ArrayOneHotEncoder()
             self.oh_transformer.fit(x)
 
-        x = self.oh_transformer.transform(x).toarray()
+        x = self.oh_transformer.transform(x)
 
         return x
 
@@ -1503,7 +1503,7 @@ class XLearner(BaseEstModel):
         f0_model.fit(_wv_control, _y_control)
 
         if self.proba_output:
-            self._outcome_oh = OneHotEncoder(categories=[f0_model.classes_])
+            self._outcome_oh = ArrayOneHotEncoder(categories=[f0_model.classes_])
             _y_control = self._outcome_oh.fit_transform(_y_control.reshape(-1, 1))
             for treat in treat_arrays[1:]:
                 ft_model = clone(self.ft_model)
