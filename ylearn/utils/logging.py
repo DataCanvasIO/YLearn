@@ -159,6 +159,9 @@ class CustomizedLogger(_logging.Logger):
     def warning(self, msg, *args, **kwargs):
         self.log(WARN, msg, *args, **kwargs)
 
+    def warn(self, msg, *args, **kwargs):
+        self.log(WARN, msg, *args, **kwargs)
+
     def info(self, msg, *args, **kwargs):
         self.log(INFO, msg, *args, **kwargs)
 
