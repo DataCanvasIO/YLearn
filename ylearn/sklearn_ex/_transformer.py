@@ -1,4 +1,5 @@
 import copy
+import inspect
 import math
 
 import numpy as np
@@ -7,13 +8,47 @@ from sklearn.base import BaseEstimator
 from sklearn.compose import make_column_selector
 from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import OrdinalEncoder, LabelEncoder, StandardScaler
+from sklearn.preprocessing import OrdinalEncoder, LabelEncoder, StandardScaler, OneHotEncoder
 
 from ylearn.utils import logging, const, infer_task_type, is_os_darwin
 from ._data_cleaner import DataCleaner
 from ._dataframe_mapper import DataFrameMapper
 
 logger = logging.get_logger(__name__)
+
+
+class ArrayOneHotEncoder(OneHotEncoder):
+    def __init__(self,
+                 *,
+                 categories="auto",
+                 drop=None,
+                 dtype=np.float64,
+                 handle_unknown="error",
+                 min_frequency=None,
+                 max_categories=None, ):
+        keys = set(inspect.signature(OneHotEncoder.__init__).parameters.keys())
+        options = {}
+
+        if 'categories' in keys:
+            options.update(categories=categories)
+        if 'drop' in keys:
+            options.update(drop=drop)
+        if 'dtype' in keys:
+            options.update(dtype=dtype)
+        if 'handle_unknown' in keys:
+            options.update(handle_unknown=handle_unknown)
+        if 'min_frequency' in keys:
+            options.update(min_frequency=min_frequency)
+        if 'max_categories' in keys:
+            options.update(max_categories=max_categories)
+
+        if 'sparse_output' in keys:
+            # above sklearn 1.2
+            options['sparse_output'] = False
+        elif 'sparse' in keys:
+            options['sparse'] = False
+
+        super(ArrayOneHotEncoder, self).__init__(**options)
 
 
 class SafeOrdinalEncoder(OrdinalEncoder):
