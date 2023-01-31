@@ -129,6 +129,38 @@ class _GrfTree:
     def _predict_with_array(self, w, v, return_node=False):
         return np.array([self._traverse(v_i, self.root, return_node) for v_i in v])
 
+    def apply(self, w, v):
+        """Return the index of the leaf that each sample is predicted as.
+
+        Parameters
+        ----------
+        wv : ndarray of shape (n_samples, n_features)
+            The input samples. Internally, it will be converted to
+            ``dtype=np.float32``.
+
+        Returns
+        -------
+        X_leaves : array-like of shape (n_samples,)
+            For each datapoint x in X, return the index of the leaf x
+            ends up in. Leaves are numbered within
+            ``[0; self.tree_.node_count)``, possibly with gaps in the
+            numbering.
+        """
+        assert self._is_fitted, "The model is not fitted yet"
+        values = []
+        if w is None:
+            w = [i for i in range(len(v))]
+        for i in w:
+            node = self.root
+            sample = v[i]
+            while node.left:
+                if sample[node.feature] <= node.threshold:
+                    node = node.left
+                else:
+                    node = node.right
+            values.append(node.value)
+        return values
+
     def _build_tree(self, x, y, w, v, cur_depth=0):
         # return a leaf if has only one sample
         if len(y) == 1:
