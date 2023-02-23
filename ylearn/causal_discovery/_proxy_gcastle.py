@@ -4,18 +4,17 @@ see: https://github.com/huawei-noah/trustworthyAI/tree/master/gcastle
 """
 import copy
 import os
+from contextlib import redirect_stderr, redirect_stdout
 
 import numpy as np
 import pandas as pd
 
-if os.getenv('CASTLE_BACKEND') is None:
-    os.environ['CASTLE_BACKEND'] = 'pytorch'
-
-from castle import algorithms as A
-from castle.common import BaseLearner
-
 from ylearn.utils import drop_none, set_random_state, logging
 from ._base import BaseDiscovery
+
+with open(os.devnull, "w") as f, redirect_stdout(f), redirect_stderr(f):
+    from castle import algorithms as A
+    from castle.common import BaseLearner
 
 logger = logging.get_logger(__name__)
 
