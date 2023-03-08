@@ -6,7 +6,6 @@ import pandas as pd
 from sklearn.preprocessing import LabelEncoder
 
 from ylearn import sklearn_ex as skex
-from ylearn.causal_discovery import BaseDiscovery
 from ylearn.causal_model import CausalModel, CausalGraph
 from ylearn.utils import logging
 from .utils import align_task_to_first, select_by_task, is_empty, non_empty, is_number
@@ -138,6 +137,7 @@ class IdentifierWithDiscovery(DefaultIdentifier):
         if method is None:
             method = ('backdoor', 'simple')
 
+        from ylearn.causal_discovery import BaseDiscovery
         causal_dict = BaseDiscovery.matrix2dict(causal_matrix)
         cg = CausalGraph(causal_dict)
         cm = CausalModel(cg)
@@ -170,6 +170,7 @@ class IdentifierWithDiscovery(DefaultIdentifier):
     @staticmethod
     def _identify_ci_straight_forward(causal_matrix, data, outcome, treatment):
         # expand causal dict
+        from ylearn.causal_discovery import BaseDiscovery
         causal_dict = BaseDiscovery.matrix2dict(causal_matrix)
         m0 = deepcopy(causal_dict)
         for _ in range(data.shape[1] + 1):

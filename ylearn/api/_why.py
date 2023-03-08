@@ -10,7 +10,6 @@ from sklearn.preprocessing import LabelEncoder
 
 from ylearn import sklearn_ex as skex
 from ylearn import uplift as L
-from ylearn.causal_discovery import BaseDiscovery
 from ylearn.causal_model import CausalGraph
 from ylearn.estimator_model import ESTIMATOR_FACTORIES, BaseEstModel
 from ylearn.utils import logging, view_pydot, to_repr, drop_none, set_random_state
@@ -538,6 +537,7 @@ class Why:
 
         if causation is not None:
             threshold = causation.values.diagonal().max()
+            from ylearn.causal_discovery import BaseDiscovery
             m = BaseDiscovery.matrix2dict(causation, threshold=threshold)
         else:
             m = {}
