@@ -84,6 +84,55 @@ def join_list(*args):
     return r
 
 
+def nmap(func, iterables, keys=None, attrs=None):
+    """
+    run python map and return multi values.
+
+    Examples:
+
+        def foo(x):
+            return x, x * x
+
+
+        def bar(x):
+            return dict(x=x, x2=x * x, x3=x * x * x)
+
+
+        def baz(x):
+            class C:
+                pass
+
+            o = C()
+            o.x = x
+            o.x2 = x * x
+            return o
+
+
+        x, x2 = nmap(foo, range(5))
+        print(x, x2)
+
+        x, x2 = nmap(bar, range(5), keys=['x', 'x2'])
+        print(x, x2)
+
+        x, x2 = nmap(baz, range(5), attrs=['x', 'x2'])
+        print(x, x2)
+
+    """
+    assert keys is None or isinstance(keys, (list, tuple))
+    assert attrs is None or isinstance(attrs, (list, tuple))
+    assert not (keys is not None and attrs is not None)
+
+    if keys is not None:
+        from operator import itemgetter
+        result = zip(*map(itemgetter(*keys), map(func, iterables)))
+    elif attrs is not None:
+        from operator import attrgetter
+        result = zip(*map(attrgetter(*attrs), map(func, iterables)))
+    else:
+        result = zip(*map(func, iterables))
+    return result
+
+
 @_contextlib.contextmanager
 def context(msg):
     try:
