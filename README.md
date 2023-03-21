@@ -279,6 +279,26 @@ We provide several communcication channels for developers.
 
    <img src="./fig/wechat_QRcode.png" width="200">
 
+##  Citation
+
+如果想引用YLearn在你的研究中，请使用下面指示:
+
+Bochen Lyu, Xuefeng Li, Jian Yang.  
+**YLearn: A Python Package for Causal Inference.** 
+https://github.com/DataCanvasIO/YLearn, 2022. Version 0.2.x.
+
+BibTex:
+
+```
+@misc{YLearn,
+  author={Bochen Lyu，Xuefeng Li，Jian Yang},
+  title={{YLearn}: { A Python Package for Causal Inference}},
+  howpublished={https://github.com/DataCanvasIO/YLearn},
+  note={Version 0.2.x},
+  year={2022}
+}
+```
+
 ## License
 See the [LICENSE](LICENSE) file for license rights and limitations (Apache-2.0).
 

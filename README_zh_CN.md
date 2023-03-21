@@ -228,6 +228,27 @@ YLearn 有5个主要的因果推断相关概念，如下所示
 
 欢迎来自社区的开发者贡献！在开始前，请先阅读 [code of conduct](CODE_OF_CONDUCT.md) 和 [contributing guidelines](CONTRIBUTING.md).
 
+##  引用
+
+If you use YLearn in your research, please cite us as follows:
+
+Bochen Lyu, Xuefeng Li, Jian Yang.  
+**YLearn: A Python Package for Causal Inference.** 
+https://github.com/DataCanvasIO/YLearn, 2022. Version 0.2.x.
+
+BibTex:
+
+```
+@misc{YLearn,
+  author={Bochen Lyu，Xuefeng Li，Jian Yang},
+  title={{YLearn}: { A Python Package for Causal Inference}},
+  howpublished={https://github.com/DataCanvasIO/YLearn},
+  note={Version 0.2.x},
+  year={2022}
+}
+```
+
+
 ## 交流渠道
 
 我们为开发者提供多种交流渠道：
