@@ -281,7 +281,7 @@ We provide several communcication channels for developers.
 
 ##  Citation
 
-如果想引用YLearn在你的研究中，请使用下面指示:
+If you use YLearn in your research, please cite us as follows:
 
 Bochen Lyu, Xuefeng Li, Jian Yang.  
 **YLearn: A Python Package for Causal Inference.** 

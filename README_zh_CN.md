@@ -230,7 +230,7 @@ YLearn 有5个主要的因果推断相关概念，如下所示
 
 ##  引用
 
-If you use YLearn in your research, please cite us as follows:
+如果您想引用YLearn在您的研究中，请使用下面信息:
 
 Bochen Lyu, Xuefeng Li, Jian Yang.  
 **YLearn: A Python Package for Causal Inference.** 
