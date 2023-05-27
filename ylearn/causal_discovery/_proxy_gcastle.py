@@ -4,7 +4,7 @@ see: https://github.com/huawei-noah/trustworthyAI/tree/master/gcastle
 """
 import copy
 import os
-from contextlib import redirect_stderr, redirect_stdout
+import sys
 
 import numpy as np
 import pandas as pd
@@ -12,9 +12,17 @@ import pandas as pd
 from ylearn.utils import drop_none, set_random_state, logging
 from ._base import BaseDiscovery
 
-with open(os.devnull, "w") as f, redirect_stdout(f), redirect_stderr(f):
+devnull = open(os.devnull, "w")
+stdout_orig = sys.stdout
+stderr_orig = sys.stderr
+try:
+    sys.stdout = devnull
+    sys.stderr = devnull
     from castle import algorithms as A
     from castle.common import BaseLearner
+finally:
+    sys.stdout = stdout_orig
+    sys.stderr = stderr_orig
 
 logger = logging.get_logger(__name__)
 
