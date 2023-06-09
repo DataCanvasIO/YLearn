@@ -201,7 +201,7 @@ if pyx_modules:
                            pyx_modules))
     pyx_modules = cythonize(pyx_modules, compiler_directives={'language_level': "3"})
 
-MIN_PYTHON_VERSION = '>=3.6.*'
+MIN_PYTHON_VERSION = '>=3.6'
 
 # long_description = open('README.md', encoding='utf-8').read()
 long_description = read_description('README.md')
