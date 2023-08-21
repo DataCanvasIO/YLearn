@@ -2,8 +2,10 @@
 Adapted from notears.utils.
 """
 import numpy as np
+import torch
 from scipy.special import expit as sigmoid
 import igraph as ig
+import networkx as nx
 import random
 
 
@@ -203,6 +205,116 @@ def simulate_nonlinear_sem(B, n, sem_type, noise_scale=None):
         X[:, j] = _simulate_single_equation(X[:, parents], scale_vec[j])
     return X
 
+def generate_tri(nodes_dim, graph_type, order, degree, low_value=0.3, high_value=0.5): #num_nodes是变量数
+    A_bin = np.zeros((nodes_dim, nodes_dim, order))
+    if graph_type == 'ER':
+        for p in range(order):
+            A_bin[:, :, p] = simulate_random_graph(nodes_dim, graph_type, order, degree,
+                                                   Bernoulli_trial=0, is_acyclic=1)
+    return A_bin
+
+def simulate_random_graph(nodes_dim, graph_type, order, degree, Bernoulli_trial=0, is_acyclic=1):
+    def _random_permutation():
+        # np.random.permutation permutes first axis only
+        P = np.random.permutation(np.eye(nodes_dim))
+        return P.T @ A_bin @ P
+
+    if graph_type == 'ER':
+        A_bin = simulate_er_dag(degree, nodes_dim, Bernoulli_trial, is_acyclic)
+    elif graph_type == 'SF':
+        A_bin = simulate_sf_dag(degree, nodes_dim)
+    else:
+        raise ValueError("Unknown graph type.")
+    return _random_permutation()
+
+def simulate_er_dag(degree, nodes_dim, Bernoulli_trial, is_acyclic):
+
+    def _get_acyclic_graph(A_und, is_acyclic):
+        return np.tril(A_und, k=is_acyclic)
+
+    def _graph_to_adjmat(G):
+        return nx.to_numpy_matrix(G)
+
+    p = float(degree) / (nodes_dim - Bernoulli_trial)
+    G_und = nx.generators.erdos_renyi_graph(n=nodes_dim, p=p)
+    A_und_bin = _graph_to_adjmat(G_und)  # Undirected
+    A_bin = _get_acyclic_graph(A_und_bin, is_acyclic)
+    return A_bin
+
+def simulate_sf_dag(degree, nodes_dim):
+    m = int(round(degree / 2))
+    G = ig.Graph.Barabasi(n=nodes_dim, m=m, directed=True)
+    A_bin = np.array(G.get_adjacency().data)
+    return A_bin
+
+def simulate_weight_A(A_bin, order, scale=1.0, low=0.3, high=0.5, eta=1.5):
+    nums_dim = A_bin.shape[0]
+    A = np.zeros((nums_dim, nums_dim, order))
+    for k_order in range(1, A.shape[2]+1):
+        A_ranges = (
+        (scale * -low * (1 / eta ** (k_order - 1)), scale * -high * (1 / eta ** (k_order - 1))),
+        (scale * high * (1 / eta ** (k_order - 1)), scale * low * (1 / eta ** (k_order - 1))))
+        S = np.random.randint(len(A_ranges), size=(nums_dim, nums_dim))
+        for i, (low_A, high_A) in enumerate(A_ranges):
+            U = np.random.uniform(low=low_A, high=high_A, size=(nums_dim, nums_dim))
+            A[:, :, k_order-1] += A_bin[:, :, k_order-1] * (S == i) * U
+    return A
+
+
+def simulate_linear_sem_with_A(A, B, lagX, n, sem_type, noise_scale=None):
+    def _simulate_single_equation(X, B, scale, time):
+        if sem_type == 'gauss':
+            z = np.random.normal(scale=scale, size=n)
+            # print(X.shape, B.shape, z.shape)
+            x = X @ B + time * z
+        elif sem_type == 'exp':
+            z = np.random.exponential(scale=scale, size=n)
+            x = X @ B + time * z
+        elif sem_type == 'gumbel':
+            z = np.random.gumbel(scale=scale, size=n)
+            x = X @ B + time * z
+        elif sem_type == 'uniform':
+            z = np.random.uniform(low=-scale, high=scale, size=n)
+            x = X @ B + time * z
+        elif sem_type == 'logistic':
+            x = np.random.binomial(1, sigmoid(X @ B)) * 1.0
+        elif sem_type == 'poisson':
+            x = np.random.poisson(np.exp(X @ B)) * 1.0
+        else:
+            raise ValueError('unknown sem type')
+        return x
+    d = B.shape[0]
+    order = A.shape[2]
+    if noise_scale is None:
+        scale_vec = np.ones(d)
+    elif np.isscalar(noise_scale):
+        scale_vec = noise_scale * np.ones(d)
+    else:
+        if len(noise_scale) != d:
+            raise ValueError('noise scale must be a scalar or has length d')
+        scale_vec = noise_scale
+    if not is_dag(B):
+        raise ValueError('B must be a DAG')
+    if np.isinf(n):  # population risk for linear gauss SEM
+        if sem_type == 'gauss':
+            # make 1/d X'X = true cov
+            X = np.sqrt(d) * np.diag(scale_vec) @ np.linalg.inv(np.eye(d) - B)
+            return X
+        else:
+            raise ValueError('population risk not available')
+
+    G = ig.Graph.Weighted_Adjacency(B.tolist())
+    ordered_vertices = G.topological_sorting()
+    assert len(ordered_vertices) == d
+    X = np.zeros([n,d])
+    for j in ordered_vertices:
+        intra_parents = G.neighbors(j, mode=ig.IN)
+        X[:, j] = _simulate_single_equation(X[:, intra_parents], B[intra_parents, j], scale_vec[j], 0)
+        for k in range(order):
+            inter_G = ig.Graph.Weighted_Adjacency(A[:, :, k].tolist())
+            inter_parents = inter_G.neighbors(j, mode=ig.IN)
+            X[:, j] += _simulate_single_equation(lagX[k, :, inter_parents].T, A[inter_parents, j, k], scale_vec[j], 1)
+    return X
 
 def count_accuracy(B_true, B_est):
     """Compute various accuracy metrics for B_est.
@@ -222,16 +334,16 @@ def count_accuracy(B_true, B_est):
         shd: undirected extra + undirected missing + reverse
         nnz: prediction positive
     """
-    if (B_est == -1).any():  # cpdag
-        if not ((B_est == 0) | (B_est == 1) | (B_est == -1)).all():
-            raise ValueError('B_est should take value in {0,1,-1}')
-        if ((B_est == -1) & (B_est.T == -1)).any():
-            raise ValueError('undirected edge should only appear once')
-    else:  # dag
-        if not ((B_est == 0) | (B_est == 1)).all():
-            raise ValueError('B_est should take value in {0,1}')
-        if not is_dag(B_est):
-            raise ValueError('B_est should be a DAG')
+    # if (B_est == -1).any():  # cpdag
+    #     if not ((B_est == 0) | (B_est == 1) | (B_est == -1)).all():
+    #         raise ValueError('B_est should take value in {0,1,-1}')
+    #     if ((B_est == -1) & (B_est.T == -1)).any():
+    #         raise ValueError('undirected edge should only appear once')
+    # else:  # dag
+    #     if not ((B_est == 0) | (B_est == 1)).all():
+    #         raise ValueError('B_est should take value in {0,1}')
+    #     if not is_dag(B_est):
+    #         raise ValueError('B_est should be a DAG')
     d = B_true.shape[0]
     # linear index of nonzeros
     pred_und = np.flatnonzero(B_est == -1)
@@ -267,7 +379,37 @@ def count_accuracy(B_true, B_est):
 
 
 def gen(n=100, d=5, s0=5, noise_scale=None):
+    s0 = 1 * d
     graph_type, sem_type = 'ER', 'gauss'
     B_true = simulate_dag(d, s0, graph_type)
     W_true = simulate_parameter(B_true)
     return simulate_linear_sem(W_true, n, sem_type, noise_scale=noise_scale)
+
+
+def dygen(n=5, d=3, step=5, order=2, noise_scale=None):
+    """
+    Adapted from GraphNotears.
+    """
+    assert order <= step
+    s0 = 1 * d
+    degree = 2
+    graph_type, sem_type = 'ER', 'gauss'
+    B_bin = simulate_dag(d, s0, graph_type)
+    B_mat = simulate_parameter(B_bin)
+
+    A_bin = generate_tri(d, graph_type, order, degree)
+    A_mat = simulate_weight_A(A_bin, order)
+
+    Xbase = np.array([simulate_linear_sem(B_mat, n, sem_type, noise_scale=noise_scale) for _ in range(order)])
+    # 生成后续的Xbase
+    for i in range(step):
+        Xbase1 = simulate_linear_sem_with_A(A_mat, B_mat, Xbase[-order:], n, sem_type, noise_scale=noise_scale)
+        Xbase = np.append(Xbase, [Xbase1], axis=0)
+    Xbase = np.array(Xbase)
+    Xbase = Xbase.reshape(-1, Xbase.shape[2])
+    return Xbase, B_mat, A_mat
+
+
+if __name__ == '__main__':
+    X = dygen()
+    print(X.shape)
