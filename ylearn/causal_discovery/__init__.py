@@ -4,6 +4,11 @@ from ._base import BaseDiscovery
 
 try:
     from ._discovery import CausalDiscovery
+    from ._discovery import GolemDiscovery
+    from ._discovery import DagmaDiscovery
+    from ._dydiscovery import DyCausalDiscovery
+    from ._dydiscovery import DygolemCausalDiscovery
+
 except ImportError as e:
     _msg_cd = f'{e}, install pytorch and try again.'
 
