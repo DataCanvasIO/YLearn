@@ -2,7 +2,6 @@
 Adapted from notears.utils.
 """
 import numpy as np
-import torch
 from scipy.special import expit as sigmoid
 import igraph as ig
 import networkx as nx
