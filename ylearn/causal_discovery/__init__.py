@@ -36,3 +36,10 @@ except ImportError as e:
     class PgmProxy(BaseDiscovery):
         def __init__(self, *args, **kwargs):
             raise ImportError(_msg_pgm)
+except SyntaxError as e:
+    _msg_pgm = f'{e}, re-install pgmpy and try again.'
+
+
+    class PgmProxy(BaseDiscovery):
+        def __init__(self, *args, **kwargs):
+            raise SyntaxError(_msg_pgm)
