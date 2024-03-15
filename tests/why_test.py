@@ -20,7 +20,7 @@ try:
 
     _g = PgmProxy()
     is_pgm_ready = True
-except ImportError:
+except (ImportError, SyntaxError):
     is_pgm_ready = False
 
 
